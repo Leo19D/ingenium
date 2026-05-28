@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------------------
     # Auth
     # ---------------------------------------------------------------------
+    APP_BASE_URL: str = "http://localhost:8000"
     AUTH_PROVIDER: Literal["local", "clerk", "auth0"] = "local"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

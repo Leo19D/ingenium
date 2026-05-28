@@ -1,25 +1,67 @@
 """
 Reusable FastAPI dependencies.
 
-`get_current_org_id` — vraća UUID trenutne organizacije.
-  Trenutno: hardkodirana demo organizacija iz seed.sql.
-  Kada implementiraš auth, samo zamijeni ovu funkciju da čita iz JWT-a.
+get_current_user    — dekodira Bearer JWT, vraća User objekt
+get_current_org_id  — izvlači org UUID iz JWT (brzo, bez DB)
 """
 
 from __future__ import annotations
 
 from uuid import UUID
 
-# Demo org iz db/seed.sql — sve dok nemamo auth
-DEMO_ORG_ID = UUID("00000000-0000-0000-0000-000000000001")
-DEMO_USER_ID = UUID("00000000-0000-0000-0000-000000000010")
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import decode_token
+from app.db.models.user import User
+from app.db.session import get_db
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-def get_current_org_id() -> UUID:
-    """Vraća UUID trenutne organizacije. Bez auth-a — vraća demo org."""
-    return DEMO_ORG_ID
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Provjeri Bearer token i vrati korisnika. 401 ako nije valjan."""
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Niste prijavljeni ili je sesija istekla.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = decode_token(token)
+    except JWTError:
+        raise credentials_exc
+
+    if payload.get("type") != "access":
+        raise credentials_exc
+
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise credentials_exc
+
+    user = await db.get(User, UUID(user_id_str))
+    if not user or not user.is_active or not user.is_verified:
+        raise credentials_exc
+    return user
 
 
-def get_current_user_id() -> UUID:
-    """Vraća UUID trenutnog korisnika. Bez auth-a — vraća demo usera."""
-    return DEMO_USER_ID
+async def get_current_org_id(
+    token: str = Depends(oauth2_scheme),
+) -> UUID:
+    """Izvuci org_id iz JWT-a (bez DB poziva)."""
+    try:
+        payload = decode_token(token)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Niste prijavljeni ili je sesija istekla.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    org_str = payload.get("org")
+    if not org_str:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ne sadrži org.")
+    return UUID(org_str)

@@ -25,17 +25,21 @@ CREATE TABLE IF NOT EXISTS organizations (
 -- USERS & MEMBERSHIPS
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email           CITEXT UNIQUE NOT NULL,
-    full_name       TEXT NOT NULL,
-    auth_provider   TEXT,
-    auth_subject    TEXT,
-    hashed_password TEXT,
-    locale          TEXT,
-    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email                           CITEXT UNIQUE NOT NULL,
+    full_name                       TEXT NOT NULL,
+    auth_provider                   TEXT,
+    auth_subject                    TEXT,
+    hashed_password                 TEXT,
+    locale                          TEXT,
+    is_active                       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_verified                     BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_token              VARCHAR(128),
+    verification_token_expires_at   TIMESTAMPTZ,
+    created_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS ix_users_verification_token ON users(verification_token);
 
 CREATE TABLE IF NOT EXISTS memberships (
     org_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

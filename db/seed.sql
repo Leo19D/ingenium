@@ -15,15 +15,19 @@ VALUES (
     'Europe/Zagreb'
 ) ON CONFLICT (slug) DO NOTHING;
 
--- Demo user (lozinka: demo123 — bcrypt hash)
-INSERT INTO users (id, email, full_name, auth_provider, hashed_password, locale)
+-- Leo Dupanovic — owner account (lozinka se postavlja pri prvom loginu ili reset-om)
+-- is_verified=true jer je vlasnik, ne treba verifikaciju
+-- Lozinka: postaviti ćeš je kroz /api/v1/auth/register ili direktno ovdje kao hash
+INSERT INTO users (id, email, full_name, auth_provider, hashed_password, locale, is_active, is_verified)
 VALUES (
     '00000000-0000-0000-0000-000000000010',
-    'demo@example.com',
-    'Demo User',
+    'leodupanovic1@gmail.com',
+    'Leo Dupanovic',
     'local',
-    '$2b$12$LQv3c1yqBwlVHpPjrCeyJ.YHm9.YuTRtgKQK7N7N3y8X4VfNqZX5y',  -- demo123
-    'hr-HR'
+    '$2b$12$fyEtSb2rYSy6dl1UTrpGxeZRltJnqTtc1ZgKoA7wjFs76Y3CqCjGO',  -- demo123 (PROMIJENI!)
+    'hr-HR',
+    true,
+    true
 ) ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO memberships (org_id, user_id, role)

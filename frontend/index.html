@@ -253,6 +253,38 @@ textarea.form-input { resize: vertical; }
 
 .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg2); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 12px 18px; font-size: 13px; z-index: 500; animation: toastIn 0.2s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
 @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ===== LOGIN SCREEN ===== */
+#login-screen { position: fixed; inset: 0; z-index: 1000; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+#login-screen.hidden { display: none; }
+.login-card { width: 400px; max-width: 96vw; background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+.login-header { padding: 32px 36px 24px; border-bottom: 1px solid var(--border); }
+.login-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+.login-logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.login-logo-name { font-family: var(--font-display); font-weight: 800; font-size: 18px; color: var(--text); letter-spacing: -0.4px; }
+.login-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--text); letter-spacing: -0.5px; margin: 0 0 6px; }
+.login-sub { font-size: 13px; color: var(--text3); margin: 0; }
+.login-body { padding: 28px 36px 32px; }
+.login-error { background: var(--red-dim); border: 1px solid rgba(244,122,106,0.25); border-radius: var(--r-sm); padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 18px; display: none; }
+.login-error.visible { display: block; }
+.login-input-wrap { position: relative; margin-bottom: 14px; }
+.login-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: 11px 14px; color: var(--text); font-family: var(--font-body); font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+.login-input:focus { border-color: var(--accent); }
+.login-input::placeholder { color: var(--text3); }
+.login-btn { width: 100%; padding: 12px; background: var(--accent); color: #0a1a0d; border: none; border-radius: var(--r-sm); font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: background 0.15s; margin-top: 4px; }
+.login-btn:hover:not(:disabled) { background: var(--accent2); }
+.login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.login-footer { text-align: center; font-size: 12px; color: var(--text3); margin-top: 20px; line-height: 1.5; }
+.login-footer span { color: var(--accent); font-family: var(--font-mono); }
+
+/* Sidebar user card */
+.user-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); }
+.user-avatar { width: 30px; height: 30px; background: var(--bg4); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 12px; color: var(--accent); border: 1px solid var(--border2); flex-shrink: 0; }
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-email { font-size: 10px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logout-btn { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 4px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; }
+.logout-btn:hover { color: var(--red); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -289,12 +321,13 @@ textarea.form-input { resize: vertical; }
   </nav>
 
   <div class="sidebar-bottom">
-    <div class="org-card">
-      <div class="org-avatar">EL</div>
-      <div>
-        <div class="org-name">Elektro d.o.o.</div>
-        <div class="org-role">Sales Manager</div>
+    <div class="user-card" id="sidebar-user">
+      <div class="user-avatar" id="user-initials">–</div>
+      <div class="user-info">
+        <div class="user-name" id="user-fullname">–</div>
+        <div class="user-email" id="user-email-display">–</div>
       </div>
+      <button class="logout-btn" onclick="logout()" title="Odjava">⏻</button>
     </div>
   </div>
 </aside>
@@ -980,45 +1013,6 @@ textarea.form-input { resize: vertical; }
 </div>
 
 <script>
-// ========== API SLOJ ==========
-// Ako je backend dostupan (make up), koristi ga. Inače in-memory (make demo).
-const API_BASE = (location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/api/v1';
-var apiAvailable = false;
-
-async function checkApi() {
-  try {
-    const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(2000) });
-    apiAvailable = r.ok;
-  } catch (e) {
-    apiAvailable = false;
-  }
-  const badge = document.getElementById('api-status');
-  if (badge) {
-    badge.textContent = apiAvailable ? '● backend spojen' : '○ demo mode (in-memory)';
-    badge.style.color = apiAvailable ? 'var(--accent)' : 'var(--text3)';
-  }
-  return apiAvailable;
-}
-
-async function apiGet(path) {
-  const r = await fetch(API_BASE + path);
-  if (!r.ok) throw new Error('GET ' + path + ' → ' + r.status);
-  return r.json();
-}
-
-async function apiPost(path, body) {
-  const r = await fetch(API_BASE + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    let detail = r.status;
-    try { detail = (await r.json()).detail || r.status; } catch (e) {}
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
-  }
-  return r.json();
-}
 
 const views = {
   dashboard: 'Dashboard',
@@ -1707,15 +1701,234 @@ function filterList(input, className) {
   });
 })();
 
-// ========== STARTUP ==========
-(async function init() {
-  await checkApi();
-  if (apiAvailable) {
+// ========== AUTH ==========
+const TOKEN_KEY = 'aqp_token';
+const REFRESH_KEY = 'aqp_refresh';
+var currentUser = null;
+
+function _getToken() { return localStorage.getItem(TOKEN_KEY); }
+function _getRefresh() { return localStorage.getItem(REFRESH_KEY); }
+function _setTokens(access, refresh) {
+  localStorage.setItem(TOKEN_KEY, access);
+  localStorage.setItem(REFRESH_KEY, refresh);
+}
+function _clearTokens() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+function hideLoginScreen() {
+  document.getElementById('login-screen').classList.add('hidden');
+}
+
+function _updateSidebarUser(user) {
+  if (!user) return;
+  const initials = (user.full_name || user.email).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('user-initials').textContent = initials;
+  document.getElementById('user-fullname').textContent = user.full_name || user.email;
+  document.getElementById('user-email-display').textContent = user.email;
+}
+
+async function checkAuth() {
+  const token = _getToken();
+  if (!token) return false;
+  try {
+    const r = await fetch(API_BASE + '/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) { _clearTokens(); return false; }
+    currentUser = await r.json();
+    _updateSidebarUser(currentUser);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function _tryRefresh() {
+  const refresh = _getRefresh();
+  if (!refresh) return false;
+  try {
+    const r = await fetch(API_BASE + '/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!r.ok) { _clearTokens(); return false; }
+    const data = await r.json();
+    _setTokens(data.access_token, data.refresh_token);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  err.classList.remove('visible');
+  if (!email || !password) { err.textContent = 'Unesi email i lozinku.'; err.classList.add('visible'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Prijava...';
+  try {
+    const r = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      const msg = data.detail || (r.status === 401 ? 'Neispravni podaci.' : r.status === 403 ? 'Email nije potvrđen — provjeri inbox.' : 'Greška pri prijavi.');
+      err.textContent = msg;
+      err.classList.add('visible');
+      return;
+    }
+    const data = await r.json();
+    _setTokens(data.access_token, data.refresh_token);
+    currentUser = await (await fetch(API_BASE + '/auth/me', { headers: { 'Authorization': 'Bearer ' + data.access_token } })).json();
+    _updateSidebarUser(currentUser);
+    hideLoginScreen();
+    apiAvailable = true;
     await loadClients();
     await loadSuppliers();
     await loadStock();
+    showToast('Dobrodošao, ' + (currentUser.full_name || currentUser.email) + '!');
+  } catch (e) {
+    err.textContent = 'Greška mreže. Pokušaj ponovo.';
+    err.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Prijava';
   }
+}
+
+async function logout() {
+  _clearTokens();
+  currentUser = null;
+  apiAvailable = false;
+  showLoginScreen();
+  showToast('Odjavljen/a si.');
+}
+
+// ========== API SLOJ (s auth) ==========
+// Ako je backend dostupan (make up), koristi ga. Inače in-memory (make demo).
+const API_BASE = (location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/api/v1';
+var apiAvailable = false;
+
+function _authHeaders(extra) {
+  const h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+  const token = _getToken();
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
+async function checkApi() {
+  try {
+    const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(2000) });
+    apiAvailable = r.ok;
+  } catch (e) {
+    apiAvailable = false;
+  }
+  const badge = document.getElementById('api-status');
+  if (badge) {
+    badge.textContent = apiAvailable ? '● backend spojen' : '○ demo mode (in-memory)';
+    badge.style.color = apiAvailable ? 'var(--accent)' : 'var(--text3)';
+  }
+  return apiAvailable;
+}
+
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path, { headers: _authHeaders({}) });
+  if (r.status === 401) { _clearTokens(); showLoginScreen(); throw new Error('Sesija istekla'); }
+  if (!r.ok) throw new Error('GET ' + path + ' → ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: _authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (r.status === 401) { _clearTokens(); showLoginScreen(); throw new Error('Sesija istekla'); }
+  if (!r.ok) {
+    let detail = r.status;
+    try { detail = (await r.json()).detail || r.status; } catch (e) {}
+    throw new Error(String(detail));
+  }
+  return r.json();
+}
+
+// ========== STARTUP ==========
+(async function init() {
+  // Provjeri je li /?verified=1 ili /?verify_error=...
+  const params = new URLSearchParams(location.search);
+  if (params.get('verified') === '1') {
+    history.replaceState({}, '', '/');
+    setTimeout(() => showToast('Email potvrđen! Možeš se prijaviti.'), 300);
+  }
+  if (params.get('verify_error') === 'expired') {
+    history.replaceState({}, '', '/');
+    setTimeout(() => showToast('Verifikacijski link je istekao. Registriraj se ponovo.', 'error'), 300);
+  }
+  if (params.get('verify_error') === 'invalid') {
+    history.replaceState({}, '', '/');
+    setTimeout(() => showToast('Neispravan verifikacijski link.', 'error'), 300);
+  }
+
+  const reachable = await checkApi();
+  if (!reachable) {
+    // Backend nije dostupan — demo mode bez prijave
+    return;
+  }
+
+  // Backend je dostupan — provjeri autentikaciju
+  const authed = await checkAuth();
+  if (!authed) {
+    showLoginScreen();
+    return;
+  }
+
+  await loadClients();
+  await loadSuppliers();
+  await loadStock();
 })();
 </script>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="hidden">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo">
+        <div class="login-logo-icon">⚡</div>
+        <div class="login-logo-name">QuoteFlow</div>
+      </div>
+      <h1 class="login-title">Dobrodošao natrag</h1>
+      <p class="login-sub">Prijava ograničena na @ingeniumtrade.hr</p>
+    </div>
+    <div class="login-body">
+      <div class="login-error" id="login-error"></div>
+      <div class="login-input-wrap">
+        <input class="login-input" type="email" id="login-email" placeholder="Email adresa"
+               autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+      </div>
+      <div class="login-input-wrap">
+        <input class="login-input" type="password" id="login-password" placeholder="Lozinka"
+               autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+      </div>
+      <button class="login-btn" id="login-btn" onclick="login()">Prijava</button>
+      <div class="login-footer">
+        Pristup jedino za <span>@ingeniumtrade.hr</span><br>
+        ili <span>leodupanovic1@gmail.com</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
