@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("starting_application", extra={"env": settings.ENV})
+    if "sqlite" in settings.DATABASE_URL:
+        from app.db.session import _patch_metadata_for_sqlite
+        _patch_metadata_for_sqlite()
+        logger.info("sqlite_pg_types_patched")
     yield
     logger.info("shutting_down_application")
 
