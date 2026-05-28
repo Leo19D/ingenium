@@ -1,0 +1,52 @@
+# =============================================================================
+# Pojednostavljeni docker-compose za solo development
+# - Postgres s pgvector ekstenzijom
+# - Backend (FastAPI) koji servira API + frontend statički
+#
+# Za napredne servise (Redis/Celery/MinIO/Next.js) vidi docker-compose.full.yml
+# =============================================================================
+name: aqp
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aqp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-quote_platform}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: aqp-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./frontend:/app/static_frontend:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres-data:

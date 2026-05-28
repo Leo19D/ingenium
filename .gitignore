@@ -1,0 +1,99 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+.swc/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# Build output
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+docker-compose.override.yml
+
+# Local data
+data/
+uploads/
+storage/
+tmp/
+
+# Coverage
+coverage/
+*.lcov
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+redis-data/
+minio-data/

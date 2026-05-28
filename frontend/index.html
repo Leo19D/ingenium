@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuoteFlow — AI Procurement Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0f0e;
+  --bg2: #141716;
+  --bg3: #1a1d1b;
+  --bg4: #202422;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8ede9;
+  --text2: #8a9489;
+  --text3: #5a6358;
+  --accent: #a8f4b8;
+  --accent2: #6bde8a;
+  --accent-dim: rgba(168,244,184,0.1);
+  --accent-dim2: rgba(168,244,184,0.06);
+  --amber: #f4d16a;
+  --amber-dim: rgba(244,209,106,0.1);
+  --red: #f47a6a;
+  --red-dim: rgba(244,122,106,0.1);
+  --blue: #7ab8f4;
+  --blue-dim: rgba(122,184,244,0.1);
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --r: 10px;
+  --r-sm: 6px;
+}
+
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+.sidebar { width: 220px; min-width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+.logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.logo-mark { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.logo-name { font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--text); letter-spacing: -0.3px; }
+.logo-sub { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 2px; margin-left: 42px; }
+
+.nav-section { padding: 0 12px; margin-bottom: 24px; }
+.nav-label { font-size: 10px; color: var(--text3); font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 400; transition: all 0.15s; position: relative; }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--accent); border-radius: 0 2px 2px 0; }
+.nav-icon { font-size: 16px; width: 18px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #0d1f12; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; font-family: var(--font-mono); }
+
+.sidebar-bottom { margin-top: auto; padding: 16px 12px 0; border-top: 1px solid var(--border); }
+.org-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; }
+.org-avatar { width: 30px; height: 30px; background: var(--bg4); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 12px; color: var(--accent); border: 1px solid var(--border2); }
+.org-name { font-size: 12px; font-weight: 500; }
+.org-role { font-size: 11px; color: var(--text3); }
+
+.main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.topbar { height: 56px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 28px; gap: 16px; background: var(--bg); position: sticky; top: 0; z-index: 50; }
+.topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: var(--font-body); }
+.btn-primary { background: var(--accent); color: #0a1a0d; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.search-box { display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 12px; color: var(--text3); font-size: 13px; width: 220px; }
+.search-box input { background: none; border: none; outline: none; color: var(--text); font-family: var(--font-body); font-size: 13px; width: 100%; }
+.search-box input::placeholder { color: var(--text3); }
+
+.content { padding: 28px; flex: 1; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.kpi-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; position: relative; overflow: hidden; }
+.kpi-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--border2), transparent); }
+.kpi-label { font-size: 11px; color: var(--text3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.kpi-value { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+.kpi-delta { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.delta-up { color: var(--accent); }
+.delta-down { color: var(--red); }
+.kpi-icon { position: absolute; top: 18px; right: 18px; font-size: 22px; opacity: 0.2; }
+
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-title { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+
+.pipeline-stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
+.stage-col { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.stage-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.stage-name { font-size: 12px; font-weight: 500; }
+.stage-count { font-size: 11px; font-family: var(--font-mono); background: var(--bg4); padding: 2px 7px; border-radius: 20px; color: var(--text2); }
+.stage-items { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.deal-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; transition: border-color 0.15s; }
+.deal-card:hover { border-color: var(--border2); }
+.deal-name { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+.deal-client { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.deal-meta { display: flex; align-items: center; justify-content: space-between; }
+.deal-value { font-size: 12px; font-family: var(--font-mono); color: var(--accent); }
+.deal-days { font-size: 10px; color: var(--text3); }
+.deal-urgent { border-color: rgba(244,122,106,0.3); background: rgba(244,122,106,0.04); }
+.deal-urgent .deal-days { color: var(--red); }
+
+.table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+thead th { padding: 11px 16px; font-size: 11px; font-family: var(--font-mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg3); }
+td { padding: 12px 16px; font-size: 13px; }
+.quote-id { font-family: var(--font-mono); font-size: 12px; color: var(--text3); }
+.client-name { font-weight: 500; }
+.amount-cell { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.margin-cell { font-family: var(--font-mono); font-size: 12px; }
+.margin-high { color: var(--accent); }
+.margin-mid { color: var(--amber); }
+.margin-low { color: var(--red); }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-family: var(--font-mono); border: 1px solid; }
+.badge-draft { color: var(--text2); border-color: var(--border2); background: var(--bg4); }
+.badge-sent { color: var(--blue); border-color: rgba(122,184,244,0.3); background: var(--blue-dim); }
+.badge-won { color: var(--accent); border-color: rgba(168,244,184,0.3); background: var(--accent-dim2); }
+.badge-review { color: var(--amber); border-color: rgba(244,209,106,0.3); background: var(--amber-dim); }
+.badge-lost { color: var(--red); border-color: rgba(244,122,106,0.3); background: var(--red-dim); }
+
+.upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--r); padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 24px; background: var(--bg2); }
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-dim2); }
+.upload-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+.upload-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--text3); }
+
+.processing-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 16px; }
+.proc-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.proc-file-icon { width: 36px; height: 36px; background: var(--bg4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.proc-filename { font-weight: 500; font-size: 14px; }
+.proc-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.proc-status { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.progress-bar { height: 2px; background: var(--bg4); position: relative; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); transition: width 0.3s ease; }
+.progress-fill.animated { animation: shimmer 1.5s infinite; }
+@keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.extraction-table { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.extraction-table .et-header { display: grid; grid-template-columns: 2.5fr 0.7fr 0.7fr 1fr 0.8fr 0.5fr; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-family: var(--font-mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; gap: 12px; }
+.extraction-table .et-row { display: grid; grid-template-columns: 2.5fr 0.7fr 0.7fr 1fr 0.8fr 0.5fr; padding: 12px 16px; border-bottom: 1px solid var(--border); gap: 12px; align-items: center; font-size: 12px; transition: background 0.1s; }
+.extraction-table .et-row:last-child { border-bottom: none; }
+.extraction-table .et-row:hover { background: var(--bg3); }
+.et-desc { font-weight: 500; font-size: 12px; }
+.et-qty { font-family: var(--font-mono); }
+.et-price { font-family: var(--font-mono); color: var(--text2); }
+.confidence-bar { display: flex; align-items: center; gap: 6px; }
+.conf-pip { flex: 1; height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 2px; }
+.conf-high { background: var(--accent); }
+.conf-mid { background: var(--amber); }
+.conf-low { background: var(--red); }
+.conf-val { font-size: 10px; font-family: var(--font-mono); color: var(--text3); white-space: nowrap; }
+.et-actions { display: flex; gap: 4px; }
+.icon-btn { width: 26px; height: 26px; border-radius: 5px; border: 1px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text3); transition: all 0.15s; }
+.icon-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+
+.catalog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.product-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; cursor: pointer; transition: border-color 0.15s; position: relative; overflow: hidden; }
+.product-card:hover { border-color: var(--border2); }
+.product-cat { font-size: 10px; font-family: var(--font-mono); color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.product-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; font-family: var(--font-display); }
+.product-sku { font-size: 11px; font-family: var(--font-mono); color: var(--text3); margin-bottom: 10px; }
+.product-specs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+.spec-tag { font-size: 10px; font-family: var(--font-mono); background: var(--bg4); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; color: var(--text2); }
+.supplier-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--border); }
+.supplier-row:first-of-type { margin-top: 8px; }
+.sup-name { font-size: 11px; color: var(--text2); }
+.sup-price { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+.sup-best { color: var(--accent); }
+.sup-lead { font-size: 10px; color: var(--text3); }
+
+.quote-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+.line-items-table { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
+.li-header { display: grid; grid-template-columns: 3fr 0.8fr 1fr 1fr 0.8fr 0.4fr; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 10px; font-family: var(--font-mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; gap: 10px; }
+.li-row { display: grid; grid-template-columns: 3fr 0.8fr 1fr 1fr 0.8fr 0.4fr; padding: 13px 16px; border-bottom: 1px solid var(--border); gap: 10px; align-items: center; font-size: 12px; }
+.li-row:last-child { border-bottom: none; }
+.li-row:hover { background: var(--bg3); }
+.li-desc { font-weight: 500; font-size: 12px; }
+.li-cat { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+.li-qty { font-family: var(--font-mono); font-size: 12px; }
+.li-cost { font-family: var(--font-mono); font-size: 12px; color: var(--text3); }
+.li-price { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+.li-margin { font-family: var(--font-mono); font-size: 11px; }
+
+.quote-summary-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; position: sticky; top: 70px; }
+.qs-title { font-family: var(--font-display); font-weight: 600; font-size: 14px; margin-bottom: 16px; }
+.qs-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; }
+.qs-label { color: var(--text2); }
+.qs-value { font-family: var(--font-mono); }
+.qs-divider { height: 1px; background: var(--border); margin: 12px 0; }
+.qs-total { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.qs-total-label { font-family: var(--font-display); font-weight: 600; font-size: 14px; }
+.qs-total-value { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--accent); }
+.margin-gauge { background: var(--bg4); border-radius: 4px; height: 6px; margin-bottom: 8px; overflow: hidden; }
+.margin-gauge-fill { height: 100%; background: linear-gradient(90deg, var(--red) 0%, var(--amber) 40%, var(--accent) 70%); width: 72%; border-radius: 4px; }
+.margin-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-bottom: 16px; }
+.ai-insight { background: var(--accent-dim2); border: 1px solid rgba(168,244,184,0.15); border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 14px; }
+.ai-insight-label { font-size: 10px; font-family: var(--font-mono); color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+.ai-insight-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+.chart-grid line { stroke: var(--border); stroke-width: 0.5; }
+.chart-area { fill: rgba(168,244,184,0.08); }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.chart-dot { fill: var(--accent); }
+
+.view { display: none; }
+.view.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+.activity-list { display: flex; flex-direction: column; gap: 0; }
+.activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.activity-content { flex: 1; }
+.activity-text { font-size: 13px; line-height: 1.4; }
+.activity-text strong { font-weight: 500; }
+.activity-time { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 2px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
+
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; animation: modalIn 0.18s ease; }
+@keyframes modalIn { from { opacity:0; transform:translateY(12px) scale(0.98); } to { opacity:1; transform:none; } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
+.modal-body { padding: 20px 24px 24px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; margin-bottom: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row .form-group { margin-bottom: 0; }
+.form-label { font-size: 12px; color: var(--text2); font-weight: 500; }
+.form-input { background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: 8px 12px; color: var(--text); font-family: var(--font-body); font-size: 13px; outline: none; transition: border-color 0.15s; width: 100%; }
+.form-input:focus { border-color: var(--accent); }
+.form-input option { background: var(--bg3); }
+textarea.form-input { resize: vertical; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg2); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: var(--r); padding: 12px 18px; font-size: 13px; z-index: 500; animation: toastIn 0.2s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+@keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-name">QuoteFlow</div>
+    </div>
+    <div class="logo-sub">v1.0 · beta</div>
+  </div>
+
+  <nav class="nav-section">
+    <div class="nav-label">Pregled</div>
+    <div class="nav-item active" onclick="setView('dashboard')"><span class="nav-icon">▦</span> Dashboard</div>
+    <div class="nav-item" onclick="setView('pipeline')"><span class="nav-icon">◈</span> Pipeline <span class="nav-badge">7</span></div>
+  </nav>
+
+  <nav class="nav-section">
+    <div class="nav-label">Rad</div>
+    <div class="nav-item" onclick="setView('documents')"><span class="nav-icon">◉</span> Dokumenti <span class="nav-badge">2</span></div>
+    <div class="nav-item" onclick="setView('catalog')"><span class="nav-icon">◫</span> Katalog</div>
+    <div class="nav-item" onclick="setView('skladiste')"><span class="nav-icon">▣</span> Skladište</div>
+    <div class="nav-item" onclick="setView('quotes')"><span class="nav-icon">◳</span> Ponude</div>
+    <div class="nav-item" onclick="setView('builder')"><span class="nav-icon">✦</span> Quote Builder</div>
+  </nav>
+
+  <nav class="nav-section">
+    <div class="nav-label">Poslovni partneri</div>
+    <div class="nav-item" onclick="setView('clients')"><span class="nav-icon">◎</span> Klijenti</div>
+    <div class="nav-item" onclick="setView('suppliers')"><span class="nav-icon">◷</span> Dobavljači</div>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="org-card">
+      <div class="org-avatar">EL</div>
+      <div>
+        <div class="org-name">Elektro d.o.o.</div>
+        <div class="org-role">Sales Manager</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-title" id="view-title">Dashboard</div>
+    <span id="api-status" style="font-size:11px;font-family:var(--font-mono);color:var(--text3);margin-left:4px">○ demo mode</span>
+    <div class="topbar-right">
+      <div class="search-box">
+        <span style="font-size:14px;opacity:0.5">⌕</span>
+        <input type="text" placeholder="Pretraži ponude, klijente...">
+      </div>
+      <button class="btn btn-primary" onclick="openModal('nova-ponuda')">✦ Nova ponuda</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Pipeline vrijednost</div><div class="kpi-value">€847k</div><div class="kpi-delta delta-up">↑ 12.4% vs prošli mj.</div><div class="kpi-icon">◈</div></div>
+        <div class="kpi-card"><div class="kpi-label">Win rate (90d)</div><div class="kpi-value">38.2%</div><div class="kpi-delta delta-up">↑ 4.1pp</div><div class="kpi-icon">◎</div></div>
+        <div class="kpi-card"><div class="kpi-label">Avg. marža</div><div class="kpi-value">21.7%</div><div class="kpi-delta delta-down">↓ 0.8pp</div><div class="kpi-icon">◳</div></div>
+        <div class="kpi-card"><div class="kpi-label">Ponude ovaj mj.</div><div class="kpi-value">47</div><div class="kpi-delta delta-up">↑ 8 vs prošli</div><div class="kpi-icon">◫</div></div>
+      </div>
+
+      <div class="two-col" style="margin-bottom:16px">
+        <div class="card">
+          <div class="section-header">
+            <div class="section-title">Prihodi — ponude poslane</div>
+            <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">zadnjih 8 tjedana</span>
+          </div>
+          <svg width="100%" height="80" viewBox="0 0 400 80">
+            <polyline class="chart-area" points="0,80 0,52 50,45 100,38 150,42 200,28 250,32 300,18 350,14 400,10 400,80" />
+            <polyline class="chart-line" points="0,52 50,45 100,38 150,42 200,28 250,32 300,18 350,14 400,10" />
+            <circle class="chart-dot" cx="400" cy="10" r="3"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:4px">
+            <span>T-8</span><span>T-7</span><span>T-6</span><span>T-5</span><span>T-4</span><span>T-3</span><span>T-2</span><span>T-1</span><span>sada</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-header">
+            <div class="section-title">Posljednja aktivnost</div>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--accent);cursor:pointer">sve →</span>
+          </div>
+          <div class="activity-list">
+            <div class="activity-item">
+              <div class="activity-dot" style="background:var(--accent-dim);"><span style="font-size:12px">✦</span></div>
+              <div class="activity-content">
+                <div class="activity-text">AI parsirao <strong>RFQ-hotel-konavle.pdf</strong> — 47 stavki, confidence 91%</div>
+                <div class="activity-time">prije 3 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background:var(--blue-dim);"><span style="font-size:12px">◎</span></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Marko Perić</strong> odobrio ponudu QT-2024-089 · €42,800</div>
+                <div class="activity-time">prije 28 min</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-dot" style="background:var(--amber-dim);"><span style="font-size:12px">◳</span></div>
+              <div class="activity-content">
+                <div class="activity-text">Ponuda QT-2024-086 označena kao <strong>izgubljena</strong> — razlog: cijena</div>
+                <div class="activity-time">prije 2 h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Aktivne ponude</div>
+        <button class="btn btn-ghost" onclick="setView('quotes')" style="font-size:12px;padding:5px 12px">Sve ponude →</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Klijent</th><th>Projekt</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Rok</th></tr></thead>
+          <tbody>
+            <tr onclick="setView('builder')"><td><span class="quote-id">QT-2024-091</span></td><td><span class="client-name">Hotel Amabilis</span></td><td style="color:var(--text2)">Rasvjeta hotelskih soba</td><td><span class="amount-cell">€84,200</span></td><td><span class="li-margin margin-high">22.4%</span></td><td><span class="badge badge-review">● review</span></td><td style="font-size:12px;color:var(--text3)">za 4d</td></tr>
+            <tr><td><span class="quote-id">QT-2024-090</span></td><td><span class="client-name">Konzum d.d.</span></td><td style="color:var(--text2)">LED retrofit — 12 dućana</td><td><span class="amount-cell">€156,400</span></td><td><span class="li-margin margin-high">19.8%</span></td><td><span class="badge badge-sent">● poslano</span></td><td style="font-size:12px;color:var(--text3)">za 12d</td></tr>
+            <tr><td><span class="quote-id">QT-2024-089</span></td><td><span class="client-name">HEP d.d.</span></td><td style="color:var(--text2)">Javna rasvjeta — Split</td><td><span class="amount-cell">€42,800</span></td><td><span class="li-margin margin-mid">16.2%</span></td><td><span class="badge badge-won">● dobiveno</span></td><td style="font-size:12px;color:var(--accent)">završeno</td></tr>
+            <tr><td><span class="quote-id">QT-2024-088</span></td><td><span class="client-name">Lidl Hrvatska</span></td><td style="color:var(--text2)">Skladišna rasvjeta — 3 lokacije</td><td><span class="amount-cell">€218,700</span></td><td><span class="li-margin margin-mid">14.1%</span></td><td><span class="badge badge-sent">● poslano</span></td><td style="font-size:12px;color:var(--red)">za 2d ⚠</td></tr>
+            <tr><td><span class="quote-id">QT-2024-087</span></td><td><span class="client-name">Grad Zagreb</span></td><td style="color:var(--text2)">Uredska rasvjeta — Grad. uprava</td><td><span class="amount-cell">€31,500</span></td><td><span class="li-margin margin-low">8.4%</span></td><td><span class="badge badge-draft">● nacrt</span></td><td style="font-size:12px;color:var(--text3)">za 18d</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="view" id="view-pipeline">
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
+        <div class="kpi-card"><div class="kpi-label">Nacrt</div><div class="kpi-value" style="font-size:22px">3</div><div class="kpi-delta" style="color:var(--text3)">€28k</div></div>
+        <div class="kpi-card"><div class="kpi-label">Quoting</div><div class="kpi-value" style="font-size:22px">5</div><div class="kpi-delta" style="color:var(--text3)">€312k</div></div>
+        <div class="kpi-card"><div class="kpi-label">Poslano</div><div class="kpi-value" style="font-size:22px">4</div><div class="kpi-delta" style="color:var(--text3)">€420k</div></div>
+        <div class="kpi-card"><div class="kpi-label">Dobiveno</div><div class="kpi-value" style="font-size:22px;color:var(--accent)">6</div><div class="kpi-delta delta-up">€284k</div></div>
+        <div class="kpi-card"><div class="kpi-label">Izgubljeno</div><div class="kpi-value" style="font-size:22px;color:var(--red)">3</div><div class="kpi-delta" style="color:var(--text3)">€95k</div></div>
+      </div>
+      <div class="pipeline-stages">
+        <div class="stage-col">
+          <div class="stage-head"><span class="stage-name">Nacrt</span><span class="stage-count">3</span></div>
+          <div class="stage-items">
+            <div class="deal-card"><div class="deal-name">Pula Airport</div><div class="deal-client">Rasvjeta terminala</div><div class="deal-meta"><span class="deal-value">€14k</span><span class="deal-days">za 18d</span></div></div>
+            <div class="deal-card"><div class="deal-name">Grad Zagreb</div><div class="deal-client">Uredska rasvjeta</div><div class="deal-meta"><span class="deal-value">€31k</span><span class="deal-days">za 18d</span></div></div>
+            <div class="deal-card"><div class="deal-name">Arena Centar</div><div class="deal-client">Parkirna rasvjeta</div><div class="deal-meta"><span class="deal-value">€8k</span><span class="deal-days">za 22d</span></div></div>
+          </div>
+        </div>
+        <div class="stage-col">
+          <div class="stage-head"><span class="stage-name">Quoting</span><span class="stage-count">5</span></div>
+          <div class="stage-items">
+            <div class="deal-card deal-urgent" onclick="setView('builder')"><div class="deal-name">Hotel Amabilis</div><div class="deal-client">Hotelske sobe</div><div class="deal-meta"><span class="deal-value">€84k</span><span class="deal-days">za 4d ⚠</span></div></div>
+            <div class="deal-card"><div class="deal-name">Valamar</div><div class="deal-client">Resort rasvjeta</div><div class="deal-meta"><span class="deal-value">€212k</span><span class="deal-days">za 9d</span></div></div>
+            <div class="deal-card"><div class="deal-name">DM drogerie</div><div class="deal-client">5 novih dućana</div><div class="deal-meta"><span class="deal-value">€44k</span><span class="deal-days">za 14d</span></div></div>
+          </div>
+        </div>
+        <div class="stage-col">
+          <div class="stage-head"><span class="stage-name">Poslano</span><span class="stage-count">4</span></div>
+          <div class="stage-items">
+            <div class="deal-card deal-urgent"><div class="deal-name">Lidl Hrvatska</div><div class="deal-client">Skladišna 3× lok.</div><div class="deal-meta"><span class="deal-value">€219k</span><span class="deal-days">za 2d ⚠</span></div></div>
+            <div class="deal-card"><div class="deal-name">Konzum d.d.</div><div class="deal-client">LED retrofit 12×</div><div class="deal-meta"><span class="deal-value">€156k</span><span class="deal-days">za 12d</span></div></div>
+          </div>
+        </div>
+        <div class="stage-col">
+          <div class="stage-head"><span class="stage-name">Dobiveno ✓</span><span class="stage-count" style="color:var(--accent)">6</span></div>
+          <div class="stage-items">
+            <div class="deal-card" style="border-color:rgba(168,244,184,0.2);background:rgba(168,244,184,0.03)"><div class="deal-name">HEP d.d.</div><div class="deal-client">Javna rasvjeta</div><div class="deal-meta"><span class="deal-value" style="color:var(--accent)">€43k</span><span class="deal-days" style="color:var(--accent)">zaključeno</span></div></div>
+            <div class="deal-card" style="border-color:rgba(168,244,184,0.2);background:rgba(168,244,184,0.03)"><div class="deal-name">Jadran Hotels</div><div class="deal-client">3 hotela LED</div><div class="deal-meta"><span class="deal-value" style="color:var(--accent)">€128k</span><span class="deal-days" style="color:var(--accent)">zaključeno</span></div></div>
+          </div>
+        </div>
+        <div class="stage-col">
+          <div class="stage-head"><span class="stage-name">Izgubljeno</span><span class="stage-count">3</span></div>
+          <div class="stage-items">
+            <div class="deal-card" style="opacity:0.6"><div class="deal-name">Mercator</div><div class="deal-client">Cijena</div><div class="deal-meta"><span class="deal-value" style="color:var(--text3)">€52k</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTS -->
+    <div class="view" id="view-documents">
+      <div class="upload-zone" onclick="simulateUpload()">
+        <div class="upload-icon">⬆</div>
+        <div class="upload-title">Uvezi RFQ ili troškovnik</div>
+        <div class="upload-sub">PDF, XLSX, CSV, DOCX · klikni ili prevuci ovdje</div>
+      </div>
+
+      <div class="section-header"><div class="section-title">Procesiranje dokumenta</div></div>
+
+      <div class="processing-card">
+        <div class="proc-header">
+          <div class="proc-file-icon">📋</div>
+          <div><div class="proc-filename">RFQ-hotel-konavle.pdf</div><div class="proc-meta">2.4 MB · PDF · hr jezik · detektiran: troškovnik</div></div>
+          <div class="proc-status"><span class="status-dot"></span><span style="font-size:12px;color:var(--accent);font-family:var(--font-mono)">parsiranje...</span></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill animated" style="width:72%"></div></div>
+      </div>
+
+      <div class="processing-card">
+        <div class="proc-header">
+          <div class="proc-file-icon">📊</div>
+          <div><div class="proc-filename">troskovnik-splitska-ulica.xlsx</div><div class="proc-meta">184 KB · XLSX · hr jezik · 63 stavki</div></div>
+          <div class="proc-status"><span class="badge badge-review">● review potreban</span></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+      </div>
+
+      <div class="section-header" style="margin-top:24px">
+        <div class="section-title">Ekstrahirane stavke — troskovnik-splitska-ulica.xlsx</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px">✓ Potvrdi sve</button>
+      </div>
+
+      <div class="extraction-table">
+        <div class="et-header"><span>Opis</span><span>Kol.</span><span>Jed.</span><span>Jed. cijena</span><span>Confidence</span><span></span></div>
+        <div class="et-row">
+          <div><div class="et-desc">LED panel 60×60 36W 4000K UGR&lt;19</div></div>
+          <div class="et-qty">48</div><div class="et-qty">kom</div><div class="et-price">—</div>
+          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:94%"></div></div><span class="conf-val">94%</span></div>
+          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
+        </div>
+        <div class="et-row">
+          <div><div class="et-desc">Downlight LED 10W 3000K IP44 bijeli</div></div>
+          <div class="et-qty">124</div><div class="et-qty">kom</div><div class="et-price">—</div>
+          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:88%"></div></div><span class="conf-val">88%</span></div>
+          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
+        </div>
+        <div class="et-row" style="background:rgba(244,209,106,0.04);border-color:rgba(244,209,106,0.15)">
+          <div><div class="et-desc">Upravljačka jedinica DALI 2ch</div><div style="font-size:10px;color:var(--amber);margin-top:3px;font-family:var(--font-mono)">⚠ nejasan opis — preporučen ručni pregled</div></div>
+          <div class="et-qty">8</div><div class="et-qty">kom</div><div class="et-price">—</div>
+          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-mid" style="width:67%"></div></div><span class="conf-val" style="color:var(--amber)">67%</span></div>
+          <div class="et-actions"><button class="icon-btn" style="border-color:rgba(244,209,106,0.4);color:var(--amber)">✎</button><button class="icon-btn">✓</button></div>
+        </div>
+        <div class="et-row">
+          <div><div class="et-desc">Kabel NYY-J 3×2.5mm² crni</div></div>
+          <div class="et-qty">320</div><div class="et-qty">m</div><div class="et-price">—</div>
+          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:97%"></div></div><span class="conf-val">97%</span></div>
+          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
+        </div>
+        <div class="et-row" style="background:rgba(244,122,106,0.04);border-color:rgba(244,122,106,0.15)">
+          <div><div class="et-desc">Razvodna kutija 300×200×120</div><div style="font-size:10px;color:var(--red);margin-top:3px;font-family:var(--font-mono)">✗ nije pronađeno u katalogu — treba mapiranje</div></div>
+          <div class="et-qty">4</div><div class="et-qty">kom</div><div class="et-price">—</div>
+          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-low" style="width:42%"></div></div><span class="conf-val" style="color:var(--red)">42%</span></div>
+          <div class="et-actions"><button class="icon-btn" style="border-color:rgba(244,122,106,0.4);color:var(--red)">✎</button><button class="icon-btn">+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATALOG -->
+    <div class="view" id="view-catalog">
+      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
+        <div class="search-box" style="width:300px"><span style="font-size:14px;opacity:0.5">⌕</span><input type="text" placeholder="LED panel, 36W, UGR..."></div>
+        <button class="btn btn-ghost">Sve kategorije ▾</button>
+        <span style="font-size:12px;color:var(--text3);margin-left:auto;font-family:var(--font-mono)">2,847 artikala · 3 aktivna dobavljača</span>
+      </div>
+      <div class="catalog-grid">
+        <div class="product-card">
+          <div class="product-cat">LED panel</div>
+          <div class="product-name">LED Panel 60×60 36W</div>
+          <div class="product-sku">SKU: LED-PNL-6060-36-4K</div>
+          <div class="product-specs">
+            <span class="spec-tag">36W</span><span class="spec-tag">4000K</span><span class="spec-tag">3600lm</span>
+            <span class="spec-tag">UGR&lt;19</span><span class="spec-tag">IP20</span><span class="spec-tag">595×595</span>
+          </div>
+          <div class="supplier-row"><span class="sup-name">Fagerhult</span><div style="text-align:right"><div class="sup-price sup-best">€18.40</div><div class="sup-lead">7d · MOQ 10</div></div></div>
+          <div class="supplier-row"><span class="sup-name">Trilux GmbH</span><div style="text-align:right"><div class="sup-price">€21.20</div><div class="sup-lead">5d · MOQ 1</div></div></div>
+          <div class="supplier-row"><span class="sup-name">Световик SRL</span><div style="text-align:right"><div class="sup-price">€15.80</div><div class="sup-lead">21d · MOQ 50</div></div></div>
+        </div>
+        <div class="product-card">
+          <div class="product-cat">LED downlight</div>
+          <div class="product-name">Downlight LED 10W IP44</div>
+          <div class="product-sku">SKU: LED-DL-10W-3K-IP44-W</div>
+          <div class="product-specs">
+            <span class="spec-tag">10W</span><span class="spec-tag">3000K</span><span class="spec-tag">900lm</span>
+            <span class="spec-tag">IP44</span><span class="spec-tag">Ø90mm</span><span class="spec-tag">bijeli</span>
+          </div>
+          <div class="supplier-row"><span class="sup-name">Osram</span><div style="text-align:right"><div class="sup-price sup-best">€6.20</div><div class="sup-lead">10d · MOQ 25</div></div></div>
+          <div class="supplier-row"><span class="sup-name">Philips Signify</span><div style="text-align:right"><div class="sup-price">€7.80</div><div class="sup-lead">4d · MOQ 1</div></div></div>
+        </div>
+        <div class="product-card">
+          <div class="product-cat">kabel</div>
+          <div class="product-name">NYY-J 3×2.5mm² crni</div>
+          <div class="product-sku">SKU: KBL-NYY-3X25-CRN</div>
+          <div class="product-specs">
+            <span class="spec-tag">3×2.5mm²</span><span class="spec-tag">NYY-J</span><span class="spec-tag">0.6/1kV</span>
+            <span class="spec-tag">crni</span><span class="spec-tag">≤100m/kolut</span>
+          </div>
+          <div class="supplier-row"><span class="sup-name">Prysmian</span><div style="text-align:right"><div class="sup-price sup-best">€1.42/m</div><div class="sup-lead">3d · MOQ 100m</div></div></div>
+          <div class="supplier-row"><span class="sup-name">Nexans</span><div style="text-align:right"><div class="sup-price">€1.68/m</div><div class="sup-lead">5d · MOQ 50m</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUOTES -->
+    <div class="view" id="view-quotes">
+      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
+        <button class="btn btn-ghost" style="font-size:12px">Sve ▾</button>
+        <button class="btn btn-ghost" style="font-size:12px">2024 ▾</button>
+        <button class="btn btn-ghost" style="font-size:12px">Svi klijenti ▾</button>
+        <span style="font-size:12px;color:var(--text3);margin-left:auto;font-family:var(--font-mono)">47 ponuda</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Klijent</th><th>Projekt</th><th>Stavki</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Verzija</th><th>Kreirano</th></tr></thead>
+          <tbody>
+            <tr onclick="setView('builder')"><td><span class="quote-id">QT-2024-091</span></td><td><span class="client-name">Hotel Amabilis</span></td><td style="color:var(--text2)">Rasvjeta soba</td><td style="font-family:var(--font-mono);color:var(--text3)">63</td><td><span class="amount-cell">€84,200</span></td><td><span class="li-margin margin-high">22.4%</span></td><td><span class="badge badge-review">review</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">danas</td></tr>
+            <tr><td><span class="quote-id">QT-2024-090</span></td><td><span class="client-name">Konzum d.d.</span></td><td style="color:var(--text2)">LED retrofit 12×</td><td style="font-family:var(--font-mono);color:var(--text3)">28</td><td><span class="amount-cell">€156,400</span></td><td><span class="li-margin margin-high">19.8%</span></td><td><span class="badge badge-sent">poslano</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V2</td><td style="font-size:12px;color:var(--text3)">juc.</td></tr>
+            <tr><td><span class="quote-id">QT-2024-089</span></td><td><span class="client-name">HEP d.d.</span></td><td style="color:var(--text2)">Javna rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">14</td><td><span class="amount-cell">€42,800</span></td><td><span class="li-margin margin-mid">16.2%</span></td><td><span class="badge badge-won">dobiveno</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V3</td><td style="font-size:12px;color:var(--text3)">3d</td></tr>
+            <tr><td><span class="quote-id">QT-2024-088</span></td><td><span class="client-name">Lidl Hrvatska</span></td><td style="color:var(--text2)">Skladišna 3×</td><td style="font-family:var(--font-mono);color:var(--text3)">41</td><td><span class="amount-cell">€218,700</span></td><td><span class="li-margin margin-mid">14.1%</span></td><td><span class="badge badge-sent">poslano</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">4d</td></tr>
+            <tr><td><span class="quote-id">QT-2024-087</span></td><td><span class="client-name">Grad Zagreb</span></td><td style="color:var(--text2)">Uredska rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">22</td><td><span class="amount-cell">€31,500</span></td><td><span class="li-margin margin-low">8.4%</span></td><td><span class="badge badge-draft">nacrt</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">5d</td></tr>
+            <tr><td><span class="quote-id">QT-2024-086</span></td><td><span class="client-name">Mercator</span></td><td style="color:var(--text2)">Tržnica rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">18</td><td><span class="amount-cell">€52,100</span></td><td><span class="li-margin margin-low">11.2%</span></td><td><span class="badge badge-lost">izgubljeno</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V2</td><td style="font-size:12px;color:var(--text3)">8d</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QUOTE BUILDER -->
+    <div class="view" id="view-builder">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <div>
+          <div style="font-size:12px;font-family:var(--font-mono);color:var(--text3);margin-bottom:2px">QT-2024-091 · V1 · nacrt</div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700">Hotel Amabilis — Rasvjeta hotelskih soba</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost">Spremi nacrt</button>
+          <button class="btn btn-ghost">↓ Preuzmi PDF</button>
+          <button class="btn btn-primary">Pošalji na odobrenje →</button>
+        </div>
+      </div>
+
+      <div class="ai-insight" style="margin-bottom:16px;border-radius:var(--r)">
+        <div class="ai-insight-label">✦ AI preporuka</div>
+        <div class="ai-insight-text">Klijent Hotel Amabilis je prethodno kupovao od vas (QT-2024-044, won, €38k, marža 19%). Za IP44 downlight-e preporučujem Osram umjesto Philips — ušteda €2.42/kom × 124 = €300 bez gubitka marže. Rok dostave Osrama (10d) je u okviru projektnog deadlinea.</div>
+      </div>
+
+      <div class="quote-layout">
+        <div class="quote-main">
+          <div class="section-header">
+            <div class="section-title">Stavke ponude</div>
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px">+ Dodaj stavku</button>
+          </div>
+          <div class="line-items-table">
+            <div class="li-header"><span>Opis / SKU</span><span>Kol.</span><span>Nabavna</span><span>Prodajna</span><span>Marža</span><span></span></div>
+            <div class="li-row">
+              <div><div class="li-desc">LED Panel 60×60 36W 4000K UGR&lt;19</div><div class="li-cat">LED-PNL-6060-36-4K · Fagerhult</div></div>
+              <div class="li-qty">48 kom</div><div class="li-cost">€18.40</div><div class="li-price">€23.50</div><div class="li-margin margin-high">21.7%</div><button class="icon-btn">✎</button>
+            </div>
+            <div class="li-row">
+              <div><div class="li-desc">Downlight LED 10W 3000K IP44 bijeli</div><div class="li-cat">LED-DL-10W-3K-IP44-W · Osram</div></div>
+              <div class="li-qty">124 kom</div><div class="li-cost">€6.20</div><div class="li-price">€8.10</div><div class="li-margin margin-high">23.5%</div><button class="icon-btn">✎</button>
+            </div>
+            <div class="li-row" style="background:rgba(244,209,106,0.04)">
+              <div><div class="li-desc">Upravljačka jedinica DALI 2ch</div><div class="li-cat" style="color:var(--amber)">⚠ nije potvrđen katalog match</div></div>
+              <div class="li-qty">8 kom</div><div class="li-cost">—</div><div class="li-price">—</div><div class="li-margin" style="color:var(--amber)">—</div><button class="icon-btn" style="color:var(--amber)">!</button>
+            </div>
+            <div class="li-row">
+              <div><div class="li-desc">Kabel NYY-J 3×2.5mm² crni</div><div class="li-cat">KBL-NYY-3X25-CRN · Prysmian</div></div>
+              <div class="li-qty">320 m</div><div class="li-cost">€1.42</div><div class="li-price">€1.65</div><div class="li-margin margin-mid">13.9%</div><button class="icon-btn">✎</button>
+            </div>
+            <div class="li-row">
+              <div><div class="li-desc">Instalacijski rad i puštanje u pogon</div><div class="li-cat">SERV-INST-LIGHT · interno</div></div>
+              <div class="li-qty">1 lot</div><div class="li-cost">€4,200</div><div class="li-price">€6,800</div><div class="li-margin margin-high">38.2%</div><button class="icon-btn">✎</button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
+            <div class="card" style="padding:16px">
+              <div style="font-size:12px;font-weight:500;margin-bottom:10px">Uvjeti ponude</div>
+              <div class="qs-row"><span class="qs-label">Valuta</span><span class="qs-value">EUR</span></div>
+              <div class="qs-row"><span class="qs-label">Incoterms</span><span class="qs-value">DAP Zagreb</span></div>
+              <div class="qs-row"><span class="qs-label">Uvjeti plaćanja</span><span class="qs-value">30 dana</span></div>
+              <div class="qs-row"><span class="qs-label">Vrijedi do</span><span class="qs-value">30.01.2025.</span></div>
+              <div class="qs-row"><span class="qs-label">PDV</span><span class="qs-value">25% (HR)</span></div>
+            </div>
+            <div class="card" style="padding:16px">
+              <div style="font-size:12px;font-weight:500;margin-bottom:10px">Dobavljači — ovaj quote</div>
+              <div class="qs-row"><span class="qs-label">Fagerhult</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€883.20</span></div>
+              <div class="qs-row"><span class="qs-label">Osram</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€768.80</span></div>
+              <div class="qs-row"><span class="qs-label">Prysmian</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€454.40</span></div>
+              <div class="qs-row"><span class="qs-label">Interno</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€4,200.00</span></div>
+              <div class="qs-divider"></div>
+              <div class="qs-row"><span class="qs-label">Ukupno COGS</span><span class="qs-value">€6,306.40</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="quote-sidebar">
+          <div class="quote-summary-card">
+            <div class="qs-title">Sažetak ponude</div>
+            <div class="qs-row"><span class="qs-label">Podukupno</span><span class="qs-value">€80,200</span></div>
+            <div class="qs-row"><span class="qs-label">Popust</span><span class="qs-value">—</span></div>
+            <div class="qs-row"><span class="qs-label">PDV 25%</span><span class="qs-value">€20,050</span></div>
+            <div class="qs-divider"></div>
+            <div class="qs-total"><span class="qs-total-label">Ukupno</span><span class="qs-total-value">€84,200</span></div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">Ukupna marža</div>
+            <div class="margin-gauge"><div class="margin-gauge-fill"></div></div>
+            <div class="margin-info"><span>0%</span><span style="color:var(--accent)">22.4%</span><span>35%</span></div>
+            <div class="ai-insight">
+              <div class="ai-insight-label">✦ AI</div>
+              <div class="ai-insight-text">Slični hoteli, historija: avg. marža 18.2%. Vaša marža (22.4%) je iznad prosjeka. Win rate za ovaj segment: 41% — preporuka: ne snižavaj bez pritiska klijenta.</div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center">Pošalji na odobrenje →</button>
+            <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px">↓ Preuzmi PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKLADIŠTE / INVENTORY -->
+    <div class="view" id="view-skladiste">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <div class="search-box" style="width:280px">
+          <span style="font-size:14px;opacity:0.5">⌕</span>
+          <input type="text" placeholder="Pretraži po SKU, nazivu..." oninput="filterList(this,'stock-row')">
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px">Sve kategorije ▾</button>
+        <button class="btn btn-ghost" style="font-size:12px">Sve lokacije ▾</button>
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="stock-count">5 artikala</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="downloadTemplate('skladiste')">↓ Template</button>
+          <button class="btn btn-ghost" onclick="openImport('skladiste')">⬆ Uvezi Excel</button>
+          <button class="btn btn-primary" onclick="openModal('novi-artikl')">+ Novi artikl</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+        <div class="kpi-card"><div class="kpi-label">Ukupno artikala</div><div class="kpi-value" style="font-size:24px" id="kpi-total-items">5</div><div class="kpi-delta" style="color:var(--text3)">u skladištu</div></div>
+        <div class="kpi-card"><div class="kpi-label">Vrijednost zaliha</div><div class="kpi-value" style="font-size:24px">€48.2k</div><div class="kpi-delta delta-up">nabavna</div></div>
+        <div class="kpi-card"><div class="kpi-label">Nisko zaliha</div><div class="kpi-value" style="font-size:24px;color:var(--amber)" id="kpi-low-stock">2</div><div class="kpi-delta" style="color:var(--amber)">treba narudžba</div></div>
+        <div class="kpi-card"><div class="kpi-label">Nema na stanju</div><div class="kpi-value" style="font-size:24px;color:var(--red)" id="kpi-no-stock">0</div><div class="kpi-delta" style="color:var(--text3)">stavki</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>SKU</th><th>Naziv</th><th>Kategorija</th><th>Kol.</th><th>Jed.</th><th>Lokacija</th><th>Min.</th><th>Cijena</th><th>Status</th><th></th></tr></thead>
+          <tbody id="stock-tbody">
+            <tr class="stock-row"><td><span class="quote-id">LED-PNL-6060-36-4K</span></td><td><span class="client-name">LED Panel 60×60 36W</span></td><td style="color:var(--text2)">led_panel</td><td style="font-family:var(--font-mono);color:var(--accent)">142</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">kom</td><td style="font-size:12px">Skladište RI</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">20</td><td><span class="amount-cell">€18.40</span></td><td><span class="badge badge-won">● na stanju</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="stock-row"><td><span class="quote-id">LED-DL-10W-3K-IP44-W</span></td><td><span class="client-name">Downlight LED 10W IP44</span></td><td style="color:var(--text2)">downlight</td><td style="font-family:var(--font-mono);color:var(--accent)">386</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">kom</td><td style="font-size:12px">Skladište RI</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">50</td><td><span class="amount-cell">€6.20</span></td><td><span class="badge badge-won">● na stanju</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="stock-row"><td><span class="quote-id">KBL-NYY-3X25-CRN</span></td><td><span class="client-name">NYY-J 3×2.5mm² crni</span></td><td style="color:var(--text2)">kabel</td><td style="font-family:var(--font-mono);color:var(--accent)">2840</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">m</td><td style="font-size:12px">Skladište RI</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">500</td><td><span class="amount-cell">€1.42</span></td><td><span class="badge badge-won">● na stanju</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="stock-row"><td><span class="quote-id">DALI-CTRL-2CH</span></td><td><span class="client-name">DALI kontroler 2ch</span></td><td style="color:var(--text2)">kontroler</td><td style="font-family:var(--font-mono);color:var(--amber)">8</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">kom</td><td style="font-size:12px">Skladište RI</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">15</td><td><span class="amount-cell">€48.00</span></td><td><span class="badge badge-review">● nisko</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="stock-row"><td><span class="quote-id">SPOT-GU10-7W-3K</span></td><td><span class="client-name">Spot GU10 7W 3000K</span></td><td style="color:var(--text2)">spot</td><td style="font-family:var(--font-mono);color:var(--amber)">42</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">kom</td><td style="font-size:12px">Skladište RI</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">100</td><td><span class="amount-cell">€4.20</span></td><td><span class="badge badge-review">● nisko</span></td><td><button class="icon-btn">→</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="view" id="view-clients">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div class="search-box" style="width:280px">
+          <span style="font-size:14px;opacity:0.5">⌕</span>
+          <input type="text" placeholder="Pretraži klijente..." oninput="filterList(this,'client-row')">
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px">Sve države ▾</button>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="downloadTemplate('klijenti')">↓ Template</button>
+          <button class="btn btn-ghost" onclick="openImport('klijenti')">⬆ Uvezi Excel</button>
+          <button class="btn btn-primary" onclick="openModal('novi-klijent')">+ Novi klijent</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Naziv</th><th>OIB / VAT</th><th>Zemlja</th><th>Segment</th><th>Uvjeti plaćanja</th><th>Otvorene ponude</th><th>Win rate</th><th></th></tr></thead>
+          <tbody id="clients-tbody">
+            <tr class="client-row"><td><span class="client-name">Hotel Amabilis d.o.o.</span></td><td><span class="quote-id">HR12345678901</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">hotel</span></td><td style="font-family:var(--font-mono);font-size:12px">30d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">2</td><td><span class="li-margin margin-high">44%</span></td><td><button class="icon-btn" onclick="setView('builder')">→</button></td></tr>
+            <tr class="client-row"><td><span class="client-name">Konzum d.d.</span></td><td><span class="quote-id">HR98765432100</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">retail</span></td><td style="font-family:var(--font-mono);font-size:12px">45d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">1</td><td><span class="li-margin margin-mid">38%</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="client-row"><td><span class="client-name">HEP d.d.</span></td><td><span class="quote-id">HR11223344556</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">javni sektor</span></td><td style="font-family:var(--font-mono);font-size:12px">60d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td><td><span class="li-margin margin-high">52%</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="client-row"><td><span class="client-name">Lidl Hrvatska d.o.o.</span></td><td><span class="quote-id">HR55667788990</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">retail</span></td><td style="font-family:var(--font-mono);font-size:12px">30d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">1</td><td><span class="li-margin margin-mid">29%</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="client-row"><td><span class="client-name">Grad Zagreb</span></td><td><span class="quote-id">HR00112233445</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">javni sektor</span></td><td style="font-family:var(--font-mono);font-size:12px">90d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--amber)">1</td><td><span class="li-margin margin-low">22%</span></td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="client-row"><td><span class="client-name">Valamar Riviera d.d.</span></td><td><span class="quote-id">HR44556677889</span></td><td>🇭🇷 HR</td><td><span class="badge badge-draft">hotel</span></td><td style="font-family:var(--font-mono);font-size:12px">30d</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">1</td><td><span class="li-margin margin-high">48%</span></td><td><button class="icon-btn">→</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUPPLIERS -->
+    <div class="view" id="view-suppliers">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div class="search-box" style="width:280px">
+          <span style="font-size:14px;opacity:0.5">⌕</span>
+          <input type="text" placeholder="Pretraži dobavljače..." oninput="filterList(this,'supplier-row')">
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="downloadTemplate('dobavljaci')">↓ Template</button>
+          <button class="btn btn-ghost" onclick="openImport('dobavljaci')">⬆ Uvezi Excel</button>
+          <button class="btn btn-primary" onclick="openModal('novi-dobavljac')">+ Novi dobavljač</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Naziv</th><th>Zemlja</th><th>Valuta</th><th>Incoterms</th><th>Avg. rok isporuke</th><th>Ocjena</th><th>On-time</th><th>Artikala</th><th></th></tr></thead>
+          <tbody id="suppliers-tbody">
+            <tr class="supplier-row"><td><span class="client-name">Fagerhult AB</span></td><td>🇸🇪 SE</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">EXW</td><td style="font-family:var(--font-mono);font-size:12px">7d</td><td><span class="li-margin margin-high">4.5★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">94%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">284</td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="supplier-row"><td><span class="client-name">Trilux GmbH</span></td><td>🇩🇪 DE</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">DAP</td><td style="font-family:var(--font-mono);font-size:12px">5d</td><td><span class="li-margin margin-high">4.2★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">91%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">156</td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="supplier-row"><td><span class="client-name">Osram GmbH</span></td><td>🇩🇪 DE</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">FCA</td><td style="font-family:var(--font-mono);font-size:12px">10d</td><td><span class="li-margin margin-high">4.3★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--amber)">87%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">412</td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="supplier-row"><td><span class="client-name">Philips Signify</span></td><td>🇳🇱 NL</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">DAP</td><td style="font-family:var(--font-mono);font-size:12px">4d</td><td><span class="li-margin margin-mid">3.9★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--amber)">82%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">631</td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="supplier-row"><td><span class="client-name">Prysmian Group</span></td><td>🇮🇹 IT</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">EXW</td><td style="font-family:var(--font-mono);font-size:12px">3d</td><td><span class="li-margin margin-high">4.6★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--accent)">97%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">89</td><td><button class="icon-btn">→</button></td></tr>
+            <tr class="supplier-row"><td><span class="client-name">Световик SRL</span></td><td>🇷🇴 RO</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">EXW</td><td style="font-family:var(--font-mono);font-size:12px">21d</td><td><span class="li-margin margin-low">3.1★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--red)">71%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">198</td><td><button class="icon-btn">→</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL OVERLAY -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center" onclick="closeModalOutside(event)">
+
+  <div class="modal-box" id="modal-nova-ponuda" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Nova ponuda</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Klijent *</label>
+        <select class="form-input" id="np-client">
+          <option value="">— Odaberi klijenta —</option>
+          <option>Hotel Amabilis d.o.o.</option>
+          <option>Konzum d.d.</option>
+          <option>HEP d.d.</option>
+          <option>Lidl Hrvatska d.o.o.</option>
+          <option>Grad Zagreb</option>
+          <option>Valamar Riviera d.d.</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Naziv projekta *</label>
+        <input type="text" class="form-input" id="np-project" placeholder="npr. Rasvjeta hotelskih soba — faza 2">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tip projekta</label>
+          <select class="form-input">
+            <option>Hotel / ugostiteljstvo</option>
+            <option>Retail / trgovina</option>
+            <option>Ured / poslovna zgrada</option>
+            <option>Industrijski objekt</option>
+            <option>Javna rasvjeta</option>
+            <option>Stambeni objekt</option>
+            <option>Ostalo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valuta</label>
+          <select class="form-input"><option>EUR</option><option>USD</option><option>HRK</option><option>GBP</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rok isporuke ponude</label>
+          <input type="date" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Procijenjena vrijednost</label>
+          <input type="text" class="form-input" placeholder="npr. 50000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Napomena (interno)</label>
+        <textarea class="form-input" rows="2" placeholder="Posebni uvjeti, prioritet..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" onclick="createQuote()">Kreiraj ponudu →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-box" id="modal-novi-klijent" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Novi klijent</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Naziv tvrtke *</label><input type="text" class="form-input" id="nk-name" placeholder="npr. Importanne d.o.o."></div>
+        <div class="form-group"><label class="form-label">Pravni naziv</label><input type="text" class="form-input" id="nk-legal" placeholder="puni pravni naziv"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">OIB / VAT broj</label><input type="text" class="form-input" id="nk-vat" placeholder="HR + 11 znamenki"></div>
+        <div class="form-group">
+          <label class="form-label">Zemlja</label>
+          <select class="form-input" id="nk-country">
+            <option>Hrvatska (HR)</option><option>Slovenija (SI)</option><option>Bosna i Hercegovina (BA)</option>
+            <option>Srbija (RS)</option><option>Austrija (AT)</option><option>Njemačka (DE)</option>
+            <option>Italija (IT)</option><option>Ostalo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Segment</label>
+          <select class="form-input" id="nk-segment">
+            <option>Hotel / ugostiteljstvo</option><option>Retail / trgovina</option>
+            <option>Industrija</option><option>Javni sektor</option>
+            <option>Stambeni</option><option>Ostalo</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Uvjeti plaćanja (dani)</label><input type="number" class="form-input" id="nk-payment" placeholder="30" value="30"></div>
+      </div>
+      <div style="font-size:12px;font-weight:500;margin:16px 0 10px;color:var(--text2)">Kontakt osoba</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Ime i prezime</label><input type="text" class="form-input" placeholder="Marko Horvat"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" placeholder="m.horvat@tvrtka.hr"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Telefon</label><input type="text" class="form-input" placeholder="+385 1 234 5678"></div>
+        <div class="form-group"><label class="form-label">Funkcija</label><input type="text" class="form-input" placeholder="Voditelj nabave"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" onclick="addClient()">Spremi klijenta</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-box" id="modal-novi-dobavljac" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Novi dobavljač</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Naziv dobavljača *</label><input type="text" class="form-input" id="sup-name" placeholder="npr. Ledvance GmbH"></div>
+        <div class="form-group">
+          <label class="form-label">Zemlja</label>
+          <select class="form-input" id="sup-country">
+            <option>Njemačka (DE)</option><option>Italija (IT)</option><option>Austrija (AT)</option>
+            <option>Kina (CN)</option><option>Hrvatska (HR)</option><option>Švedska (SE)</option>
+            <option>Nizozemska (NL)</option><option>Rumunjska (RO)</option><option>Ostalo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Valuta</label><select class="form-input" id="sup-currency"><option>EUR</option><option>USD</option><option>GBP</option><option>CNY</option></select></div>
+        <div class="form-group"><label class="form-label">Incoterms (default)</label><select class="form-input" id="sup-incoterms"><option>EXW</option><option>FCA</option><option>DAP</option><option>DDP</option><option>FOB</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Avg. rok isporuke (dani)</label><input type="number" class="form-input" id="sup-lead" placeholder="7"></div>
+        <div class="form-group"><label class="form-label">Uvjeti plaćanja (dani)</label><input type="number" class="form-input" placeholder="30"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email za narudžbe</label><input type="email" class="form-input" placeholder="orders@supplier.com"></div>
+      <div class="form-group"><label class="form-label">Napomena</label><textarea class="form-input" rows="2" placeholder="Posebni uvjeti, kontakt osoba, certifikati..."></textarea></div>
+  <!-- IMPORT MODAL (generic za klijenti / dobavljaci / skladiste) -->
+  <div class="modal-box" id="modal-import" style="display:none;width:720px">
+    <div class="modal-header">
+      <div>
+        <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Uvezi iz Excela</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px" id="import-subtitle">—</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- KORAK 1: UPLOAD -->
+      <div id="import-step-upload">
+        <div class="upload-zone" id="import-drop" style="margin-bottom:14px;padding:36px">
+          <div class="upload-icon">📊</div>
+          <div class="upload-title">Odaberi Excel ili CSV datoteku</div>
+          <div class="upload-sub">.xlsx, .xls, .csv · max 10 MB</div>
+          <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.6">
+          <div style="font-weight:500;color:var(--text);margin-bottom:4px">💡 Savjet</div>
+          <span id="import-hint">Preuzmi template ispod ako trebaš ispravan format. Sustav automatski prepoznaje kolone prema imenima — ne moraju biti točno isti.</span>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+          <button class="btn btn-ghost" onclick="downloadTemplate(currentImportType)">↓ Preuzmi template</button>
+        </div>
+      </div>
+
+      <!-- KORAK 2: MAPIRANJE -->
+      <div id="import-step-mapping" style="display:none">
+        <div style="font-size:13px;margin-bottom:14px;color:var(--text2)">
+          Otkriveno <strong style="color:var(--text)" id="rows-count">0</strong> redova. Provjeri mapiranje kolona prije uvoza:
+        </div>
+        <div id="mapping-container" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;margin-bottom:14px;max-height:280px;overflow-y:auto"></div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:8px">PREVIEW (prvih 3 redova)</div>
+        <div id="preview-container" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;font-size:11px;font-family:var(--font-mono);max-height:160px;overflow:auto"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+          <button class="btn btn-ghost" onclick="resetImport()">← Natrag</button>
+          <button class="btn btn-primary" onclick="executeImport()">Uvezi <span id="import-count-btn">0</span> redova →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- NOVI ARTIKL (skladište) -->
+  <div class="modal-box" id="modal-novi-artikl" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Novi artikl u skladištu</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">SKU *</label><input type="text" class="form-input" id="na-sku" placeholder="npr. LED-PNL-6060-36-4K"></div>
+        <div class="form-group"><label class="form-label">Naziv *</label><input type="text" class="form-input" id="na-name" placeholder="LED Panel 60×60 36W"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Kategorija</label><input type="text" class="form-input" id="na-cat" placeholder="led_panel"></div>
+        <div class="form-group"><label class="form-label">Lokacija</label><input type="text" class="form-input" id="na-loc" value="Skladište RI"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Količina na stanju</label><input type="number" class="form-input" id="na-qty" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Jedinica</label><select class="form-input" id="na-unit"><option>kom</option><option>m</option><option>m²</option><option>m³</option><option>kg</option><option>l</option><option>set</option><option>paket</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Min. zaliha (alert)</label><input type="number" class="form-input" id="na-min" placeholder="10"></div>
+        <div class="form-group"><label class="form-label">Nabavna cijena (€)</label><input type="number" step="0.01" class="form-input" id="na-price" placeholder="0.00"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" onclick="addStockItem()">Spremi artikl</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ========== API SLOJ ==========
+// Ako je backend dostupan (make up), koristi ga. Inače in-memory (make demo).
+const API_BASE = (location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/api/v1';
+var apiAvailable = false;
+
+async function checkApi() {
+  try {
+    const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(2000) });
+    apiAvailable = r.ok;
+  } catch (e) {
+    apiAvailable = false;
+  }
+  const badge = document.getElementById('api-status');
+  if (badge) {
+    badge.textContent = apiAvailable ? '● backend spojen' : '○ demo mode (in-memory)';
+    badge.style.color = apiAvailable ? 'var(--accent)' : 'var(--text3)';
+  }
+  return apiAvailable;
+}
+
+async function apiGet(path) {
+  const r = await fetch(API_BASE + path);
+  if (!r.ok) throw new Error('GET ' + path + ' → ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let detail = r.status;
+    try { detail = (await r.json()).detail || r.status; } catch (e) {}
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+  return r.json();
+}
+
+const views = {
+  dashboard: 'Dashboard',
+  pipeline: 'Pipeline',
+  documents: 'Dokumenti',
+  catalog: 'Katalog proizvoda',
+  skladiste: 'Skladište',
+  quotes: 'Sve ponude',
+  builder: 'Quote Builder',
+  clients: 'Klijenti',
+  suppliers: 'Dobavljači'
+};
+
+function setView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const view = document.getElementById('view-' + id);
+  if (view) view.classList.add('active');
+  document.getElementById('view-title').textContent = views[id] || id;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') === "setView('" + id + "')") n.classList.add('active');
+  });
+}
+
+function simulateUpload() {
+  const zone = document.querySelector('#view-documents .upload-zone');
+  if (!zone) return;
+  zone.style.borderColor = 'var(--accent)';
+  zone.style.background = 'var(--accent-dim2)';
+  zone.querySelector('.upload-title').textContent = 'Obrađujem...';
+  setTimeout(() => {
+    zone.style.borderColor = '';
+    zone.style.background = '';
+    zone.querySelector('.upload-title').textContent = 'Uvezi RFQ ili troškovnik';
+    showToast('Dokument uploadan — pokrenuto parsiranje');
+  }, 1500);
+}
+
+// Progress bar animacija
+let progress = 72;
+setInterval(() => {
+  const fill = document.querySelector('.progress-fill.animated');
+  if (fill && progress < 98) {
+    progress += Math.random() * 0.3;
+    fill.style.width = Math.min(progress, 98) + '%';
+  }
+}, 800);
+
+// ========== MODAL KONTROLE ==========
+function openModal(name) {
+  document.getElementById('modal-overlay').style.display = 'flex';
+  document.querySelectorAll('.modal-box').forEach(m => m.style.display = 'none');
+  const modal = document.getElementById('modal-' + name);
+  if (modal) modal.style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+function closeModalOutside(event) {
+  if (event.target.id === 'modal-overlay') closeModal();
+}
+
+// ESC zatvara modal
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ========== TOAST ==========
+function showToast(message, type) {
+  type = type || 'success';
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  const icon = type === 'error' ? '✕' : '✓';
+  const color = type === 'error' ? 'var(--red)' : 'var(--accent)';
+  t.innerHTML = '<span style="color:' + color + ';font-size:14px;font-weight:bold">' + icon + '</span> ' + message;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transition = 'opacity 0.3s';
+    setTimeout(() => t.remove(), 300);
+  }, 2800);
+}
+
+// ========== HELPERI ==========
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str == null ? '' : str);
+  return div.innerHTML;
+}
+
+function countryFlag(code) {
+  const flags = {
+    HR: '🇭🇷', SI: '🇸🇮', BA: '🇧🇦', RS: '🇷🇸', AT: '🇦🇹',
+    DE: '🇩🇪', IT: '🇮🇹', NL: '🇳🇱', SE: '🇸🇪', RO: '🇷🇴',
+    CN: '🇨🇳', US: '🇺🇸', GB: '🇬🇧', FR: '🇫🇷', ES: '🇪🇸'
+  };
+  return flags[code] || '🌍';
+}
+
+function extractCountryCode(countryString) {
+  const match = String(countryString || '').match(/\(([A-Z]{2})\)/);
+  return match ? match[1] : 'HR';
+}
+
+// ========== DODAVANJE KLIJENTA ==========
+async function addClient() {
+  const name = document.getElementById('nk-name').value.trim();
+  const vat = document.getElementById('nk-vat').value.trim();
+  const country = document.getElementById('nk-country').value;
+  const segment = document.getElementById('nk-segment').value;
+  const payment = document.getElementById('nk-payment').value || '30';
+  if (!name) { showToast('Naziv tvrtke je obavezan', 'error'); return; }
+  const cc = extractCountryCode(country);
+  const segLower = segment.toLowerCase().split(/[\s\/]/)[0];
+  if (apiAvailable) {
+    try {
+      await apiPost('/clients/', { name, tax_id: vat || null, country_code: cc, segment: segLower, payment_terms_days: parseInt(payment) || 30 });
+      closeModal();
+      ['nk-name','nk-legal','nk-vat'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+      await loadClients();
+      showToast('Klijent "' + name + '" spremljen u bazu');
+    } catch (e) { showToast('Greška: ' + e.message, 'error'); }
+    return;
+  }
+  renderClientRow({ name, vat, cc, segLower, payment });
+  const npSelect = document.getElementById('np-client');
+  if (npSelect) { const o = document.createElement('option'); o.textContent = name; npSelect.appendChild(o); }
+  ['nk-name','nk-legal','nk-vat'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+  closeModal();
+  showToast('Klijent "' + name + '" dodan (demo)');
+}
+function renderClientRow(d) {
+  const tbody = document.getElementById('clients-tbody');
+  const tr = document.createElement('tr'); tr.className = 'client-row';
+  tr.innerHTML =
+    '<td><span class="client-name">' + escapeHtml(d.name) + '</span></td>' +
+    '<td><span class="quote-id">' + escapeHtml(d.vat || '—') + '</span></td>' +
+    '<td>' + countryFlag(d.cc) + ' ' + d.cc + '</td>' +
+    '<td><span class="badge badge-draft">' + escapeHtml(d.segLower || 'ostalo') + '</span></td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px">' + escapeHtml(d.payment || '30') + 'd</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td>' +
+    '<td><span class="li-margin margin-mid">—</span></td>' +
+    '<td><button class="icon-btn">→</button></td>';
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+async function loadClients() {
+  if (!apiAvailable) return;
+  try {
+    const clients = await apiGet('/clients/');
+    const tbody = document.getElementById('clients-tbody'); tbody.innerHTML = '';
+    const npSelect = document.getElementById('np-client');
+    if (npSelect) npSelect.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
+    clients.forEach(c => {
+      renderClientRow({ name: c.name, vat: c.tax_id, cc: c.country_code, segLower: c.segment, payment: String(c.payment_terms_days) });
+      if (npSelect) { const o = document.createElement('option'); o.textContent = c.name; npSelect.appendChild(o); }
+    });
+  } catch (e) { console.error('loadClients', e); }
+}
+
+// ========== DODAVANJE DOBAVLJAČA ==========
+async function addSupplier() {
+  const name = document.getElementById('sup-name').value.trim();
+  const country = document.getElementById('sup-country').value;
+  const currency = document.getElementById('sup-currency').value;
+  const incoterms = document.getElementById('sup-incoterms').value;
+  const lead = document.getElementById('sup-lead').value || '7';
+  if (!name) { showToast('Naziv dobavljača je obavezan', 'error'); return; }
+  const cc = extractCountryCode(country);
+  if (apiAvailable) {
+    try {
+      await apiPost('/suppliers/', { name, country_code: cc, currency, incoterms_default: incoterms, lead_time_days_avg: parseInt(lead) || null });
+      closeModal();
+      document.getElementById('sup-name').value=''; document.getElementById('sup-lead').value='';
+      await loadSuppliers();
+      showToast('Dobavljač "' + name + '" spremljen u bazu');
+    } catch (e) { showToast('Greška: ' + e.message, 'error'); }
+    return;
+  }
+  renderSupplierRow({ name, cc, currency, incoterms, lead });
+  document.getElementById('sup-name').value=''; document.getElementById('sup-lead').value='';
+  closeModal();
+  showToast('Dobavljač "' + name + '" dodan (demo)');
+}
+function renderSupplierRow(d) {
+  const tbody = document.getElementById('suppliers-tbody');
+  const tr = document.createElement('tr'); tr.className = 'supplier-row';
+  tr.innerHTML =
+    '<td><span class="client-name">' + escapeHtml(d.name) + '</span></td>' +
+    '<td>' + countryFlag(d.cc) + ' ' + d.cc + '</td>' +
+    '<td><span class="quote-id">' + escapeHtml(d.currency || 'EUR') + '</span></td>' +
+    '<td style="font-size:12px;color:var(--text2)">' + escapeHtml(d.incoterms || 'EXW') + '</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px">' + escapeHtml(String(d.lead || '—')) + 'd</td>' +
+    '<td><span class="li-margin margin-mid">—</span></td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">—</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td>' +
+    '<td><button class="icon-btn">→</button></td>';
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+async function loadSuppliers() {
+  if (!apiAvailable) return;
+  try {
+    const sups = await apiGet('/suppliers/');
+    const tbody = document.getElementById('suppliers-tbody'); tbody.innerHTML = '';
+    sups.forEach(s => renderSupplierRow({ name: s.name, cc: s.country_code, currency: s.currency, incoterms: s.incoterms_default, lead: s.lead_time_days_avg }));
+  } catch (e) { console.error('loadSuppliers', e); }
+}
+
+// ========== KREIRANJE PONUDE ==========
+function createQuote() {
+  const client = document.getElementById('np-client').value;
+  const project = document.getElementById('np-project').value.trim();
+
+  if (!client) {
+    showToast('Odaberi klijenta', 'error');
+    return;
+  }
+  if (!project) {
+    showToast('Naziv projekta je obavezan', 'error');
+    return;
+  }
+
+  closeModal();
+  showToast('Ponuda kreirana — otvaram builder');
+  setTimeout(() => setView('builder'), 400);
+}
+
+// ========== EXCEL IMPORT ==========
+// var (ne let) — da budu dostupne preko window.* za debug/testiranje iz consolea
+var currentImportType = null;
+var parsedImportData = null;
+var columnMapping = {};
+
+// Definicija polja za svaki tip uvoza
+// Aliasi su lista mogućih imena kolona u Excelu — sustav će se podudarati case-insensitive
+// i ignorirati razmake/podvlake. HR i EN nazivi pokriveni.
+const IMPORT_FIELDS = {
+  klijenti: {
+    title: 'Klijenti',
+    fields: [
+      { key: 'naziv',   label: 'Naziv tvrtke',          required: true,  aliases: ['naziv','name','tvrtka','klijent','company','firma','tvrtka_naziv'] },
+      { key: 'vat',     label: 'OIB / VAT',             required: false, aliases: ['oib','vat','pdv','tax_id','taxid','vat_number','mb','oib_vat','porezni'] },
+      { key: 'country', label: 'Zemlja',                required: false, aliases: ['zemlja','country','država','drzava','land'] },
+      { key: 'segment', label: 'Segment',               required: false, aliases: ['segment','tip','kategorija','sektor','industry','industrija'] },
+      { key: 'payment', label: 'Uvjeti plaćanja (dani)',required: false, aliases: ['placanje','plaćanje','payment','terms','rok','rok_placanja','payment_days'] }
+    ]
+  },
+  dobavljaci: {
+    title: 'Dobavljači',
+    fields: [
+      { key: 'naziv',     label: 'Naziv dobavljača',      required: true,  aliases: ['naziv','name','dobavljac','dobavljač','supplier','vendor'] },
+      { key: 'country',   label: 'Zemlja',                required: false, aliases: ['zemlja','country','država','drzava'] },
+      { key: 'currency',  label: 'Valuta',                required: false, aliases: ['valuta','currency','ccy'] },
+      { key: 'incoterms', label: 'Incoterms',             required: false, aliases: ['incoterms','inco','terms'] },
+      { key: 'lead',      label: 'Rok isporuke (dani)',   required: false, aliases: ['rok','lead','lead_time','isporuka','delivery','rok_isporuke'] }
+    ]
+  },
+  skladiste: {
+    title: 'Skladište',
+    fields: [
+      { key: 'sku',   label: 'SKU',           required: true,  aliases: ['sku','sifra','šifra','code','kod','barcode','part_number','artnr'] },
+      { key: 'naziv', label: 'Naziv',         required: true,  aliases: ['naziv','name','opis','description','artikl','proizvod','product'] },
+      { key: 'cat',   label: 'Kategorija',    required: false, aliases: ['kategorija','category','grupa','group','vrsta'] },
+      { key: 'qty',   label: 'Količina',      required: false, aliases: ['kolicina','količina','qty','quantity','stanje','stock','kom','na_stanju'] },
+      { key: 'unit',  label: 'Jedinica',      required: false, aliases: ['jedinica','jed','unit','mjera','uom','jm','jedinica_mjere'] },
+      { key: 'loc',   label: 'Lokacija',      required: false, aliases: ['lokacija','location','skladiste','skladište','warehouse','mjesto'] },
+      { key: 'min',   label: 'Min. zaliha',   required: false, aliases: ['min','min_stock','minimum','reorder','min_zaliha'] },
+      { key: 'price', label: 'Cijena (€)',    required: false, aliases: ['cijena','price','nabavna','cost','unit_price','nabavna_cijena'] }
+    ]
+  }
+};
+
+function openImport(type) {
+  currentImportType = type;
+  const cfg = IMPORT_FIELDS[type];
+  document.getElementById('import-subtitle').textContent = cfg.title;
+  document.getElementById('import-step-upload').style.display = 'block';
+  document.getElementById('import-step-mapping').style.display = 'none';
+  parsedImportData = null;
+  const hints = {
+    klijenti: 'Excel treba imati barem kolonu "Naziv". Ostalo (OIB, zemlja, segment, plaćanje) je opcionalno. Sustav prepoznaje EN i HR nazive.',
+    dobavljaci: 'Excel treba imati barem kolonu "Naziv". Ako nema valute u datoteci, postavlja se EUR. Zemlje prepoznaju i pune nazive ("Njemačka") i kodove ("DE").',
+    skladiste: 'Excel treba imati barem kolone "SKU" i "Naziv". Količina, lokacija i cijena su opcionalne (default 0 / Skladište RI). Status (na stanju/nisko/nema) se računa automatski iz količine i min. zalihe.'
+  };
+  document.getElementById('import-hint').textContent = hints[type] || '';
+  openModal('import');
+}
+
+function parseExcelFile(file) {
+  if (typeof XLSX === 'undefined') {
+    showToast('SheetJS biblioteka nije učitana. Provjeri internet vezu.', 'error');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Datoteka je veća od 10 MB', 'error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+      if (!json.length) {
+        showToast('Datoteka je prazna ili nema podataka', 'error');
+        return;
+      }
+      parsedImportData = json;
+      showMappingStep();
+    } catch (err) {
+      showToast('Greška pri čitanju: ' + err.message, 'error');
+    }
+  };
+  reader.onerror = () => showToast('Greška pri otvaranju datoteke', 'error');
+  reader.readAsArrayBuffer(file);
+}
+
+function normalizeColName(s) {
+  return String(s || '').toLowerCase().trim().replace(/[_\-\s\.]/g, '');
+}
+
+function showMappingStep() {
+  document.getElementById('import-step-upload').style.display = 'none';
+  document.getElementById('import-step-mapping').style.display = 'block';
+  document.getElementById('rows-count').textContent = parsedImportData.length;
+  document.getElementById('import-count-btn').textContent = parsedImportData.length;
+
+  const columns = Object.keys(parsedImportData[0]);
+  const cfg = IMPORT_FIELDS[currentImportType];
+  const container = document.getElementById('mapping-container');
+  container.innerHTML = '';
+  columnMapping = {};
+
+  cfg.fields.forEach(field => {
+    // Auto-prepoznavanje stupca: prvo egzaktan match, onda substring
+    let detected = '';
+    for (const col of columns) {
+      const colN = normalizeColName(col);
+      for (const alias of field.aliases) {
+        if (colN === normalizeColName(alias)) { detected = col; break; }
+      }
+      if (detected) break;
+    }
+    if (!detected) {
+      for (const col of columns) {
+        const colN = normalizeColName(col);
+        for (const alias of field.aliases) {
+          if (colN.includes(normalizeColName(alias))) { detected = col; break; }
+        }
+        if (detected) break;
+      }
+    }
+    columnMapping[field.key] = detected;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 14px 1fr;gap:10px;align-items:center;margin-bottom:8px';
+    const requiredMark = field.required ? '<span style="color:var(--red)"> *</span>' : '';
+    const status = detected
+      ? '<span style="color:var(--accent);font-size:10px;font-family:var(--font-mono);margin-left:4px">✓ AUTO</span>'
+      : (field.required ? '<span style="color:var(--red);font-size:10px;font-family:var(--font-mono);margin-left:4px">! obavezno</span>' : '');
+
+    const optsHtml = '<option value="">— ne mapiraj —</option>' +
+      columns.map(c => '<option value="' + escapeHtml(c) + '"' + (c === detected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('');
+
+    row.innerHTML =
+      '<div style="font-size:12px">' + field.label + requiredMark + status + '</div>' +
+      '<div style="text-align:center;color:var(--text3);font-size:12px">→</div>' +
+      '<select class="form-input" data-field="' + field.key + '" style="padding:5px 8px;font-size:12px">' + optsHtml + '</select>';
+    container.appendChild(row);
+  });
+
+  // Bind change listeners
+  container.querySelectorAll('select[data-field]').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      columnMapping[e.target.dataset.field] = e.target.value;
+    });
+  });
+
+  // Preview prvih 3 redova
+  const preview = document.getElementById('preview-container');
+  preview.innerHTML = '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+    columns.map(c => '<th style="padding:4px 8px;text-align:left;color:var(--text3);border-bottom:1px solid var(--border);font-weight:400">' + escapeHtml(c) + '</th>').join('') +
+    '</tr></thead><tbody>' +
+    parsedImportData.slice(0, 3).map(row =>
+      '<tr>' + columns.map(c => '<td style="padding:4px 8px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(String(row[c] || '').slice(0, 40)) + '</td>').join('') + '</tr>'
+    ).join('') +
+    '</tbody></table>';
+}
+
+function resetImport() {
+  document.getElementById('import-step-upload').style.display = 'block';
+  document.getElementById('import-step-mapping').style.display = 'none';
+  document.getElementById('import-file').value = '';
+  parsedImportData = null;
+}
+
+async function executeImport() {
+  const cfg = IMPORT_FIELDS[currentImportType];
+  for (const f of cfg.fields) {
+    if (f.required && !columnMapping[f.key]) {
+      showToast('Mapiraj kolonu za "' + f.label + '" prije uvoza', 'error');
+      return;
+    }
+  }
+  // Pripremi redove prema mapiranju
+  const rows = [];
+  parsedImportData.forEach(row => {
+    const data = {};
+    cfg.fields.forEach(f => {
+      const col = columnMapping[f.key];
+      data[f.key] = col ? String(row[col] == null ? '' : row[col]).trim() : '';
+    });
+    const missingReq = cfg.fields.some(f => f.required && !data[f.key]);
+    if (!missingReq) rows.push(data);
+  });
+
+  if (apiAvailable) {
+    const endpoint = currentImportType === 'klijenti' ? '/clients/bulk'
+                   : currentImportType === 'dobavljaci' ? '/suppliers/bulk'
+                   : '/stock-items/bulk';
+    try {
+      const res = await apiPost(endpoint, { items: rows });
+      closeModal();
+      if (currentImportType === 'klijenti') await loadClients();
+      else if (currentImportType === 'dobavljaci') await loadSuppliers();
+      else await loadStock();
+      let msg = 'Uvezeno ' + res.inserted + ' redova u bazu';
+      if (res.skipped) msg += ' (' + res.skipped + ' preskočeno)';
+      showToast(msg);
+    } catch (e) { showToast('Greška pri uvozu: ' + e.message, 'error'); }
+    return;
+  }
+
+  // demo fallback (in-memory)
+  let added = 0, skipped = 0;
+  parsedImportData.forEach(row => {
+    const data = {};
+    cfg.fields.forEach(f => {
+      const col = columnMapping[f.key];
+      data[f.key] = col ? String(row[col] == null ? '' : row[col]).trim() : '';
+    });
+    const missingReq = cfg.fields.some(f => f.required && !data[f.key]);
+    if (missingReq) { skipped++; return; }
+    if (currentImportType === 'klijenti') importClient(data);
+    else if (currentImportType === 'dobavljaci') importSupplier(data);
+    else if (currentImportType === 'skladiste') importStock(data);
+    added++;
+  });
+  closeModal();
+  let msg = 'Uvezeno ' + added + ' redova (demo)';
+  if (skipped > 0) msg += ' (' + skipped + ' preskočeno)';
+  showToast(msg);
+}
+
+function detectCountryCode(input) {
+  if (!input) return 'HR';
+  input = String(input).trim();
+  const paren = input.match(/\(([A-Z]{2})\)/);
+  if (paren) return paren[1];
+  if (/^[A-Z]{2}$/i.test(input)) return input.toUpperCase();
+  const map = {
+    hrvatska:'HR', croatia:'HR',
+    slovenija:'SI', slovenia:'SI',
+    'bosna i hercegovina':'BA', bih:'BA', bosnia:'BA',
+    srbija:'RS', serbia:'RS',
+    austrija:'AT', austria:'AT', österreich:'AT', osterreich:'AT',
+    njemacka:'DE', 'njemačka':'DE', germany:'DE', deutschland:'DE',
+    italija:'IT', italy:'IT', italia:'IT',
+    francuska:'FR', france:'FR',
+    spanjolska:'ES', 'španjolska':'ES', spain:'ES', españa:'ES',
+    nizozemska:'NL', netherlands:'NL', holland:'NL',
+    svedska:'SE', 'švedska':'SE', sweden:'SE',
+    rumunjska:'RO', romania:'RO',
+    kina:'CN', china:'CN',
+    poljska:'PL', poland:'PL',
+    madjarska:'HU', 'mađarska':'HU', hungary:'HU'
+  };
+  return map[input.toLowerCase()] || input.slice(0, 2).toUpperCase();
+}
+
+function importClient(d) {
+  const cc = detectCountryCode(d.country);
+  const tbody = document.getElementById('clients-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'client-row';
+  tr.innerHTML =
+    '<td><span class="client-name">' + escapeHtml(d.naziv) + '</span></td>' +
+    '<td><span class="quote-id">' + escapeHtml(d.vat || '—') + '</span></td>' +
+    '<td>' + countryFlag(cc) + ' ' + cc + '</td>' +
+    '<td><span class="badge badge-draft">' + escapeHtml((d.segment || 'ostalo').toLowerCase().split(/[\s\/]/)[0]) + '</span></td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px">' + escapeHtml(d.payment || '30') + 'd</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td>' +
+    '<td><span class="li-margin margin-mid">—</span></td>' +
+    '<td><button class="icon-btn">→</button></td>';
+  tbody.appendChild(tr);
+  // Dodaj u dropdown nove ponude
+  const npSelect = document.getElementById('np-client');
+  if (npSelect) {
+    const opt = document.createElement('option');
+    opt.textContent = d.naziv;
+    npSelect.appendChild(opt);
+  }
+}
+
+function importSupplier(d) {
+  const cc = detectCountryCode(d.country);
+  const tbody = document.getElementById('suppliers-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'supplier-row';
+  tr.innerHTML =
+    '<td><span class="client-name">' + escapeHtml(d.naziv) + '</span></td>' +
+    '<td>' + countryFlag(cc) + ' ' + cc + '</td>' +
+    '<td><span class="quote-id">' + escapeHtml(d.currency || 'EUR') + '</span></td>' +
+    '<td style="font-size:12px;color:var(--text2)">' + escapeHtml(d.incoterms || 'EXW') + '</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px">' + escapeHtml(d.lead || '—') + 'd</td>' +
+    '<td><span class="li-margin margin-mid">—</span></td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">—</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td>' +
+    '<td><button class="icon-btn">→</button></td>';
+  tbody.appendChild(tr);
+}
+
+function importStock(d) {
+  const qty = parseFloat(String(d.qty).replace(',', '.')) || 0;
+  const min = parseFloat(String(d.min).replace(',', '.')) || 0;
+  const price = parseFloat(String(d.price).replace(',', '.')) || 0;
+
+  let status, statusClass, qtyColor;
+  if (qty === 0)         { status = 'nema';      statusClass = 'badge-lost';   qtyColor = 'var(--red)'; }
+  else if (qty < min)    { status = 'nisko';     statusClass = 'badge-review'; qtyColor = 'var(--amber)'; }
+  else                   { status = 'na stanju'; statusClass = 'badge-won';    qtyColor = 'var(--accent)'; }
+
+  const tbody = document.getElementById('stock-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'stock-row';
+  tr.innerHTML =
+    '<td><span class="quote-id">' + escapeHtml(d.sku) + '</span></td>' +
+    '<td><span class="client-name">' + escapeHtml(d.naziv) + '</span></td>' +
+    '<td style="color:var(--text2)">' + escapeHtml(d.cat || '—') + '</td>' +
+    '<td style="font-family:var(--font-mono);color:' + qtyColor + '">' + qty + '</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">' + escapeHtml(d.unit || 'kom') + '</td>' +
+    '<td style="font-size:12px">' + escapeHtml(d.loc || 'Skladište RI') + '</td>' +
+    '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">' + min + '</td>' +
+    '<td><span class="amount-cell">€' + price.toFixed(2) + '</span></td>' +
+    '<td><span class="badge ' + statusClass + '">● ' + status + '</span></td>' +
+    '<td><button class="icon-btn">→</button></td>';
+  tbody.appendChild(tr);
+  updateStockKPIs();
+}
+
+function updateStockKPIs() {
+  const rows = document.querySelectorAll('#stock-tbody .stock-row');
+  document.getElementById('kpi-total-items').textContent = rows.length;
+  document.getElementById('stock-count').textContent = rows.length + ' artikala';
+  let low = 0, none = 0;
+  rows.forEach(r => {
+    const badge = r.querySelector('.badge');
+    if (!badge) return;
+    if (badge.classList.contains('badge-review')) low++;
+    if (badge.classList.contains('badge-lost')) none++;
+  });
+  document.getElementById('kpi-low-stock').textContent = low;
+  document.getElementById('kpi-no-stock').textContent = none;
+}
+
+async function addStockItem() {
+  const sku = document.getElementById('na-sku').value.trim();
+  const naziv = document.getElementById('na-name').value.trim();
+  if (!sku || !naziv) { showToast('SKU i Naziv su obavezni', 'error'); return; }
+  const payload = {
+    sku, naziv,
+    cat: document.getElementById('na-cat').value.trim(),
+    loc: document.getElementById('na-loc').value.trim(),
+    qty: document.getElementById('na-qty').value || '0',
+    unit: document.getElementById('na-unit').value,
+    min: document.getElementById('na-min').value || '0',
+    price: document.getElementById('na-price').value || '0'
+  };
+  if (apiAvailable) {
+    try {
+      await apiPost('/stock-items/', {
+        sku, name: naziv, category: payload.cat || null, unit: payload.unit,
+        quantity_on_hand: parseFloat(payload.qty) || 0,
+        min_stock_level: parseFloat(payload.min) || 0,
+        unit_cost: parseFloat(payload.price) || null, currency: 'EUR'
+      });
+      ['na-sku','na-name','na-cat','na-qty','na-min','na-price'].forEach(id => document.getElementById(id).value='');
+      closeModal();
+      await loadStock();
+      showToast('Artikl "' + naziv + '" spremljen u bazu');
+    } catch (e) { showToast('Greška: ' + e.message, 'error'); }
+    return;
+  }
+  importStock(payload);
+  ['na-sku','na-name','na-cat','na-qty','na-min','na-price'].forEach(id => document.getElementById(id).value='');
+  closeModal();
+  showToast('Artikl "' + naziv + '" dodan (demo)');
+}
+async function loadStock() {
+  if (!apiAvailable) return;
+  try {
+    const items = await apiGet('/stock-items/');
+    const tbody = document.getElementById('stock-tbody'); tbody.innerHTML = '';
+    items.forEach(it => importStock({
+      sku: it.sku, naziv: it.name, cat: it.category,
+      qty: String(it.quantity_on_hand), unit: it.unit, loc: 'Skladiste',
+      min: String(it.min_stock_level), price: String(it.unit_cost || 0)
+    }));
+  } catch (e) { console.error('loadStock', e); }
+}
+
+// ========== TEMPLATE DOWNLOAD ==========
+function downloadTemplate(type) {
+  if (typeof XLSX === 'undefined') {
+    showToast('SheetJS biblioteka nije učitana', 'error');
+    return;
+  }
+  const cfg = IMPORT_FIELDS[type];
+  if (!cfg) return;
+  const headers = cfg.fields.map(f => f.label.replace(' *', ''));
+  const examples = {
+    klijenti: [
+      ['Hotel Importanne d.o.o.', 'HR12345678901', 'Hrvatska',  'hotel',  '30'],
+      ['Müller Handels GmbH',     'DE123456789',   'Njemačka',  'retail', '45'],
+      ['Lidl Italia Srl',         'IT09876543210', 'Italija',   'retail', '60']
+    ],
+    dobavljaci: [
+      ['Ledvance GmbH',       'Njemačka',  'EUR', 'DAP', '10'],
+      ['Schneider Electric',  'Francuska', 'EUR', 'EXW', '14'],
+      ['Световик SRL',        'Rumunjska', 'EUR', 'EXW', '21']
+    ],
+    skladiste: [
+      ['LED-PNL-30W',  'LED Panel 30W 4000K',    'led_panel', '50',   'kom', 'Skladište RI', '10',  '14.50'],
+      ['KBL-NYM-3X15', 'NYM-J 3×1.5mm² bijeli', 'kabel',     '1200', 'm',   'Skladište RI', '200', '0.85'],
+      ['SPOT-GU10-5W', 'Spot GU10 5W 3000K',    'spot',      '8',    'kom', 'Skladište RI', '20',  '3.40']
+    ]
+  };
+  const rows = [headers, ...(examples[type] || [])];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Auto-width
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 2, 14) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, cfg.title);
+  XLSX.writeFile(wb, 'template-' + type + '.xlsx');
+  showToast('Template preuzet — primjeri u prva 3 redka');
+}
+
+// ========== FILTER ZA SEARCH (klijenti, dobavljači, skladište) ==========
+function filterList(input, className) {
+  const term = input.value.toLowerCase().trim();
+  document.querySelectorAll('.' + className).forEach(row => {
+    row.style.display = (!term || row.textContent.toLowerCase().includes(term)) ? '' : 'none';
+  });
+}
+
+// Setup file picker za import modal (DOM je već spreman jer je script na kraju body-ja)
+(function setupImportDropzone() {
+  const drop = document.getElementById('import-drop');
+  const fileInput = document.getElementById('import-file');
+  if (!drop || !fileInput) {
+    console.warn('Import dropzone elementi nisu pronađeni');
+    return;
+  }
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    drop.style.borderColor = 'var(--accent)';
+    drop.style.background = 'var(--accent-dim2)';
+  });
+  drop.addEventListener('dragleave', () => {
+    drop.style.borderColor = '';
+    drop.style.background = '';
+  });
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.style.borderColor = '';
+    drop.style.background = '';
+    if (e.dataTransfer.files.length) parseExcelFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) parseExcelFile(e.target.files[0]);
+  });
+})();
+
+// ========== STARTUP ==========
+(async function init() {
+  await checkApi();
+  if (apiAvailable) {
+    await loadClients();
+    await loadSuppliers();
+    await loadStock();
+  }
+})();
+</script>
+</body>
+</html>
