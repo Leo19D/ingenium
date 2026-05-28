@@ -128,7 +128,7 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)) -> 
     verify_url = f"{settings.APP_BASE_URL}/api/v1/auth/verify-email?token={token}"
     await send_email(
         to=email,
-        subject="Potvrdi email adresu — QuoteFlow",
+        subject="Potvrdi email adresu — Ingenium",
         html=_verification_html(req.full_name.strip(), verify_url),
     )
 
@@ -263,7 +263,7 @@ def _verification_html(name: str, url: str) -> str:
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;background:#a8f4b8;border-radius:8px;display:inline-block;
                           text-align:center;line-height:32px;font-size:16px">⚡</div>
-              <span style="font-size:17px;font-weight:700;color:#e8ede9;letter-spacing:-0.3px;vertical-align:middle;margin-left:10px">QuoteFlow</span>
+              <span style="font-size:17px;font-weight:700;color:#e8ede9;letter-spacing:-0.3px;vertical-align:middle;margin-left:10px">Ingenium</span>
             </div>
           </td>
         </tr>
@@ -274,7 +274,7 @@ def _verification_html(name: str, url: str) -> str:
               Potvrdi svoju email adresu
             </h1>
             <p style="color:#8a9489;font-size:14px;line-height:1.6;margin:0 0 28px">
-              Netko (vjerojatno ti) se registrirao na QuoteFlow s ovom email adresom.
+              Netko (vjerojatno ti) se registrirao na Ingenium s ovom email adresom.
               Klikni gumb ispod da aktiviraš račun. Link vrijedi {_VERIFY_TOKEN_HOURS} sati.
             </p>
             <a href="{url}"
@@ -291,7 +291,7 @@ def _verification_html(name: str, url: str) -> str:
         <tr>
           <td style="padding:16px 40px;border-top:1px solid rgba(255,255,255,0.07)">
             <p style="color:#5a6358;font-size:11px;margin:0;font-family:monospace">
-              QuoteFlow · AI Quote &amp; Procurement Platform
+              Ingenium · AI Quote &amp; Procurement Platform
             </p>
           </td>
         </tr>

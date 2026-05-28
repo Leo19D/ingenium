@@ -6,7 +6,7 @@ Wires up:
   - exception handlers
   - API routes (/api/v1/*)
   - lifespan (startup/shutdown)
-  - static frontend serving (the quoteflow.html prototype)
+  - static frontend serving (the Ingenium frontend)
 """
 
 from __future__ import annotations
