@@ -234,6 +234,9 @@ async def login(
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
+    # Timestamp za security alert
+    now_str = datetime.now(UTC).strftime("%d.%m.%Y. u %H:%M UTC")
+
     try:
         await send_email(
             to=email,
@@ -242,7 +245,6 @@ async def login(
         )
     except Exception as exc:
         _log.error("otp_email_send_failed", extra={"email": email, "error": str(exc)})
-        # U developmentu ispiši kod u log da se može testirati bez SMTP-a
         if settings.ENV == "development":
             _log.warning(f"[DEV] OTP za {email}: {otp}")
         else:
@@ -251,7 +253,16 @@ async def login(
                 detail="Nije moguće poslati kod. Pokušajte ponovo za koji trenutak.",
             )
 
-    # U developmentu uvijek logiraj OTP za lakše testiranje
+    # Security alert na admin email (fire-and-forget, ne blokira login)
+    try:
+        await send_email(
+            to="ingeniumtrade@gmail.com",
+            subject=f"🔐 Login pokušaj — {email}",
+            html=_security_alert_html(email, client_ip, now_str),
+        )
+    except Exception:
+        pass  # Alert nije kritičan — ne smije blokirati login
+
     if settings.ENV == "development":
         _log.warning(f"[DEV] OTP za {email}: {otp}")
 
@@ -443,68 +454,307 @@ def _verification_html(name: str, url: str) -> str:
 
 
 def _otp_html(name: str, code: str, expire_minutes: int) -> str:
-    digits = "".join(
-        f'<td style="padding:0 5px"><div style="width:44px;height:56px;background:#0f1a12;'
-        f'border:1.5px solid #2a4030;border-radius:10px;display:inline-flex;'
-        f'align-items:center;justify-content:center;font-size:28px;font-weight:700;'
-        f'color:#a8f4b8;font-family:monospace">{d}</div></td>'
-        for d in code
-    )
+    first_name = name.split()[0] if name else name
+    spaced_code = "  ".join(code)
     return f"""<!DOCTYPE html>
 <html lang="hr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#07090a;font-family:'Inter',Arial,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#07090a;padding:48px 16px">
-  <tr><td align="center">
-    <table width="500" cellpadding="0" cellspacing="0"
-           style="background:#0d110f;border:1px solid #1a2019;border-radius:14px;overflow:hidden">
-      <tr>
-        <td style="padding:28px 36px 22px;border-bottom:1px solid #1a2019">
-          <table cellpadding="0" cellspacing="0"><tr>
-            <td style="width:34px;height:34px;background:#a8f4b8;border-radius:8px;
-                        text-align:center;vertical-align:middle;font-size:16px">⚡</td>
-            <td style="padding-left:10px;font-size:16px;font-weight:700;color:#ddeadf;
-                        letter-spacing:-0.3px">Ingenium</td>
-          </tr></table>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:32px 36px 28px">
-          <p style="color:#7a9480;font-size:13px;margin:0 0 6px">Pozdrav, {name}</p>
-          <h1 style="color:#ddeadf;font-size:20px;font-weight:700;margin:0 0 10px;letter-spacing:-0.4px">
-            Vaš jednokratni kod za prijavu
-          </h1>
-          <p style="color:#7a9480;font-size:13px;line-height:1.6;margin:0 0 28px">
-            Unesite ovaj kod u roku od <strong style="color:#ddeadf">{expire_minutes} minuta</strong>.
-            Kod je jednokratan i automatski se poništava.
-          </p>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kod za prijavu — Ingenium</title>
+</head>
+<body style="margin:0;padding:0;background:#060908;">
 
-          <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px">
-            <tr>{digits}</tr>
-          </table>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#060908;padding:0;">
+<tr><td align="center" style="padding:52px 16px 72px;">
 
-          <table cellpadding="0" cellspacing="0"
-                 style="background:#0a0f0d;border:1px solid #1a2019;border-radius:9px;
-                        padding:14px 18px;margin-bottom:24px">
-            <tr>
-              <td style="color:#7a9480;font-size:12px;line-height:1.6">
-                ⚠ &nbsp;<strong style="color:#ddeadf">Niste vi?</strong>
-                Netko pokušava pristupiti vašem Ingenium računu.
-                Ignorirajte ovaj email i odmah promijenite lozinku.
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:14px 36px;border-top:1px solid #1a2019">
-          <p style="color:#3d5040;font-size:11px;margin:0">
-            Ingenium · AI Quote &amp; Procurement Platform · Kod vrijedi {expire_minutes} min
-          </p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
+  <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;">
+
+    <!-- Logo row -->
+    <tr>
+      <td style="padding-bottom:28px;">
+        <table cellpadding="0" cellspacing="0"><tr valign="middle">
+          <td style="width:38px;height:38px;background:#a8f4b8;border-radius:10px;
+                      text-align:center;line-height:38px;font-size:20px;">⚡</td>
+          <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:18px;
+                      font-weight:700;color:#c8e8ca;letter-spacing:-0.4px;">Ingenium</td>
+        </tr></table>
+      </td>
+    </tr>
+
+    <!-- Main card -->
+    <tr>
+      <td style="background:#0e1510;border-radius:20px;overflow:hidden;
+                  border:1px solid #1e2d20;">
+
+        <!-- Top accent bar -->
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="height:3px;background:linear-gradient(90deg,#a8f4b8 0%,#4dd88a 50%,#a8f4b8 100%);"></td>
+          </tr>
+        </table>
+
+        <!-- Card body -->
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding:44px 48px 40px;">
+
+              <!-- Eyebrow -->
+              <p style="margin:0 0 18px;font-family:Arial,sans-serif;font-size:11px;
+                          font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+                          color:#4a7a52;">
+                Sigurnosna verifikacija
+              </p>
+
+              <!-- Headline -->
+              <h1 style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:28px;
+                          font-weight:800;color:#e0ece2;letter-spacing:-0.8px;line-height:1.15;">
+                Vaš jednokratni<br>kod za prijavu
+              </h1>
+
+              <!-- Subtext -->
+              <p style="margin:0 0 40px;font-family:Arial,sans-serif;font-size:14px;
+                          color:#5a7a5e;line-height:1.7;">
+                Hej, <strong style="color:#9abf9c;">{first_name}</strong> —
+                unesite ovaj kod da biste pristupili svom Ingenium računu.
+                Vrijedi <strong style="color:#c0ddc2;">{expire_minutes}&nbsp;minuta</strong>.
+              </p>
+
+              <!-- Code block -->
+              <table cellpadding="0" cellspacing="0" width="100%"
+                     style="background:#070d09;border-radius:16px;border:1px solid #253528;
+                            margin-bottom:36px;">
+                <tr>
+                  <td style="padding:32px 0;text-align:center;">
+                    <p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:11px;
+                                font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
+                                color:#374d39;">
+                      Jednokratni kod
+                    </p>
+                    <p style="margin:0;font-family:'Courier New',Courier,monospace;
+                                font-size:48px;font-weight:700;letter-spacing:0.25em;
+                                color:#a8f4b8;line-height:1;">
+                      {spaced_code}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Info row -->
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="margin-bottom:32px;">
+                <tr>
+                  <td width="33%" style="text-align:center;padding:0 4px;">
+                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
+                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Istječe za</p>
+                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
+                                  font-weight:700;color:#8ab890;">{expire_minutes} min</p>
+                    </div>
+                  </td>
+                  <td width="33%" style="text-align:center;padding:0 4px;">
+                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
+                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Jednokratan</p>
+                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
+                                  font-weight:700;color:#8ab890;">Da</p>
+                    </div>
+                  </td>
+                  <td width="33%" style="text-align:center;padding:0 4px;">
+                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
+                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Platforma</p>
+                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
+                                  font-weight:700;color:#8ab890;">Ingenium</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security notice -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#06100a;border-radius:12px;
+                              border:1px solid #1a2a1d;border-left:3px solid #a8f4b8;
+                              padding:16px 20px;">
+                    <p style="margin:0;font-family:Arial,sans-serif;font-size:12.5px;
+                                color:#4a6a4e;line-height:1.7;">
+                      <strong style="color:#7aaa80;">Niste tražili ovaj kod?</strong>
+                      Netko je unio vašu lozinku i pokušava pristupiti vašem računu.
+                      Ne dijelite ovaj kod ni s kim. Odmah promijenite lozinku.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding:24px 4px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-family:Arial,sans-serif;font-size:11px;color:#2a3c2c;line-height:1.6;">
+              Ingenium · AI Quote &amp; Procurement Platform
+            </td>
+            <td align="right" style="font-family:Arial,sans-serif;font-size:11px;color:#2a3c2c;">
+              ingeniumtrade.hr
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+  </table>
+
+</td></tr>
 </table>
+
+</body>
+</html>"""
+
+
+def _security_alert_html(email: str, ip: str, timestamp: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login alert — Ingenium</title>
+</head>
+<body style="margin:0;padding:0;background:#060908;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#060908;padding:0;">
+<tr><td align="center" style="padding:48px 16px 64px;">
+
+  <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;">
+
+    <!-- Logo -->
+    <tr>
+      <td style="padding-bottom:24px;">
+        <table cellpadding="0" cellspacing="0"><tr valign="middle">
+          <td style="width:34px;height:34px;background:#a8f4b8;border-radius:9px;
+                      text-align:center;line-height:34px;font-size:17px;">⚡</td>
+          <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:16px;
+                      font-weight:700;color:#c8e8ca;">Ingenium</td>
+          <td style="padding-left:10px;">
+            <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;
+                          letter-spacing:0.08em;text-transform:uppercase;color:#e8a060;
+                          background:rgba(232,160,96,0.1);border:1px solid rgba(232,160,96,0.25);
+                          border-radius:20px;padding:3px 9px;">Security Alert</span>
+          </td>
+        </tr></table>
+      </td>
+    </tr>
+
+    <!-- Alert card -->
+    <tr>
+      <td style="background:#0f100c;border-radius:20px;overflow:hidden;
+                  border:1px solid #2a2618;">
+
+        <!-- Amber accent bar -->
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="height:3px;background:linear-gradient(90deg,#f4c56a 0%,#e8955a 50%,#f4c56a 100%);"></td>
+          </tr>
+        </table>
+
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding:40px 44px 36px;">
+
+              <!-- Icon + headline -->
+              <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr valign="middle">
+                  <td style="width:48px;height:48px;background:rgba(244,197,106,0.1);
+                              border:1px solid rgba(244,197,106,0.25);border-radius:12px;
+                              text-align:center;line-height:48px;font-size:22px;">🔐</td>
+                  <td style="padding-left:16px;">
+                    <p style="margin:0 0 3px;font-family:Arial,sans-serif;font-size:11px;
+                                font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+                                color:#7a6a30;">Pokušaj prijave</p>
+                    <h2 style="margin:0;font-family:Arial,sans-serif;font-size:20px;
+                                font-weight:800;color:#e8e0c8;letter-spacing:-0.4px;">
+                      Netko se prijavljuje
+                    </h2>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 28px;font-family:Arial,sans-serif;font-size:14px;
+                          color:#7a7050;line-height:1.7;">
+                Zabilježena je prijava na Ingenium platformu. OTP kod je poslan korisniku.
+                Ako ovo niste vi, odmah reagirajte.
+              </p>
+
+              <!-- Detail rows -->
+              <table width="100%" cellpadding="0" cellspacing="0"
+                     style="background:#0a0b07;border-radius:12px;border:1px solid #222018;
+                            margin-bottom:24px;overflow:hidden;">
+                <tr style="border-bottom:1px solid #1e1c12;">
+                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
+                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+                              color:#4a4530;width:40%;">Korisnik</td>
+                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
+                              color:#c8c0a0;font-weight:600;">{email}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #1e1c12;">
+                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
+                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+                              color:#4a4530;">IP adresa</td>
+                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
+                              color:#c8c0a0;">{ip}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
+                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+                              color:#4a4530;">Vrijeme</td>
+                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
+                              color:#c8c0a0;">{timestamp}</td>
+                </tr>
+              </table>
+
+              <!-- Warning -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#0c0a06;border-radius:10px;
+                              border:1px solid #2a2216;border-left:3px solid #f4c56a;
+                              padding:14px 18px;">
+                    <p style="margin:0;font-family:Arial,sans-serif;font-size:12.5px;
+                                color:#6a6040;line-height:1.7;">
+                      Ako <strong style="color:#a09050;">ne prepoznajete ovu prijavu</strong>,
+                      odmah onemogućite račun i promijenite lozinku.
+                      Ovaj alert se šalje pri svakom pokušaju prijave.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding:20px 4px 0;">
+        <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#2a2818;line-height:1.6;">
+          Ingenium Security · Automatski generiran alert · Ne odgovaraj na ovaj email
+        </p>
+      </td>
+    </tr>
+
+  </table>
+
+</td></tr>
+</table>
+
 </body>
 </html>"""
