@@ -142,6 +142,7 @@ td { padding: 12px 16px; font-size: 13px; }
 .badge-review { color: var(--amber); border-color: rgba(244,209,106,0.3); background: var(--amber-dim); }
 .badge-lost { color: var(--red); border-color: rgba(244,122,106,0.3); background: var(--red-dim); }
 
+.upload-zone.drag-over { border-color: var(--accent); background: var(--accent-dim2); }
 .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--r); padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 24px; background: var(--bg2); }
 .upload-zone:hover { border-color: var(--accent); background: var(--accent-dim2); }
 .upload-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
@@ -492,15 +493,27 @@ textarea.form-input { resize: vertical; }
 
     <!-- DOCUMENTS -->
     <div class="view" id="view-documents">
-      <div class="upload-zone" onclick="simulateUpload()">
-        <div class="upload-icon">⬆</div>
-        <div class="upload-title">Uvezi RFQ ili troškovnik</div>
-        <div class="upload-sub">PDF, XLSX, CSV, DOCX · klikni ili prevuci ovdje</div>
+      <input type="file" id="doc-file-input" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc"
+             style="display:none" onchange="uploadDocument(this.files[0])">
+      <div class="upload-zone" id="upload-zone"
+           onclick="document.getElementById('doc-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="event.preventDefault();this.classList.remove('drag-over');uploadDocument(event.dataTransfer.files[0])">
+        <div class="upload-icon" id="upload-icon">⬆</div>
+        <div class="upload-title" id="upload-title">Uvezi RFQ ili troškovnik</div>
+        <div class="upload-sub">PDF, XLSX, CSV, DOCX · klikni ili prevuci ovdje · max 25 MB</div>
       </div>
 
-      <div class="section-header"><div class="section-title">Procesiranje dokumenta</div></div>
+      <div class="section-header" style="margin-top:24px">
+        <div class="section-title">Uploadani dokumenti</div>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="loadDocuments()">↻ Osvježi</button>
+      </div>
+      <div id="documents-list"></div>
 
-      <div class="processing-card">
+      <div class="section-header" style="margin-top:24px"><div class="section-title">Procesiranje dokumenta</div></div>
+
+      <div class="processing-card" style="display:none" id="proc-demo">
         <div class="proc-header">
           <div class="proc-file-icon">📋</div>
           <div><div class="proc-filename">RFQ-hotel-konavle.pdf</div><div class="proc-meta">2.4 MB · PDF · hr jezik · detektiran: troškovnik</div></div>
@@ -729,6 +742,7 @@ textarea.form-input { resize: vertical; }
         <button class="btn btn-ghost" style="font-size:12px">Sve lokacije ▾</button>
         <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="stock-count">5 artikala</span>
         <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="exportXlsx('stock-items')">↓ Export Excel</button>
           <button class="btn btn-ghost" onclick="downloadTemplate('skladiste')">↓ Template</button>
           <button class="btn btn-ghost" onclick="openImport('skladiste')">⬆ Uvezi Excel</button>
           <button class="btn btn-primary" onclick="openModal('novi-artikl')">+ Novi artikl</button>
@@ -765,6 +779,7 @@ textarea.form-input { resize: vertical; }
         </div>
         <button class="btn btn-ghost" style="font-size:12px">Sve države ▾</button>
         <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="exportXlsx('clients')">↓ Export Excel</button>
           <button class="btn btn-ghost" onclick="downloadTemplate('klijenti')">↓ Template</button>
           <button class="btn btn-ghost" onclick="openImport('klijenti')">⬆ Uvezi Excel</button>
           <button class="btn btn-primary" onclick="openModal('novi-klijent')">+ Novi klijent</button>
@@ -793,6 +808,7 @@ textarea.form-input { resize: vertical; }
           <input type="text" placeholder="Pretraži dobavljače..." oninput="filterList(this,'supplier-row')">
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="exportXlsx('suppliers')">↓ Export Excel</button>
           <button class="btn btn-ghost" onclick="downloadTemplate('dobavljaci')">↓ Template</button>
           <button class="btn btn-ghost" onclick="openImport('dobavljaci')">⬆ Uvezi Excel</button>
           <button class="btn btn-primary" onclick="openModal('novi-dobavljac')">+ Novi dobavljač</button>
@@ -1246,22 +1262,225 @@ async function loadSuppliers() {
 }
 
 // ========== KREIRANJE PONUDE ==========
-function createQuote() {
-  const client = document.getElementById('np-client').value;
-  const project = document.getElementById('np-project').value.trim();
+// ========== EXCEL EXPORT ==========
+function exportXlsx(resource) {
+  if (!apiAvailable) { showToast('Export zahtijeva backend vezu', 'error'); return; }
+  const token = _getToken();
+  const url = API_BASE + '/' + resource + '/export/xlsx';
+  // Koristimo anchor trick da bi browser otvorio download dijalog
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = resource + '.xlsx';
+  // Dodaj auth header kroz fetch + blob
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => {
+      if (!r.ok) throw new Error('Export nije uspio');
+      return r.blob();
+    })
+    .then(blob => {
+      const burl = URL.createObjectURL(blob);
+      a.href = burl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(burl);
+      showToast('Excel preuzet');
+    })
+    .catch(e => showToast('Export greška: ' + e.message, 'error'));
+}
 
-  if (!client) {
-    showToast('Odaberi klijenta', 'error');
+// ========== DOCUMENT UPLOAD ==========
+async function uploadDocument(file) {
+  if (!file) return;
+  if (!apiAvailable) { showToast('Upload zahtijeva backend vezu', 'error'); return; }
+  const zone = document.getElementById('upload-zone');
+  const icon = document.getElementById('upload-icon');
+  const title = document.getElementById('upload-title');
+  zone.style.borderColor = 'var(--accent)';
+  icon.textContent = '⏳';
+  title.textContent = 'Uploading ' + file.name + '...';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/documents/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd,
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Upload greška');
+    showToast('✓ ' + file.name + ' uploadan');
+    await loadDocuments();
+  } catch(e) {
+    showToast(e.message, 'error');
+  } finally {
+    zone.style.borderColor = '';
+    icon.textContent = '⬆';
+    title.textContent = 'Uvezi RFQ ili troškovnik';
+    document.getElementById('doc-file-input').value = '';
+  }
+}
+
+function _docIcon(mime) {
+  if (!mime) return '📄';
+  if (mime.includes('pdf')) return '📋';
+  if (mime.includes('sheet') || mime.includes('excel')) return '📊';
+  if (mime.includes('csv')) return '📑';
+  if (mime.includes('word')) return '📝';
+  return '📄';
+}
+
+function _fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function loadDocuments() {
+  if (!apiAvailable) return;
+  try {
+    const docs = await apiGet('/documents/');
+    const container = document.getElementById('documents-list');
+    if (!docs.length) {
+      container.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:16px 0">Nema uploadanih dokumenata.</p>';
+      return;
+    }
+    container.innerHTML = docs.map(d => `
+      <div class="processing-card" style="margin-bottom:10px">
+        <div class="proc-header">
+          <div class="proc-file-icon">${_docIcon(d.mime_type)}</div>
+          <div style="flex:1">
+            <div class="proc-filename">${escapeHtml(d.filename)}</div>
+            <div class="proc-meta">${_fmtSize(d.size_bytes)} · ${d.mime_type || '—'} · ${d.created_at ? d.created_at.slice(0,10) : ''}</div>
+          </div>
+          <div class="proc-status" style="gap:8px">
+            <span class="badge ${d.status === 'received' ? 'badge-draft' : 'badge-won'}">● ${d.status}</span>
+            <button class="icon-btn" title="Obriši" onclick="deleteDocument('${d.id}')">🗑</button>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    console.error('loadDocuments error', e);
+  }
+}
+
+async function deleteDocument(id) {
+  if (!confirm('Obrisati ovaj dokument?')) return;
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/documents/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (r.status === 204) { showToast('Dokument obrisan'); await loadDocuments(); }
+    else showToast('Greška pri brisanju', 'error');
+  } catch(e) { showToast('Greška', 'error'); }
+}
+
+// ========== PROJECTS + QUOTE BUILDER ==========
+var _projects = [];
+var _currentQuote = null;
+
+async function loadProjects() {
+  if (!apiAvailable) return;
+  try {
+    _projects = await apiGet('/projects/');
+    const sel = document.getElementById('np-client');
+    // Osvježi projekti selector ako postoji
+    const projSel = document.getElementById('np-project-select');
+    if (projSel) {
+      projSel.innerHTML = '<option value="">-- Odaberi projekt --</option>' +
+        _projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    }
+  } catch(e) { console.error('loadProjects', e); }
+}
+
+async function createQuote() {
+  const clientId = document.getElementById('np-client').value;
+  const projectName = document.getElementById('np-project').value.trim();
+  if (!clientId) { showToast('Odaberi klijenta', 'error'); return; }
+  if (!projectName) { showToast('Naziv projekta je obavezan', 'error'); return; }
+
+  if (!apiAvailable) {
+    closeModal();
+    showToast('Ponuda kreirana — demo mode');
+    setTimeout(() => setView('builder'), 400);
     return;
   }
-  if (!project) {
-    showToast('Naziv projekta je obavezan', 'error');
-    return;
-  }
 
-  closeModal();
-  showToast('Ponuda kreirana — otvaram builder');
-  setTimeout(() => setView('builder'), 400);
+  try {
+    // Kreiraj projekt
+    const proj = await apiPost('/projects/', { name: projectName, client_id: clientId });
+    // Kreiraj ponudu
+    const quote = await apiPost('/quotes/', { project_id: proj.id, currency: 'EUR' });
+    _currentQuote = quote;
+    closeModal();
+    showToast('Ponuda V' + quote.version + ' kreirana');
+    renderQuoteBuilder(quote);
+    setTimeout(() => setView('builder'), 200);
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
+  }
+}
+
+function renderQuoteBuilder(quote) {
+  const items = quote.line_items || [];
+  const tbody = document.getElementById('quote-line-items-body');
+  if (!tbody) return;
+  tbody.innerHTML = items.length ? items.map(li => `
+    <tr>
+      <td style="font-family:var(--font-mono);font-size:12px">${li.position}</td>
+      <td>${escapeHtml(li.description)}</td>
+      <td style="font-family:var(--font-mono)">${li.quantity} ${li.unit}</td>
+      <td><span class="amount-cell">€${parseFloat(li.unit_price).toFixed(2)}</span></td>
+      <td><span class="amount-cell">€${parseFloat(li.line_total || 0).toFixed(2)}</span></td>
+      <td>${li.margin_pct ? (parseFloat(li.margin_pct)*100).toFixed(1)+'%' : '—'}</td>
+      <td><button class="icon-btn" onclick="deleteLineItem('${li.id}')">🗑</button></td>
+    </tr>`).join('') :
+    '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nema stavki — dodaj prvu</td></tr>';
+
+  const total = document.getElementById('quote-total');
+  if (total) total.textContent = '€' + parseFloat(quote.total || 0).toFixed(2);
+  const margin = document.getElementById('quote-margin');
+  if (margin) margin.textContent = quote.margin_pct ? (parseFloat(quote.margin_pct)*100).toFixed(1)+'%' : '—';
+}
+
+async function addQuoteLineItem() {
+  if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
+  const desc = document.getElementById('li-desc')?.value?.trim();
+  const qty = parseFloat(document.getElementById('li-qty')?.value);
+  const price = parseFloat(document.getElementById('li-price')?.value);
+  const unit = document.getElementById('li-unit')?.value || 'pcs';
+  if (!desc || !qty || !price) { showToast('Popuni opis, količinu i cijenu', 'error'); return; }
+  try {
+    const updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', {
+      description: desc, quantity: qty, unit_price: price, unit,
+    });
+    _currentQuote = updated;
+    renderQuoteBuilder(updated);
+    document.getElementById('li-desc').value = '';
+    document.getElementById('li-qty').value = '';
+    document.getElementById('li-price').value = '';
+    showToast('Stavka dodana');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function deleteLineItem(itemId) {
+  if (!_currentQuote) return;
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/quotes/' + _currentQuote.id + '/line-items/' + itemId, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (r.ok) {
+      const updated = await r.json();
+      _currentQuote = updated;
+      renderQuoteBuilder(updated);
+    }
+  } catch(e) { showToast('Greška pri brisanju stavke', 'error'); }
 }
 
 // ========== EXCEL IMPORT ==========
@@ -1910,9 +2129,7 @@ async function apiPost(path, body) {
   }
 
   hideLoginScreen();
-  await loadClients();
-  await loadSuppliers();
-  await loadStock();
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects()]);
 })();
 </script>
 

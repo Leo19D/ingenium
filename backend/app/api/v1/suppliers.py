@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,6 +103,47 @@ async def delete_supplier(
     if not supplier:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dobavljač ne postoji")
     await db.delete(supplier)
+
+
+@router.get("/export/xlsx")
+async def export_suppliers_xlsx(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> StreamingResponse:
+    result = await db.execute(
+        select(Supplier).where(Supplier.org_id == org_id).order_by(Supplier.name)
+    )
+    suppliers = list(result.scalars().all())
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Dobavljači"
+    headers = ["Naziv", "Zemlja", "Valuta", "Incoterms", "Lead time (dana)",
+               "Rating", "On-time %", "Bilješka"]
+    fill = PatternFill("solid", fgColor="1E3A2A")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = fill
+        cell.font = Font(bold=True, color="A8F4B8")
+    for row, s in enumerate(suppliers, 2):
+        ws.cell(row=row, column=1, value=s.name)
+        ws.cell(row=row, column=2, value=s.country_code)
+        ws.cell(row=row, column=3, value=s.currency)
+        ws.cell(row=row, column=4, value=s.incoterms_default)
+        ws.cell(row=row, column=5, value=s.lead_time_days_avg)
+        ws.cell(row=row, column=6, value=float(s.rating) if s.rating else None)
+        ws.cell(row=row, column=7, value=float(s.on_time_rate) if s.on_time_rate else None)
+        ws.cell(row=row, column=8, value=s.notes)
+    for i, w in enumerate([30, 10, 8, 10, 8, 8, 8, 30], 1):
+        ws.column_dimensions[ws.cell(1, i).column_letter].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=dobavljaci.xlsx"},
+    )
 
 
 @router.post("/bulk", response_model=BulkImportResult, status_code=status.HTTP_201_CREATED)

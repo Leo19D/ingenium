@@ -5,7 +5,12 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,6 +159,47 @@ async def delete_stock_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikl ne postoji")
     await db.delete(item)
+
+
+@router.get("/export/xlsx")
+async def export_stock_xlsx(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> StreamingResponse:
+    result = await db.execute(
+        select(StockItem).where(StockItem.org_id == org_id).order_by(StockItem.sku)
+    )
+    items = list(result.scalars().all())
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Skladište"
+    headers = ["SKU", "Naziv", "Kategorija", "Količina", "Jed. mjere",
+               "Lokacija", "Min. zaliha", "Cijena (EUR)"]
+    fill = PatternFill("solid", fgColor="1E3A2A")
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = fill
+        cell.font = Font(bold=True, color="A8F4B8")
+    for row, item in enumerate(items, 2):
+        ws.cell(row=row, column=1, value=item.sku)
+        ws.cell(row=row, column=2, value=item.name)
+        ws.cell(row=row, column=3, value=item.category)
+        ws.cell(row=row, column=4, value=float(item.quantity_on_hand) if item.quantity_on_hand else 0)
+        ws.cell(row=row, column=5, value=item.unit)
+        ws.cell(row=row, column=6, value=item.location)
+        ws.cell(row=row, column=7, value=float(item.reorder_point) if item.reorder_point else None)
+        ws.cell(row=row, column=8, value=float(item.unit_cost) if item.unit_cost else None)
+    for i, w in enumerate([16, 32, 14, 10, 8, 16, 10, 12], 1):
+        ws.column_dimensions[ws.cell(1, i).column_letter].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=skladiste.xlsx"},
+    )
 
 
 @router.post("/bulk", response_model=BulkImportResult, status_code=status.HTTP_201_CREATED)

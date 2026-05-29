@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,6 +158,58 @@ async def delete_client(
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Klijent ne postoji")
     await db.delete(client)
+
+
+@router.get("/export/xlsx")
+async def export_clients_xlsx(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> StreamingResponse:
+    """Export svih klijenata kao .xlsx fajl."""
+    result = await db.execute(
+        select(Client).where(Client.org_id == org_id).order_by(Client.name)
+    )
+    clients = list(result.scalars().all())
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Klijenti"
+
+    headers = ["Naziv", "Pravni naziv", "PDV broj", "Zemlja", "Industrija",
+               "Segment", "Uvjeti plaćanja (dana)", "Kreditni limit", "Bilješka"]
+    header_fill = PatternFill("solid", fgColor="1E3A2A")
+    header_font = Font(bold=True, color="A8F4B8")
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 20
+
+    for row, c in enumerate(clients, 2):
+        ws.cell(row=row, column=1, value=c.name)
+        ws.cell(row=row, column=2, value=c.legal_name)
+        ws.cell(row=row, column=3, value=c.tax_id)
+        ws.cell(row=row, column=4, value=c.country_code)
+        ws.cell(row=row, column=5, value=c.industry)
+        ws.cell(row=row, column=6, value=c.segment)
+        ws.cell(row=row, column=7, value=c.payment_terms_days)
+        ws.cell(row=row, column=8, value=float(c.credit_limit) if c.credit_limit else None)
+        ws.cell(row=row, column=9, value=c.notes)
+
+    col_widths = [30, 30, 16, 8, 16, 14, 10, 14, 30]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[ws.cell(1, i).column_letter].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=klijenti.xlsx"},
+    )
 
 
 @router.post("/bulk", response_model=BulkImportResult, status_code=status.HTTP_201_CREATED)
