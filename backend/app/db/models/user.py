@@ -27,6 +27,10 @@ class User(TimestampedBase):
     verification_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    # OTP (2FA) — generira se pri svakom loginu, single-use, sprema se kao SHA-256 hash
+    otp_hash: Mapped[str | None] = mapped_column(String(64))
+    otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    otp_attempts: Mapped[int] = mapped_column(default=0, nullable=False)
 
     memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
 

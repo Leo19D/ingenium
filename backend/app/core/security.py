@@ -1,7 +1,9 @@
-"""JWT tokens, bcrypt password utilities, rate limiter, token blacklist."""
+"""JWT tokens, bcrypt password utilities, OTP, rate limiter, token blacklist."""
 
 from __future__ import annotations
 
+import hashlib
+import random
 import secrets
 import threading
 from collections import defaultdict
@@ -69,6 +71,28 @@ def decode_token(token: str) -> dict[str, Any]:
 
 def generate_verification_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+# --------------------------------------------------------------------------- #
+# OTP (email 2FA)                                                             #
+# --------------------------------------------------------------------------- #
+
+OTP_LENGTH = 6
+OTP_EXPIRE_MINUTES = 10
+OTP_MAX_ATTEMPTS = 3
+
+
+def generate_otp() -> str:
+    """Generate a cryptographically random 6-digit OTP."""
+    return f"{secrets.randbelow(10 ** OTP_LENGTH):0{OTP_LENGTH}d}"
+
+
+def hash_otp(code: str) -> str:
+    return hashlib.sha256(code.encode()).hexdigest()
+
+
+def verify_otp_hash(code: str, stored_hash: str) -> bool:
+    return secrets.compare_digest(hash_otp(code), stored_hash)
 
 
 # --------------------------------------------------------------------------- #

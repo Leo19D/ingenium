@@ -258,45 +258,108 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
       <span>Email potvrđen. Možete se prijaviti.</span>
     </div>
 
-    <div class="form-title">Dobro došli natrag</div>
-    <div class="form-sub" id="form-sub">Prijavite se u svoj Ingenium račun</div>
-
-    <div id="err"></div>
-
-    <div class="field">
-      <label class="field-label" for="email">Email adresa</label>
-      <input class="field-input" id="email" type="email"
-             placeholder="ime@ingeniumtrade.hr"
-             autocomplete="email"
-             onkeydown="if(event.key==='Enter')document.getElementById('pass').focus()">
+    <!-- KORAK 1: Email + Lozinka -->
+    <div id="step-credentials">
+      <div class="form-title">Dobro došli natrag</div>
+      <div class="form-sub">Prijavite se u svoj Ingenium račun</div>
+      <div id="err1" class="err-box"></div>
+      <div class="field">
+        <label class="field-label" for="email">Email adresa</label>
+        <input class="field-input" id="email" type="email"
+               placeholder="ime@ingeniumtrade.hr" autocomplete="email"
+               onkeydown="if(event.key==='Enter')document.getElementById('pass').focus()">
+      </div>
+      <div class="field">
+        <label class="field-label" for="pass">Lozinka</label>
+        <input class="field-input" id="pass" type="password"
+               placeholder="••••••••" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')doStep1()">
+      </div>
+      <button class="btn" id="btn1" onclick="doStep1()">
+        <span id="btn1-label">Nastavi</span>
+        <span class="btn-arrow">→</span>
+      </button>
+      <div class="form-footer">Pristup jedino za <strong>@ingeniumtrade.hr</strong></div>
     </div>
 
-    <div class="field">
-      <label class="field-label" for="pass">Lozinka</label>
-      <input class="field-input" id="pass" type="password"
-             placeholder="••••••••"
-             autocomplete="current-password"
-             onkeydown="if(event.key==='Enter')doLogin()">
+    <!-- KORAK 2: OTP unos -->
+    <div id="step-otp" style="display:none">
+      <button class="back-btn" onclick="goBack()">← Natrag</button>
+      <div class="form-title">Provjera identiteta</div>
+      <div class="form-sub" id="otp-sub">Kod je poslan na vašu email adresu</div>
+      <div id="err2" class="err-box"></div>
+      <div class="field">
+        <label class="field-label">Jednokratni kod</label>
+        <div class="otp-row" id="otp-row">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]">
+        </div>
+      </div>
+      <div class="otp-meta">
+        <span id="otp-timer" class="otp-timer"></span>
+        <button class="otp-resend" id="otp-resend" onclick="resendOtp()" disabled>Pošalji ponovo</button>
+      </div>
+      <button class="btn" id="btn2" onclick="doStep2()" disabled>
+        <span id="btn2-label">Potvrdi</span>
+        <span class="btn-arrow">→</span>
+      </button>
     </div>
 
-    <button class="btn" id="btn" onclick="doLogin()">
-      <span id="btn-label">Prijava</span>
-      <span class="btn-arrow">→</span>
-    </button>
-
-    <div class="form-footer">
-      Pristup jedino za <strong>@ingeniumtrade.hr</strong>
-    </div>
   </div>
 </div>
 
+<style>
+.err-box{
+  display:none;border-left:3px solid var(--red);background:var(--red-dim);
+  border-radius:0 7px 7px 0;padding:10px 13px;font-size:13px;color:var(--red);
+  margin-bottom:16px;line-height:1.45;
+}
+.back-btn{
+  background:none;border:none;color:var(--text2);font-size:12px;font-weight:500;
+  cursor:pointer;padding:0;margin-bottom:20px;
+  display:flex;align-items:center;gap:4px;
+  transition:color .15s;
+}
+.back-btn:hover{color:var(--text)}
+.otp-row{display:flex;gap:8px;margin-top:2px}
+.otp-box{
+  width:46px;height:58px;
+  background:#0a0e0c;border:1.5px solid var(--border2);border-radius:10px;
+  color:var(--text);font-size:24px;font-weight:700;text-align:center;
+  outline:none;transition:border-color .15s,box-shadow .15s;
+  caret-color:transparent;
+}
+.otp-box:focus{border-color:rgba(168,244,184,.55);box-shadow:0 0 0 3px var(--green-dim)}
+.otp-box.filled{border-color:rgba(168,244,184,.35);color:var(--green)}
+.otp-box.error{border-color:var(--red);animation:shake .35s ease}
+.otp-meta{display:flex;justify-content:space-between;align-items:center;margin:12px 0 18px;font-size:12px}
+.otp-timer{color:var(--text3)}
+.otp-resend{
+  background:none;border:none;color:var(--text2);font-size:12px;
+  cursor:pointer;padding:0;transition:color .15s;
+}
+.otp-resend:hover:not(:disabled){color:var(--green)}
+.otp-resend:disabled{opacity:.35;cursor:not-allowed}
+#step-otp{animation:fadeSlide .25s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+</style>
+
 <script>
-(function(){
+var _loginEmail = '';
+var _otpTimer = null;
+var _otpSeconds = 0;
+
+(function init(){
   const p = new URLSearchParams(location.search);
-  if(p.get('reason')==='logout') document.getElementById('banner-logout').classList.add('visible');
-  if(p.get('reason')==='expired') document.getElementById('banner-expired').classList.add('visible');
-  if(p.get('verified')==='1') document.getElementById('banner-verified').classList.add('visible');
+  if(p.get('reason')==='logout')   document.getElementById('banner-logout').classList.add('visible');
+  if(p.get('reason')==='expired')  document.getElementById('banner-expired').classList.add('visible');
+  if(p.get('verified')==='1')      document.getElementById('banner-verified').classList.add('visible');
   if(p.toString()) history.replaceState({},'','/login');
+
   const t = localStorage.getItem('aqp_token');
   if(t){
     fetch('/api/v1/auth/me',{headers:{'Authorization':'Bearer '+t}})
@@ -304,50 +367,158 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
       .catch(()=>{});
   }
   document.getElementById('email').focus();
+
+  const boxes = document.querySelectorAll('.otp-box');
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', e => {
+      const val = e.target.value.replace(/[^0-9]/g,'');
+      e.target.value = val;
+      e.target.classList.toggle('filled', val.length > 0);
+      if(val && i < boxes.length - 1) boxes[i+1].focus();
+      checkOtpComplete();
+    });
+    box.addEventListener('keydown', e => {
+      if(e.key === 'Backspace' && !e.target.value && i > 0) boxes[i-1].focus();
+      if(e.key === 'Enter') doStep2();
+    });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const paste = (e.clipboardData||window.clipboardData).getData('text').replace(/[^0-9]/g,'');
+      paste.split('').slice(0,6).forEach((ch,j)=>{
+        if(boxes[i+j]){ boxes[i+j].value=ch; boxes[i+j].classList.add('filled'); }
+      });
+      const next = Math.min(i + paste.length, boxes.length - 1);
+      boxes[next].focus();
+      checkOtpComplete();
+    });
+  });
 })();
 
-async function doLogin(){
+function checkOtpComplete(){
+  const code = getOtpCode();
+  document.getElementById('btn2').disabled = code.length < 6;
+}
+function getOtpCode(){
+  return [...document.querySelectorAll('.otp-box')].map(b=>b.value).join('');
+}
+function goBack(){
+  clearInterval(_otpTimer);
+  document.getElementById('step-otp').style.display = 'none';
+  document.getElementById('step-credentials').style.display = 'block';
+  clearErr('err1');
+}
+function showErr(id, msg){ const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
+function clearErr(id){ document.getElementById(id).style.display='none'; }
+
+function startTimer(seconds){
+  clearInterval(_otpTimer);
+  _otpSeconds = seconds;
+  const timerEl = document.getElementById('otp-timer');
+  const resendBtn = document.getElementById('otp-resend');
+  resendBtn.disabled = true;
+  function tick(){
+    if(_otpSeconds <= 0){
+      clearInterval(_otpTimer);
+      timerEl.textContent = 'Kod je istekao.';
+      resendBtn.disabled = false;
+      return;
+    }
+    const m = Math.floor(_otpSeconds/60), s = _otpSeconds%60;
+    timerEl.textContent = m + ':' + String(s).padStart(2,'0');
+    _otpSeconds--;
+  }
+  tick();
+  _otpTimer = setInterval(tick, 1000);
+}
+
+async function doStep1(){
   const email = document.getElementById('email').value.trim();
   const pass  = document.getElementById('pass').value;
-  const err   = document.getElementById('err');
-  const btn   = document.getElementById('btn');
-  const label = document.getElementById('btn-label');
-  err.style.display = 'none';
-  if(!email || !pass){
-    showErr('Unesite email i lozinku.');
-    return;
-  }
-  btn.disabled = true;
-  label.textContent = 'Prijava…';
+  const btn   = document.getElementById('btn1');
+  const label = document.getElementById('btn1-label');
+  clearErr('err1');
+  if(!email || !pass){ showErr('err1','Unesite email i lozinku.'); return; }
+  btn.disabled = true; label.textContent = 'Provjera…';
   try {
     const r = await fetch('/api/v1/auth/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({email, password:pass}),
     });
     const d = await r.json();
     if(!r.ok){
-      const msg = d.detail || (r.status===429 ? 'Previše pokušaja. Pričekajte minutu.' : 'Neispravni podaci za prijavu.');
-      showErr(msg);
+      showErr('err1', d.detail || (r.status===429 ? 'Previše pokušaja. Pričekajte minutu.' : 'Neispravni podaci za prijavu.'));
       document.getElementById('pass').classList.add('shake');
-      setTimeout(()=>document.getElementById('pass').classList.remove('shake'), 400);
+      setTimeout(()=>document.getElementById('pass').classList.remove('shake'),400);
       return;
     }
+    _loginEmail = email;
+    document.getElementById('otp-sub').textContent = d.message || 'Kod je poslan na vašu email adresu.';
+    document.getElementById('step-credentials').style.display = 'none';
+    document.getElementById('step-otp').style.display = 'block';
+    startTimer((d.expires_in_minutes || 10) * 60);
+    document.querySelectorAll('.otp-box')[0].focus();
+  } catch(e) {
+    showErr('err1','Greška veze sa serverom. Pokušajte ponovo.');
+  } finally {
+    btn.disabled = false; label.textContent = 'Nastavi';
+  }
+}
+
+async function doStep2(){
+  const code  = getOtpCode();
+  const btn   = document.getElementById('btn2');
+  const label = document.getElementById('btn2-label');
+  clearErr('err2');
+  if(code.length < 6){ showErr('err2','Unesite svih 6 znamenki.'); return; }
+  btn.disabled = true; label.textContent = 'Provjera…';
+  try {
+    const r = await fetch('/api/v1/auth/verify-otp',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:_loginEmail, code}),
+    });
+    const d = await r.json();
+    if(!r.ok){
+      showErr('err2', d.detail || 'Neispravan kod.');
+      document.querySelectorAll('.otp-box').forEach(b=>{
+        b.classList.add('error');
+        setTimeout(()=>b.classList.remove('error'),400);
+      });
+      if(d.detail && d.detail.toLowerCase().includes('ponovo')) goBack();
+      return;
+    }
+    clearInterval(_otpTimer);
     localStorage.setItem('aqp_token',  d.access_token);
     localStorage.setItem('aqp_refresh', d.refresh_token);
     window.location.href = '/';
   } catch(e) {
-    showErr('Greška veze sa serverom. Pokušajte ponovo.');
+    showErr('err2','Greška veze sa serverom. Pokušajte ponovo.');
   } finally {
-    btn.disabled = false;
-    label.textContent = 'Prijava';
+    btn.disabled = code.length < 6; label.textContent = 'Potvrdi';
   }
 }
 
-function showErr(msg){
-  const el = document.getElementById('err');
-  el.textContent = msg;
-  el.style.display = 'block';
+async function resendOtp(){
+  const pass = document.getElementById('pass').value;
+  if(!_loginEmail || !pass){ goBack(); return; }
+  clearErr('err2');
+  document.getElementById('otp-resend').disabled = true;
+  try {
+    const r = await fetch('/api/v1/auth/login',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:_loginEmail, password:pass}),
+    });
+    if(r.ok){
+      const d = await r.json();
+      document.querySelectorAll('.otp-box').forEach(b=>{b.value='';b.classList.remove('filled','error')});
+      document.getElementById('btn2').disabled = true;
+      startTimer((d.expires_in_minutes || 10) * 60);
+    } else {
+      goBack();
+    }
+  } catch(e) {
+    showErr('err2','Greška pri slanju koda.');
+    document.getElementById('otp-resend').disabled = false;
+  }
 }
 </script>
 </body>
