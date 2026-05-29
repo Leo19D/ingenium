@@ -290,7 +290,7 @@ textarea.form-input { resize: vertical; }
 </head>
 <body>
 
-<aside class="sidebar">
+<aside class="sidebar" id="app-sidebar" style="display:none">
   <div class="logo">
     <div class="logo-mark">
       <div class="logo-icon">⚡</div>
@@ -332,7 +332,7 @@ textarea.form-input { resize: vertical; }
   </div>
 </aside>
 
-<main class="main">
+<main class="main" id="app-main" style="display:none">
   <header class="topbar">
     <div class="topbar-title" id="view-title">Dashboard</div>
     <span id="api-status" style="font-size:11px;font-family:var(--font-mono);color:var(--text3);margin-left:4px">○ demo mode</span>
@@ -1718,10 +1718,14 @@ function _clearTokens() {
 }
 
 function showLoginScreen() {
-  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-sidebar').style.display = 'none';
+  document.getElementById('app-main').style.display = 'none';
 }
 function hideLoginScreen() {
-  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-sidebar').style.display = 'flex';
+  document.getElementById('app-main').style.display = 'flex';
 }
 
 function _updateSidebarUser(user) {
@@ -1792,8 +1796,8 @@ async function login() {
     _setTokens(data.access_token, data.refresh_token);
     currentUser = await (await fetch(API_BASE + '/auth/me', { headers: { 'Authorization': 'Bearer ' + data.access_token } })).json();
     _updateSidebarUser(currentUser);
-    hideLoginScreen();
     apiAvailable = true;
+    hideLoginScreen();
     await loadClients();
     await loadSuppliers();
     await loadStock();
@@ -1883,7 +1887,8 @@ async function apiPost(path, body) {
 
   const reachable = await checkApi();
   if (!reachable) {
-    // Backend nije dostupan — demo mode bez prijave
+    // Backend nije dostupan — demo mode, prikaži app bez auth
+    hideLoginScreen();
     return;
   }
 
@@ -1894,6 +1899,8 @@ async function apiPost(path, body) {
     return;
   }
 
+  // Auth prošao — sakrij login, prikaži app
+  hideLoginScreen();
   await loadClients();
   await loadSuppliers();
   await loadStock();
@@ -1901,7 +1908,7 @@ async function apiPost(path, body) {
 </script>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen" class="hidden">
+<div id="login-screen">
   <div class="login-card">
     <div class="login-header">
       <div class="login-logo">
