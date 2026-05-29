@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from app.core.security import login_rate_limiter
 from sqlalchemy import JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -30,6 +31,11 @@ def _patch_pg_types(metadata) -> None:
                 col.type = Text()
             elif isinstance(col.type, PG_UUID):
                 col.type = Uuid(as_uuid=True, native_uuid=False)
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    login_rate_limiter._attempts.clear()
 
 
 @pytest_asyncio.fixture(scope="function")

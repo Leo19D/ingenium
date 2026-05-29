@@ -1833,8 +1833,17 @@ async function login() {
 }
 
 async function logout() {
+  const token = _getToken();
   _clearTokens();
-  window.location.href = '/login';
+  if (token) {
+    try {
+      await fetch(API_BASE + '/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+    } catch (_) {}
+  }
+  window.location.href = '/login?reason=logout';
 }
 
 // ========== API SLOJ (s auth) ==========
@@ -1866,7 +1875,7 @@ async function checkApi() {
 
 async function apiGet(path) {
   const r = await fetch(API_BASE + path, { headers: _authHeaders({}) });
-  if (r.status === 401) { _clearTokens(); showLoginScreen(); throw new Error('Sesija istekla'); }
+  if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; throw new Error('Sesija istekla'); }
   if (!r.ok) throw new Error('GET ' + path + ' → ' + r.status);
   return r.json();
 }
@@ -1877,7 +1886,7 @@ async function apiPost(path, body) {
     headers: _authHeaders(),
     body: JSON.stringify(body),
   });
-  if (r.status === 401) { _clearTokens(); showLoginScreen(); throw new Error('Sesija istekla'); }
+  if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; throw new Error('Sesija istekla'); }
   if (!r.ok) {
     let detail = r.status;
     try { detail = (await r.json()).detail || r.status; } catch (e) {}
@@ -1888,32 +1897,14 @@ async function apiPost(path, body) {
 
 // ========== STARTUP ==========
 (async function init() {
-  // Provjeri je li /?verified=1 ili /?verify_error=...
-  const params = new URLSearchParams(location.search);
-  if (params.get('verified') === '1') {
-    history.replaceState({}, '', '/');
-    setTimeout(() => showToast('Email potvrđen! Možeš se prijaviti.'), 300);
-  }
-  if (params.get('verify_error') === 'expired') {
-    history.replaceState({}, '', '/');
-    setTimeout(() => showToast('Verifikacijski link je istekao. Registriraj se ponovo.', 'error'), 300);
-  }
-  if (params.get('verify_error') === 'invalid') {
-    history.replaceState({}, '', '/');
-    setTimeout(() => showToast('Neispravan verifikacijski link.', 'error'), 300);
-  }
-
   const reachable = await checkApi();
   if (!reachable) {
-    // Backend nije dostupan — demo mode
     hideLoginScreen();
     return;
   }
 
-  // Backend dostupan — provjeri token
   const authed = await checkAuth();
   if (!authed) {
-    // Nema valjani token — idi na login stranicu
     window.location.href = '/login';
     return;
   }

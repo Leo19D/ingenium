@@ -5,21 +5,24 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from jose import JWTError
 from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, oauth2_scheme
 from app.config import settings
 from app.core.security import (
+    blacklist_token,
     create_access_token,
     create_refresh_token,
     decode_token,
     generate_verification_token,
     hash_password,
+    login_rate_limiter,
+    validate_password_strength,
     verify_password,
 )
 from app.db.models.user import Membership, User
@@ -100,11 +103,9 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)) -> 
             detail="Korisnik s tom email adresom već postoji.",
         )
 
-    if len(req.password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Lozinka mora imati najmanje 8 znakova.",
-        )
+    pw_err = validate_password_strength(req.password)
+    if pw_err:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=pw_err)
 
     token = generate_verification_token()
     expires = datetime.now(UTC) + timedelta(hours=_VERIFY_TOKEN_HOURS)
@@ -168,8 +169,22 @@ async def verify_email(
 
 
 @router.post("/login")
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+async def login(
+    request: Request,
+    req: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     """Prijava s emailom i lozinkom. Vraća access + refresh JWT."""
+    client_ip = request.client.host if request.client else "unknown"
+
+    if not login_rate_limiter.is_allowed(client_ip):
+        wait = login_rate_limiter.seconds_until_reset(client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Previše neuspješnih pokušaja. Pokušaj ponovo za {wait} sekundi.",
+            headers={"Retry-After": str(wait)},
+        )
+
     email = req.email.lower().strip()
     user = await db.scalar(select(User).where(User.email == email))
 
@@ -237,6 +252,12 @@ async def refresh_token(
         access_token=create_access_token(str(user.id), org_id),
         refresh_token=create_refresh_token(str(user.id)),
     )
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(token: str = Depends(oauth2_scheme)) -> None:
+    """Odjava — poništava access token na serveru (blacklist)."""
+    blacklist_token(token)
 
 
 @router.get("/me", response_model=UserResponse)

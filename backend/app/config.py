@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     APP_BASE_URL: str = "http://localhost:8000"
     AUTH_PROVIDER: Literal["local", "clerk", "auth0"] = "local"
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     CLERK_SECRET_KEY: str = ""
     CLERK_PUBLISHABLE_KEY: str = ""
