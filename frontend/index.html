@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>Ingenium — AI Procurement Platform</title>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  document.body.style.cssText = 'background:#fff;padding:30px;font-family:monospace;font-size:14px;color:#c00';
+  document.body.innerHTML = '<b>JS GREŠKA (pokaži ovo developeru):</b><br><br>' + msg + '<br>' + src + ' linja ' + line;
+  return false;
+};
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
@@ -266,11 +273,11 @@ textarea.form-input { resize: vertical; }
 }
 .login-card {
   width: 420px; max-width: 92vw;
-  background: #1a1d1b;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #1e2421;
+  border: 1px solid #a8f4b8;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  box-shadow: 0 0 0 1px rgba(168,244,184,0.15), 0 24px 64px rgba(0,0,0,0.8);
 }
 .login-header { padding: 32px 36px 24px; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .login-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
