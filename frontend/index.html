@@ -1908,19 +1908,19 @@ async function apiPost(path, body) {
 
   const reachable = await checkApi();
   if (!reachable) {
-    // Backend nije dostupan — demo mode, prikaži app bez auth
+    // Backend nije dostupan — demo mode
     hideLoginScreen();
     return;
   }
 
-  // Backend je dostupan — provjeri autentikaciju
+  // Backend dostupan — provjeri token
   const authed = await checkAuth();
   if (!authed) {
-    showLoginScreen();
+    // Nema valjani token — idi na login stranicu
+    window.location.href = '/login';
     return;
   }
 
-  // Auth prošao — sakrij login, prikaži app
   hideLoginScreen();
   await loadClients();
   await loadSuppliers();
