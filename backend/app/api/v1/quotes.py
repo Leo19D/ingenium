@@ -461,26 +461,34 @@ async def export_quote_xlsx(
                 cell.number_format = f'"{quote.currency}" #,##0.0000'
         ws.row_dimensions[r].height = 18
 
-    # Totals
+    # Totals — avoid writing to merged cell ranges
     total_row = header_row + len(items) + 2
-    ws.merge_cells(f"A{total_row}:F{total_row}")
-    for label, value, col in [
-        ("Međuzbroj",  quote.subtotal,       7),
-        ("Porez",      quote.tax_total,      7),
+    for label, value in [
+        ("Međuzbroj", quote.subtotal),
+        ("Porez",     quote.tax_total),
     ]:
-        ws.cell(row=total_row, column=6, value=label).font = sub_font
-        ws.cell(row=total_row, column=6).fill = dark_fill
-        ws.cell(row=total_row, column=7, value=float(value or 0)).font = body_font
-        ws.cell(row=total_row, column=7).number_format = f'"{quote.currency}" #,##0.00'
-        ws.cell(row=total_row, column=7).fill = dark_fill
+        for c in range(1, 6):
+            ws.cell(row=total_row, column=c).fill = dark_fill
+        lbl_cell = ws.cell(row=total_row, column=6, value=label)
+        lbl_cell.font = sub_font
+        lbl_cell.fill = dark_fill
+        val_cell = ws.cell(row=total_row, column=7, value=float(value or 0))
+        val_cell.font = body_font
+        val_cell.fill = dark_fill
+        val_cell.number_format = f'"{quote.currency}" #,##0.00'
+        ws.row_dimensions[total_row].height = 18
         total_row += 1
 
     # Grand total row
-    ws.cell(row=total_row, column=6, value="UKUPNO").font = Font(bold=True, color="A8F4B8", name="Calibri", size=11)
-    ws.cell(row=total_row, column=6).fill = green_fill
-    ws.cell(row=total_row, column=7, value=float(quote.total or 0)).font = Font(bold=True, color="A8F4B8", name="Calibri", size=11)
-    ws.cell(row=total_row, column=7).fill = green_fill
-    ws.cell(row=total_row, column=7).number_format = f'"{quote.currency}" #,##0.00'
+    for c in range(1, 6):
+        ws.cell(row=total_row, column=c).fill = green_fill
+    gt_lbl = ws.cell(row=total_row, column=6, value="UKUPNO")
+    gt_lbl.font = Font(bold=True, color="A8F4B8", name="Calibri", size=11)
+    gt_lbl.fill = green_fill
+    gt_val = ws.cell(row=total_row, column=7, value=float(quote.total or 0))
+    gt_val.font = Font(bold=True, color="A8F4B8", name="Calibri", size=11)
+    gt_val.fill = green_fill
+    gt_val.number_format = f'"{quote.currency}" #,##0.00'
     ws.row_dimensions[total_row].height = 24
 
     # Napomene

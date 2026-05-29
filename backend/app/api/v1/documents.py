@@ -32,8 +32,26 @@ ALLOWED_MIME = {
     "text/csv",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",  # generic binary — fallback, validated by extension
 }
+ALLOWED_EXT = {".pdf", ".xlsx", ".xls", ".csv", ".docx", ".doc"}
 MAX_SIZE_MB = 25
+
+
+def _resolve_mime(filename: str, declared_mime: str) -> str:
+    """Return best-guess MIME, falling back to extension if declared is generic."""
+    ext = Path(filename).suffix.lower()
+    ext_map = {
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xls":  "application/vnd.ms-excel",
+        ".csv":  "text/csv",
+        ".pdf":  "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc":  "application/msword",
+    }
+    if declared_mime in ("application/octet-stream", "", None):
+        return ext_map.get(ext, declared_mime)
+    return declared_mime
 
 
 class DocumentResponse(BaseModel):
@@ -90,11 +108,12 @@ async def upload_document(
             detail=f"Fajl je prevelik. Maksimum je {MAX_SIZE_MB} MB.",
         )
 
-    mime = file.content_type or "application/octet-stream"
-    if mime not in ALLOWED_MIME:
+    ext = Path(file.filename or "").suffix.lower()
+    mime = _resolve_mime(file.filename or "", file.content_type or "")
+    if mime not in ALLOWED_MIME or ext not in ALLOWED_EXT:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Tip fajla nije podržan. Dozvoljeni: PDF, XLSX, CSV, DOCX.",
+            detail="Tip fajla nije podržan. Dozvoljeni: PDF, XLSX, XLS, CSV, DOCX.",
         )
 
     checksum = hashlib.sha256(content).hexdigest()
