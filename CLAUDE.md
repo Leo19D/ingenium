@@ -91,3 +91,28 @@ backend/app/
 ## Workflow s tobom (Claude Code)
 
 Prije nego mijenjaš kod: opiši pristup i čekaj moje odobrenje. Radi na malim, fokusiranim promjenama. Nakon svake gotove cjeline predloži git commit. Ako dodaješ endpoint, dodaj i test.
+
+## Agent Routing
+
+Za svaki zadatak koji korisnik navede, UVIJEK identificiraj i označi koji agent je primjenjiv prije nego počneš raditi. Format:
+
+> **Agent: `naziv-agenta`** — razlog u jednoj rečenici.
+
+Routing tablica:
+
+| Zadatak | Agent |
+|---------|-------|
+| Planiranje featurea, arhitekturalna odluka, roadmap, "što sljedeće?" | `command-center` |
+| Pisanje backend koda: FastAPI, SQLAlchemy, Pydantic, Celery, services | `titan-core` |
+| Frontend promjene u `frontend/index.html`: HTML, CSS, JS, UX | `titan-ui` |
+| Testiranje, pronalaženje bugova, review prije mergea | `qa-war-machine` |
+| Debugging: "ne radi", 500 greška, krivi podaci, test ne prolazi | `root-cause-forensics` |
+| Auth, JWT, role provjere, multi-tenant izolacija, sigurnost | `auth-guardian` |
+| DB schema, Alembic migracija, indeksi, query optimizacija | `db-grandmaster` |
+| LLM pipeline, document parsing, catalog matching, promptovi | `ai-systems-engineer` |
+| Docker, CI/CD, deployment, monitoring, env konfiguracija | `devops-commander` |
+| Dizajn API endpoinata, versioning, webhook, integracije | `api-architect` |
+| Performanse: spore querije, latencija, LLM cost, frontend speed | `performance-hunter` |
+| "Zašto ovo gradimo?", prioritizacija, user value, success metrike | `enterprise-product-owner` |
+
+Ako zadatak pokriva više domena, navedi sve relevantne agente redoslijedom kojim se aktiviraju (npr. `enterprise-product-owner` → `command-center` → `db-grandmaster` → `titan-core`).

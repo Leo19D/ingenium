@@ -1834,10 +1834,7 @@ async function login() {
 
 async function logout() {
   _clearTokens();
-  currentUser = null;
-  apiAvailable = false;
-  showLoginScreen();
-  showToast('Odjavljen/a si.');
+  window.location.href = '/login';
 }
 
 // ========== API SLOJ (s auth) ==========
