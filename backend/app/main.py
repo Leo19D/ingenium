@@ -36,50 +36,179 @@ _LOGIN_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Ingenium — Prijava</title>
+<title>Ingenium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;
-     background:#0d0f0e;font-family:Arial,sans-serif}
-.card{width:380px;max-width:94vw;background:#232823;border:1px solid #a8f4b8;
-      border-radius:14px;padding:36px}
-.logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
-.logo-icon{width:34px;height:34px;background:#a8f4b8;border-radius:8px;
-           display:flex;align-items:center;justify-content:center;font-size:17px}
-.logo-name{font-size:17px;font-weight:700;color:#e8ede9}
-h1{font-size:20px;color:#e8ede9;margin-bottom:6px}
-p{font-size:13px;color:#8a9489;margin-bottom:24px}
-label{display:block;font-size:12px;color:#8a9489;margin-bottom:5px}
-input{width:100%;padding:10px 13px;background:#1a1d1b;border:1px solid #3a4038;
-      border-radius:7px;color:#e8ede9;font-size:14px;outline:none;margin-bottom:14px}
-input:focus{border-color:#a8f4b8}
-button{width:100%;padding:12px;background:#a8f4b8;color:#0a1a0d;border:none;
-       border-radius:7px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
-button:hover{background:#6bde8a}
-button:disabled{opacity:.5;cursor:not-allowed}
-#err{display:none;background:rgba(244,122,106,.15);border:1px solid rgba(244,122,106,.4);
-     border-radius:6px;padding:9px 13px;color:#f47a6a;font-size:13px;margin-bottom:16px}
-.footer{margin-top:18px;text-align:center;font-size:11px;color:#5a6358;line-height:1.6}
-.footer span{color:#a8f4b8}
+body{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  background:#080a09;
+  font-family:'Inter',system-ui,sans-serif;
+  color:#e8ede9;
+}
+/* Lijeva strana — branding */
+.brand{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:48px;
+  background:linear-gradient(145deg,#0f1a12 0%,#0a1a0d 60%,#091409 100%);
+  border-right:1px solid #1a2a1c;
+  position:relative;
+  overflow:hidden;
+}
+.brand::before{
+  content:'';
+  position:absolute;
+  width:500px;height:500px;
+  background:radial-gradient(circle,rgba(168,244,184,0.07) 0%,transparent 70%);
+  top:-100px;left:-100px;
+  pointer-events:none;
+}
+.brand-logo{display:flex;align-items:center;gap:12px}
+.brand-icon{
+  width:40px;height:40px;
+  background:#a8f4b8;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+  box-shadow:0 0 24px rgba(168,244,184,0.3);
+}
+.brand-name{font-size:20px;font-weight:700;letter-spacing:-0.5px}
+.brand-hero{padding:20px 0 40px}
+.brand-tagline{
+  font-size:32px;font-weight:700;
+  line-height:1.2;
+  letter-spacing:-1px;
+  color:#e8ede9;
+  margin-bottom:16px;
+}
+.brand-tagline span{color:#a8f4b8}
+.brand-desc{font-size:14px;color:#5a7a5e;line-height:1.7;max-width:340px}
+.brand-stats{display:flex;gap:32px}
+.stat-value{font-size:24px;font-weight:700;color:#a8f4b8}
+.stat-label{font-size:12px;color:#4a6a4e;margin-top:2px}
+
+/* Desna strana — forma */
+.form-side{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:48px 40px;
+  background:#0a0c0b;
+}
+.form-box{width:100%;max-width:380px}
+.form-heading{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+.form-sub{font-size:14px;color:#5a6a5e;margin-bottom:32px}
+.field{margin-bottom:18px}
+.field-label{
+  display:block;font-size:12px;font-weight:500;
+  color:#6a7a6e;letter-spacing:0.03em;
+  text-transform:uppercase;margin-bottom:7px;
+}
+.field-input{
+  width:100%;
+  padding:12px 16px;
+  background:#141614;
+  border:1px solid #252825;
+  border-radius:8px;
+  color:#e8ede9;
+  font-size:14px;
+  font-family:'Inter',system-ui,sans-serif;
+  outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+.field-input::placeholder{color:#3a4a3e}
+.field-input:focus{border-color:#a8f4b8;box-shadow:0 0 0 3px rgba(168,244,184,0.08)}
+#err{
+  display:none;
+  background:rgba(244,122,106,.08);
+  border:1px solid rgba(244,122,106,.25);
+  border-left:3px solid #f47a6a;
+  border-radius:6px;
+  padding:11px 14px;
+  color:#f47a6a;
+  font-size:13px;
+  margin-bottom:20px;
+}
+.btn-login{
+  width:100%;
+  padding:13px;
+  background:#a8f4b8;
+  color:#051008;
+  border:none;
+  border-radius:8px;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  font-family:'Inter',system-ui,sans-serif;
+  letter-spacing:-0.2px;
+  transition:background .15s, transform .1s;
+  margin-top:4px;
+}
+.btn-login:hover:not(:disabled){background:#7ee89a;transform:translateY(-1px)}
+.btn-login:active{transform:translateY(0)}
+.btn-login:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+/* Mobile */
+@media(max-width:680px){
+  body{grid-template-columns:1fr}
+  .brand{display:none}
+  .form-side{padding:40px 24px}
+}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">
-    <div class="logo-icon">⚡</div>
-    <div class="logo-name">Ingenium</div>
+
+<div class="brand">
+  <div class="brand-logo">
+    <div class="brand-icon">⚡</div>
+    <div class="brand-name">Ingenium</div>
   </div>
-  <h1>Dobrodošao natrag</h1>
-  <p>Unesite podatke za prijavu</p>
-  <div id="err"></div>
-  <label>Email</label>
-  <input id="email" type="email" placeholder="vas@ingeniumtrade.hr" autocomplete="email">
-  <label>Lozinka</label>
-  <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password"
-         onkeydown="if(event.key==='Enter')doLogin()">
-  <button id="btn" onclick="doLogin()">Prijava</button>
-  <div class="footer">Pristup samo za <span>@ingeniumtrade.hr</span><br>ili <span>leodupanovic1@gmail.com</span></div>
+  <div class="brand-hero">
+    <div class="brand-tagline">Ponude koje<br>zaključuju<br><span>poslove.</span></div>
+    <div class="brand-desc">
+      Od RFQ-a do profitabilne ponude za nekoliko minuta.
+      AI parsira, katalog matchira, vi potpisujete.
+    </div>
+  </div>
+  <div class="brand-stats">
+    <div><div class="stat-value">80%</div><div class="stat-label">brže od ručnog rada</div></div>
+    <div><div class="stat-value">27</div><div class="stat-label">EU VAT jurisdikcija</div></div>
+    <div><div class="stat-value">∞</div><div class="stat-label">ponuda</div></div>
+  </div>
 </div>
+
+<div class="form-side">
+  <div class="form-box">
+    <div class="form-heading">Dobrodošao natrag</div>
+    <div class="form-sub">Prijavite se u Ingenium</div>
+
+    <div id="err"></div>
+
+    <div class="field">
+      <label class="field-label" for="email">Email</label>
+      <input class="field-input" id="email" type="email"
+             placeholder="ime@ingeniumtrade.hr"
+             autocomplete="email"
+             onkeydown="if(event.key==='Enter')document.getElementById('pass').focus()">
+    </div>
+    <div class="field">
+      <label class="field-label" for="pass">Lozinka</label>
+      <input class="field-input" id="pass" type="password"
+             placeholder="••••••••"
+             autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+
+    <button class="btn-login" id="btn" onclick="doLogin()">Prijava &rarr;</button>
+  </div>
+</div>
+
 <script>
 async function doLogin(){
   const email=document.getElementById('email').value.trim();
@@ -88,26 +217,38 @@ async function doLogin(){
   const btn=document.getElementById('btn');
   err.style.display='none';
   if(!email||!pass){err.textContent='Unesite email i lozinku.';err.style.display='block';return;}
-  btn.disabled=true;btn.textContent='Prijava...';
+  btn.disabled=true;btn.textContent='Prijava…';
   try{
-    const r=await fetch('/api/v1/auth/login',{method:'POST',
+    const r=await fetch('/api/v1/auth/login',{
+      method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pass})});
+      body:JSON.stringify({email,password:pass})
+    });
     const d=await r.json();
-    if(!r.ok){err.textContent=d.detail||'Neispravni podaci.';err.style.display='block';return;}
+    if(!r.ok){
+      const msg=d.detail||'Neispravni podaci.';
+      err.textContent=msg;err.style.display='block';
+      return;
+    }
     localStorage.setItem('aqp_token',d.access_token);
     localStorage.setItem('aqp_refresh',d.refresh_token);
     window.location.href='/';
   }catch(e){
-    err.textContent='Greška mreže. Provjeri je li server pokrenut.';err.style.display='block';
-  }finally{btn.disabled=false;btn.textContent='Prijava';}
+    err.textContent='Greška veze sa serverom.';err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Prijava →';
+  }
 }
-// Ako već ima token — odmah na app
+
+// Već prijavljen? Preskočimo login.
 const t=localStorage.getItem('aqp_token');
 if(t){
   fetch('/api/v1/auth/me',{headers:{'Authorization':'Bearer '+t}})
-    .then(r=>r.ok?window.location.href='/':null).catch(()=>null);
+    .then(r=>{if(r.ok)window.location.href='/'})
+    .catch(()=>{});
 }
+
+document.getElementById('email').focus();
 </script>
 </body>
 </html>"""
