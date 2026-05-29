@@ -1,6 +1,13 @@
 """
 Document ingestion pipeline.
-parse → extract line items → catalog matching → store DocumentExtraction
+
+Flow:
+  1. Parse file (xlsx/pdf) → raw tables
+  2. Heuristic extraction → line items with col detection
+  3. Catalog matching per item
+  4. Enrich with historical quote data (price context, anomaly detection)
+  5. [Optional] LLM extraction override when ANTHROPIC_API_KEY is set
+  6. Store DocumentExtraction
 """
 
 from __future__ import annotations
@@ -15,6 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.document import Document, DocumentExtraction
 from app.services.ingestion.confidence import needs_review, score_line_item
+from app.services.ingestion.learner import (
+    build_llm_examples,
+    enrich_items_with_history,
+    historical_price_context,
+)
+from app.services.ingestion.llm_extractor import extract_with_llm, merge_llm_with_heuristic
 from app.services.ingestion.normalizer import normalize_unit
 from app.services.ingestion.parsers.pdf import PdfParser
 from app.services.ingestion.parsers.xlsx import XlsxParser
@@ -115,14 +128,15 @@ async def parse_document(
     parsed = await parser.parse(file_bytes, document.filename)
     log.info("parsing_done", tables=len(parsed.tables))
 
-    all_items: list[dict] = []
+    # Heuristic extraction
+    heuristic_items: list[dict] = []
     for table in parsed.tables:
-        all_items.extend(_extract_items_from_table(table, source_method))
+        heuristic_items.extend(_extract_items_from_table(table, source_method))
 
-    log.info("extraction_done", items=len(all_items))
+    log.info("heuristic_extraction_done", items=len(heuristic_items))
 
-    # Catalog matching
-    for item in all_items:
+    # Catalog matching for each heuristic item
+    for item in heuristic_items:
         try:
             result: MatchResult = await match_item(
                 db=db,
@@ -154,15 +168,46 @@ async def parse_document(
         except Exception as e:
             log.warning("match_error", desc=item["description"], err=str(e))
 
-    confidences = [i["confidence"] for i in all_items]
+    # Load historical price context for enrichment
+    history = await historical_price_context(db=db, org_id=org_id)
+    heuristic_items = enrich_items_with_history(heuristic_items, history)
+    log.info("history_enrichment_done", history_records=len(history))
+
+    # LLM extraction (override if API key available)
+    final_items = heuristic_items
+    llm_used = False
+
+    if parsed.raw_text and len(parsed.raw_text) > 50:
+        historical_examples = await build_llm_examples(db=db, org_id=org_id)
+        llm_items = await extract_with_llm(parsed.raw_text, historical_examples)
+
+        if llm_items:
+            final_items = merge_llm_with_heuristic(llm_items, heuristic_items)
+            llm_used = True
+            log.info("llm_extraction_merged", llm_items=len(llm_items))
+
+    # Overall confidence
+    confidences = [i["confidence"] for i in final_items]
     overall = sum(confidences) / len(confidences) if confidences else 0.0
-    doc_review = any(i["needs_review"] for i in all_items) or overall < 0.85
+    doc_review = any(i.get("needs_review") for i in final_items) or overall < 0.85
+
+    # Count anomalies for logging
+    anomalies = sum(1 for i in final_items if i.get("price_anomaly"))
+    if anomalies:
+        log.warning("price_anomalies_detected", count=anomalies)
 
     extraction = DocumentExtraction(
         document_id=document.id,
         raw_text=parsed.raw_text[:30_000],
-        structured_data={"line_items": all_items, "item_count": len(all_items), "source": source_method},
-        extraction_method=source_method,
+        structured_data={
+            "line_items": final_items,
+            "item_count": len(final_items),
+            "source": source_method,
+            "llm_used": llm_used,
+            "price_anomalies": anomalies,
+            "history_records_used": len(history),
+        },
+        extraction_method="llm" if llm_used else source_method,
         confidence=Decimal(str(round(overall, 2))),
         needs_review=doc_review,
     )
@@ -172,5 +217,9 @@ async def parse_document(
     await db.commit()
     await db.refresh(extraction)
 
-    log.info("ingestion_complete", items=len(all_items), confidence=overall)
+    log.info("ingestion_complete",
+             items=len(final_items),
+             confidence=overall,
+             llm_used=llm_used,
+             anomalies=anomalies)
     return extraction
