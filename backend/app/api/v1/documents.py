@@ -10,13 +10,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_org_id, get_current_user
-from app.db.models.document import Document
+from app.db.models.document import Document, DocumentExtraction
+from app.db.models.project import Project
+from app.db.models.quote import Quote, QuoteLineItem
 from app.db.models.user import User
 from app.db.session import get_db
+from app.services.ingestion.pipeline import parse_document
 
 router = APIRouter()
 
@@ -124,6 +128,192 @@ async def upload_document(
     await db.commit()
     await db.refresh(doc)
     return DocumentResponse.from_doc(doc)
+
+
+@router.post("/{doc_id}/parse")
+async def trigger_parse(
+    doc_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Parsira dokument i pokreće catalog matching. Vraća extraction s rezultatima."""
+    result = await db.execute(
+        select(Document).where(Document.id == doc_id, Document.org_id == org_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+    if doc.status == "parsed":
+        # Vrati postojeću ekstrakciju
+        ext_result = await db.execute(
+            select(DocumentExtraction).where(DocumentExtraction.document_id == doc_id)
+        )
+        ext = ext_result.scalar_one_or_none()
+        if ext and ext.structured_data:
+            return {"status": "already_parsed", "extraction": ext.structured_data,
+                    "confidence": float(ext.confidence or 0), "needs_review": ext.needs_review}
+
+    doc.status = "parsing"
+    await db.commit()
+
+    try:
+        extraction = await parse_document(db=db, document=doc, org_id=org_id)
+    except Exception as e:
+        doc.status = "failed"
+        await db.commit()
+        raise HTTPException(status_code=500, detail=f"Parsiranje nije uspjelo: {e}")
+
+    return {
+        "status": "parsed",
+        "extraction": extraction.structured_data,
+        "confidence": float(extraction.confidence or 0),
+        "needs_review": extraction.needs_review,
+    }
+
+
+@router.get("/{doc_id}/extraction")
+async def get_extraction(
+    doc_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Vrati rezultate parsiranja za dokument."""
+    result = await db.execute(
+        select(Document).where(Document.id == doc_id, Document.org_id == org_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+
+    ext_result = await db.execute(
+        select(DocumentExtraction).where(DocumentExtraction.document_id == doc_id)
+    )
+    ext = ext_result.scalar_one_or_none()
+    if not ext:
+        raise HTTPException(status_code=404, detail="Dokument nije još parsiran. Pokreni /parse.")
+
+    return {
+        "document_id": str(doc_id),
+        "filename": doc.filename,
+        "status": doc.status,
+        "confidence": float(ext.confidence or 0),
+        "needs_review": ext.needs_review,
+        "extraction": ext.structured_data,
+    }
+
+
+class CreateQuoteFromDocRequest(BaseModel):
+    project_name: str
+    client_id: UUID | None = None
+    currency: str = "EUR"
+    margin_pct: float = 0.25
+    selected_items: list[dict] | None = None
+
+
+@router.post("/{doc_id}/create-quote", status_code=status.HTTP_201_CREATED)
+async def create_quote_from_document(
+    doc_id: UUID,
+    req: CreateQuoteFromDocRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Kreira projekt + ponudu iz parsiranog dokumenta."""
+    from decimal import Decimal
+
+    doc_result = await db.execute(
+        select(Document).where(Document.id == doc_id, Document.org_id == org_id)
+    )
+    doc = doc_result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+
+    ext_result = await db.execute(
+        select(DocumentExtraction).where(DocumentExtraction.document_id == doc_id)
+    )
+    ext = ext_result.scalar_one_or_none()
+    if not ext or not ext.structured_data:
+        raise HTTPException(status_code=422, detail="Pokrenite parsiranje dokumenta prije kreiranja ponude.")
+
+    items = req.selected_items or ext.structured_data.get("line_items", [])
+    if not items:
+        raise HTTPException(status_code=422, detail="Nema stavki za kreiranje ponude.")
+
+    # Kreiraj projekt
+    project = Project(
+        org_id=org_id,
+        name=req.project_name,
+        client_id=req.client_id,
+        status="quoting",
+    )
+    db.add(project)
+    await db.flush()
+
+    # Kreiraj ponudu
+    quote = Quote(
+        org_id=org_id,
+        project_id=project.id,
+        version=1,
+        currency=req.currency,
+        status="draft",
+        discount_total=Decimal("0"),
+        created_by=current_user.id,
+    )
+    db.add(quote)
+    await db.flush()
+
+    # Dodaj stavke s maržom
+    subtotal = Decimal("0")
+    for pos, item in enumerate(items, 1):
+        desc = item.get("description", "")
+        qty  = Decimal(str(item.get("quantity") or 1))
+        unit = item.get("unit", "pcs")
+
+        # Nabavna cijena iz matched stock itema ili iz dokumenta
+        match = item.get("accepted_match") or (
+            item.get("match_candidates", [{}])[0] if item.get("match_candidates") else {}
+        )
+        unit_cost = Decimal(str(match.get("unit_cost") or item.get("unit_price") or 0))
+
+        # Prodajna cijena = nabavna + marža
+        margin = Decimal(str(req.margin_pct))
+        unit_price = (unit_cost / (1 - margin)).quantize(Decimal("0.01")) if unit_cost > 0 else Decimal("0")
+
+        line_total = (qty * unit_price).quantize(Decimal("0.01"))
+        subtotal += line_total
+
+        li = QuoteLineItem(
+            quote_id=quote.id,
+            position=pos,
+            description=desc,
+            quantity=qty,
+            unit=unit,
+            unit_cost=unit_cost if unit_cost > 0 else None,
+            unit_price=unit_price,
+            discount_pct=Decimal("0"),
+            line_total=line_total,
+            margin_pct=margin if unit_cost > 0 else None,
+        )
+        db.add(li)
+
+    quote.subtotal = subtotal
+    quote.total = subtotal
+    quote.margin_pct = Decimal(str(req.margin_pct))
+
+    # Poveži dokument s projektom
+    doc.project_id = project.id
+
+    await db.commit()
+
+    return {
+        "project_id": str(project.id),
+        "quote_id": str(quote.id),
+        "item_count": len(items),
+        "total": float(subtotal),
+        "currency": req.currency,
+        "margin_pct": req.margin_pct,
+        "message": f"Ponuda kreirana s {len(items)} stavki iz dokumenta '{doc.filename}'",
+    }
 
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

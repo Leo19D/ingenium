@@ -1365,25 +1365,162 @@ async function loadDocuments() {
     const docs = await apiGet('/documents/');
     const container = document.getElementById('documents-list');
     if (!docs.length) {
-      container.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:16px 0">Nema uploadanih dokumenata.</p>';
+      container.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:16px 0">Nema uploadanih dokumenata. Uploadaj RFQ troškovnik od klijenta.</p>';
       return;
     }
     container.innerHTML = docs.map(d => `
-      <div class="processing-card" style="margin-bottom:10px">
+      <div class="processing-card" style="margin-bottom:10px" id="doc-card-${d.id}">
         <div class="proc-header">
           <div class="proc-file-icon">${_docIcon(d.mime_type)}</div>
           <div style="flex:1">
             <div class="proc-filename">${escapeHtml(d.filename)}</div>
-            <div class="proc-meta">${_fmtSize(d.size_bytes)} · ${d.mime_type || '—'} · ${d.created_at ? d.created_at.slice(0,10) : ''}</div>
+            <div class="proc-meta">${_fmtSize(d.size_bytes)} · ${d.created_at ? d.created_at.slice(0,10) : ''}</div>
           </div>
-          <div class="proc-status" style="gap:8px">
-            <span class="badge ${d.status === 'received' ? 'badge-draft' : 'badge-won'}">● ${d.status}</span>
+          <div class="proc-status" style="gap:8px;flex-wrap:wrap">
+            <span class="badge ${d.status === 'received' ? 'badge-draft' : d.status === 'parsing' ? 'badge-review' : d.status === 'parsed' ? 'badge-won' : 'badge-draft'}">
+              ● ${d.status}
+            </span>
+            ${d.status === 'received' || d.status === 'failed' ? `
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px"
+                      onclick="parseDocument('${d.id}')">📋 Parsiraj RFQ</button>` : ''}
+            ${d.status === 'parsed' ? `
+              <button class="btn btn-primary" style="font-size:11px;padding:4px 12px"
+                      onclick="showExtractionPanel('${d.id}','${escapeHtml(d.filename)}')">
+                ✦ Kreiraj ponudu →
+              </button>` : ''}
             <button class="icon-btn" title="Obriši" onclick="deleteDocument('${d.id}')">🗑</button>
           </div>
         </div>
+        <div id="extraction-panel-${d.id}" style="display:none"></div>
       </div>`).join('');
   } catch(e) {
     console.error('loadDocuments error', e);
+  }
+}
+
+// ========== RFQ PARSE + QUOTE CREATION ==========
+async function parseDocument(docId) {
+  const card = document.getElementById('doc-card-' + docId);
+  const btn = card?.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Parsiranje...'; }
+  try {
+    const result = await apiPost('/documents/' + docId + '/parse', {});
+    showToast(`✓ Ekstrahirano ${result.extraction?.item_count || 0} stavki · confidence ${(result.confidence*100).toFixed(0)}%`);
+    await loadDocuments();
+  } catch(e) {
+    showToast('Greška parsiranja: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '📋 Parsiraj RFQ'; }
+  }
+}
+
+var _extractionData = {};
+
+async function showExtractionPanel(docId, filename) {
+  const panel = document.getElementById('extraction-panel-' + docId);
+  if (!panel) return;
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.innerHTML = '<p style="color:var(--text3);padding:12px">Učitavam ekstrakciju...</p>';
+  panel.style.display = 'block';
+
+  try {
+    const data = await apiGet('/documents/' + docId + '/extraction');
+    const items = data.extraction?.line_items || [];
+    _extractionData[docId] = data;
+
+    if (!items.length) {
+      panel.innerHTML = '<p style="color:var(--text3);padding:12px">Nema ekstrahiranih stavki. Provjeri format dokumenta.</p>';
+      return;
+    }
+
+    panel.innerHTML = `
+      <div style="padding:16px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">
+            ${items.length} stavki ekstrahirano · confidence ${(data.confidence*100).toFixed(0)}%
+            ${data.needs_review ? '<span style="color:var(--amber);font-size:11px;margin-left:8px">⚠ preporuka review-a</span>' : ''}
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--text2)">Marža:</label>
+            <input type="number" id="margin-input-${docId}" value="25" min="1" max="99" step="1"
+                   style="width:60px;padding:4px 8px;background:#0a0f0c;border:1px solid var(--border2);
+                          border-radius:6px;color:var(--text);font-size:13px;text-align:center">
+            <span style="font-size:12px;color:var(--text2)">%</span>
+            <input type="text" id="proj-name-${docId}" placeholder="Naziv projekta"
+                   value="${escapeHtml(filename.replace(/\.[^.]+$/, ''))}"
+                   style="width:200px;padding:6px 10px;background:#0a0f0c;border:1px solid var(--border2);
+                          border-radius:6px;color:var(--text);font-size:13px">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 16px"
+                    onclick="createQuoteFromDoc('${docId}')">
+              Generiraj ponudu →
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:#0e1510;color:var(--text2)">
+                <th style="padding:8px 10px;text-align:left;font-weight:600">#</th>
+                <th style="padding:8px 10px;text-align:left;font-weight:600">Opis (iz dokumenta)</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:600">Kol.</th>
+                <th style="padding:8px 10px;text-align:left;font-weight:600">Jed.</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:600">Cijena doc.</th>
+                <th style="padding:8px 10px;text-align:left;font-weight:600">Match u katalogu</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:600">Naša cijena</th>
+                <th style="padding:8px 10px;text-align:center;font-weight:600">Confi.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((item, i) => {
+                const match = item.accepted_match || item.match_candidates?.[0];
+                const cost = match?.unit_cost || 0;
+                const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span> ${escapeHtml(match.name)}` : '<span style="color:var(--text3)">— nema matcha</span>';
+                const confColor = item.confidence >= 0.9 ? 'var(--accent)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
+                return `<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:#07090a':''}">
+                  <td style="padding:7px 10px;color:var(--text3);font-family:var(--font-mono)">${item.position}</td>
+                  <td style="padding:7px 10px;max-width:240px">${escapeHtml(item.description)}</td>
+                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">${item.quantity ?? '—'}</td>
+                  <td style="padding:7px 10px;color:var(--text2)">${item.unit}</td>
+                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${item.unit_price ? '€'+item.unit_price.toFixed(2) : '—'}</td>
+                  <td style="padding:7px 10px">${bestMatch}</td>
+                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);color:var(--accent)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
+                  <td style="padding:7px 10px;text-align:center;color:${confColor};font-family:var(--font-mono)">${(item.confidence*100).toFixed(0)}%</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    panel.innerHTML = `<p style="color:var(--red);padding:12px">Greška: ${e.message}</p>`;
+  }
+}
+
+async function createQuoteFromDoc(docId) {
+  const marginInput = document.getElementById('margin-input-' + docId);
+  const projInput = document.getElementById('proj-name-' + docId);
+  const margin = parseFloat(marginInput?.value || 25) / 100;
+  const projName = projInput?.value?.trim() || 'Projekt iz dokumenta';
+
+  if (!projName) { showToast('Unesite naziv projekta', 'error'); return; }
+
+  try {
+    const result = await apiPost('/documents/' + docId + '/create-quote', {
+      project_name: projName,
+      currency: 'EUR',
+      margin_pct: margin,
+    });
+    showToast(`✓ ${result.message} · Ukupno: €${result.total.toFixed(2)}`);
+    await loadDocuments();
+    setTimeout(() => setView('quotes'), 1000);
+  } catch(e) {
+    showToast('Greška: ' + e.message, 'error');
   }
 }
 
