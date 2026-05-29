@@ -507,7 +507,27 @@ textarea.form-input { resize: vertical; }
 
       <div class="section-header" style="margin-top:24px">
         <div class="section-title">Uploadani dokumenti</div>
-        <button class="btn btn-ghost" style="font-size:12px" onclick="loadDocuments()">↻ Osvježi</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="loadDocuments()">↻ Osvježi</button>
+        </div>
+      </div>
+
+      <!-- Historical quotes import za AI trening -->
+      <div style="background:var(--surface-2,#0e1410);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">✦ AI trening — historijske ponude</div>
+            <div style="font-size:12px;color:var(--text3)">Uvezi prošle ponude (won/lost) za AI preporuke marži i win-rate analitiku</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;flex-shrink:0">
+            <button class="btn btn-ghost" style="font-size:12px" onclick="downloadHistoricalTemplate()">↓ Template</button>
+            <label class="btn btn-ghost" style="font-size:12px;cursor:pointer">
+              ⬆ Uvezi historiju
+              <input type="file" accept=".xlsx,.xls,.csv" style="display:none"
+                     onchange="importHistoricalQuotes(this.files[0]);this.value=''">
+            </label>
+          </div>
+        </div>
       </div>
       <div id="documents-list"></div>
 
@@ -647,15 +667,15 @@ textarea.form-input { resize: vertical; }
           <div style="font-family:var(--font-display);font-size:18px;font-weight:700">Hotel Amabilis — Rasvjeta hotelskih soba</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn btn-ghost">Spremi nacrt</button>
-          <button class="btn btn-ghost">↓ Preuzmi PDF</button>
+          <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)">↓ Excel</button>
+          <button class="btn btn-ghost">↓ PDF</button>
           <button class="btn btn-primary">Pošalji na odobrenje →</button>
         </div>
       </div>
 
       <div class="ai-insight" style="margin-bottom:16px;border-radius:var(--r)">
         <div class="ai-insight-label">✦ AI preporuka</div>
-        <div class="ai-insight-text">Klijent Hotel Amabilis je prethodno kupovao od vas (QT-2024-044, won, €38k, marža 19%). Za IP44 downlight-e preporučujem Osram umjesto Philips — ušteda €2.42/kom × 124 = €300 bez gubitka marže. Rok dostave Osrama (10d) je u okviru projektnog deadlinea.</div>
+        <div class="ai-insight-text" id="margin-suggestion">Učitavam analizu marži iz historijskih podataka...</div>
       </div>
 
       <div class="quote-layout">
@@ -1468,6 +1488,80 @@ async function addQuoteLineItem() {
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
+// ========== QUOTE EXCEL EXPORT ==========
+async function exportQuoteXlsx(quoteId) {
+  if (!apiAvailable || !quoteId) { showToast('Nema aktivne ponude', 'error'); return; }
+  const token = _getToken();
+  try {
+    const r = await fetch(API_BASE + '/quotes/' + quoteId + '/export/xlsx', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) throw new Error('Export nije uspio');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'ponuda.xlsx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('Ponuda preuzeta kao Excel');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+// ========== HISTORICAL QUOTES IMPORT ==========
+function downloadHistoricalTemplate() {
+  if (typeof XLSX === 'undefined') { showToast('SheetJS nije učitan', 'error'); return; }
+  const headers = ['Naziv projekta','Klijent','Datum (YYYY-MM-DD)','Valuta','Ukupno (EUR)','Marža (0-1 ili %)','Ishod (won/lost)','Razlog gubitka','Konkurent','Cijena konkurenta'];
+  const ex = [
+    ['Hotel lobby rasvjeta','Hotel Amabilis','2024-03-15','EUR',48500,0.28,'won','','',''],
+    ['LED retrofit dućani','Konzum d.d.','2024-05-20','EUR',32000,0.22,'lost','price','Comp X',29000],
+    ['Javna rasvjeta','HEP d.d.','2024-07-10','EUR',125000,0.31,'won','','',''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers,...ex]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length+2, 16) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Historijske ponude');
+  XLSX.writeFile(wb, 'template-historijske-ponude.xlsx');
+  showToast('Template preuzet');
+}
+
+async function importHistoricalQuotes(file) {
+  if (!file || !apiAvailable) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const token = _getToken();
+  try {
+    const r = await fetch(API_BASE + '/quotes/import-historical', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd,
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Import greška');
+    showToast(`✓ Uvezeno ${d.imported} historijskih ponuda${d.skipped ? ` (${d.skipped} preskočeno)` : ''}`);
+    await loadDashboardStats();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+// ========== DASHBOARD ANALYTICS ==========
+async function loadDashboardStats() {
+  if (!apiAvailable) return;
+  try {
+    const stats = await apiGet('/analytics/overview');
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('kpi-win-rate', stats.win_rate_pct.toFixed(1) + '%');
+    set('kpi-pipeline', '€' + (stats.pipeline_value/1000).toFixed(1) + 'k');
+    set('kpi-won-value', '€' + (stats.won_value/1000).toFixed(1) + 'k');
+    set('kpi-total-quotes', stats.total_quotes);
+    set('kpi-open-quotes', stats.open);
+
+    const suggestion = await apiGet('/analytics/margin-suggestion');
+    const sugEl = document.getElementById('margin-suggestion');
+    if (sugEl) {
+      sugEl.textContent = `Preporučena marža: ${suggestion.suggested_min}–${suggestion.suggested_max}% (cilj ${suggestion.suggested_target}%) · ${suggestion.confidence === 'high' ? '✓ visoka' : suggestion.confidence === 'medium' ? '~ srednja' : '○ niska'} pouzdanost · ${suggestion.based_on_quotes} ponuda`;
+    }
+  } catch(e) { console.error('loadDashboardStats', e); }
+}
+
 async function deleteLineItem(itemId) {
   if (!_currentQuote) return;
   try {
@@ -1878,6 +1972,11 @@ function downloadTemplate(type) {
   if (!cfg) return;
   const headers = cfg.fields.map(f => f.label.replace(' *', ''));
   const examples = {
+    historijske_ponude: [
+      ['Hotel Amabilis - Rasvjeta lobby', 'Hotel Amabilis d.o.o.', '2024-03-15', 'EUR', 48500, 0.28, 'won', 'price', '', ''],
+      ['Konzum - LED retrofit', 'Konzum d.d.', '2024-05-20', 'EUR', 32000, 0.22, 'lost', 'price', 'Competitor X', 29000],
+      ['HEP - Vanjska rasvjeta', 'HEP d.d.', '2024-07-10', 'EUR', 125000, 0.31, 'won', '', '', ''],
+    ],
     klijenti: [
       ['Hotel Importanne d.o.o.', 'HR12345678901', 'Hrvatska',  'hotel',  '30'],
       ['Müller Handels GmbH',     'DE123456789',   'Njemačka',  'retail', '45'],
@@ -2129,7 +2228,7 @@ async function apiPost(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats()]);
 })();
 </script>
 

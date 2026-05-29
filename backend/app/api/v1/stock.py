@@ -187,8 +187,8 @@ async def export_stock_xlsx(
         ws.cell(row=row, column=3, value=item.category)
         ws.cell(row=row, column=4, value=float(item.quantity_on_hand) if item.quantity_on_hand else 0)
         ws.cell(row=row, column=5, value=item.unit)
-        ws.cell(row=row, column=6, value=item.location)
-        ws.cell(row=row, column=7, value=float(item.reorder_point) if item.reorder_point else None)
+        ws.cell(row=row, column=6, value=item.notes)
+        ws.cell(row=row, column=7, value=float(item.min_stock_level) if item.min_stock_level else None)
         ws.cell(row=row, column=8, value=float(item.unit_cost) if item.unit_cost else None)
     for i, w in enumerate([16, 32, 14, 10, 8, 16, 10, 12], 1):
         ws.column_dimensions[ws.cell(1, i).column_letter].width = w

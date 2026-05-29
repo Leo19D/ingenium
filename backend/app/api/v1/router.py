@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    analytics,
     auth,
     clients,
     documents,
@@ -30,3 +31,4 @@ api_router.include_router(products.router, prefix="/products", tags=["products"]
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(quotes.router, prefix="/quotes", tags=["quotes"])
+api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
