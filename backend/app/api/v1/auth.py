@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, oauth2_scheme
 from app.config import settings
 from app.core.security import (
-    OTP_EXPIRE_MINUTES,
+    OTP_EXPIRE_SECONDS,
     OTP_MAX_ATTEMPTS,
     blacklist_token,
     create_access_token,
@@ -71,7 +71,7 @@ class OtpVerifyRequest(BaseModel):
 class LoginStep1Response(BaseModel):
     step: str = "otp"
     message: str
-    expires_in_minutes: int = OTP_EXPIRE_MINUTES
+    expires_in_seconds: int = OTP_EXPIRE_SECONDS
 
 
 class TokenResponse(BaseModel):
@@ -227,7 +227,7 @@ async def login(
     # Generiraj OTP, invalidira prethodni
     otp = generate_otp()
     user.otp_hash = hash_otp(otp)
-    user.otp_expires_at = datetime.now(UTC) + timedelta(minutes=OTP_EXPIRE_MINUTES)
+    user.otp_expires_at = datetime.now(UTC) + timedelta(seconds=OTP_EXPIRE_SECONDS)
     user.otp_attempts = 0
     await db.commit()
 
@@ -241,7 +241,7 @@ async def login(
         await send_email(
             to=email,
             subject="Vaš kod za prijavu — Ingenium",
-            html=_otp_html(user.full_name, otp, OTP_EXPIRE_MINUTES),
+            html=_otp_html(user.full_name, otp, OTP_EXPIRE_SECONDS),
         )
     except Exception as exc:
         _log.error("otp_email_send_failed", extra={"email": email, "error": str(exc)})
@@ -271,6 +271,7 @@ async def login(
     masked = parts[0][0] + "***@" + parts[1]
     return LoginStep1Response(
         message=f"Kod je poslan na {masked}",
+        expires_in_seconds=OTP_EXPIRE_SECONDS,
     )
 
 
@@ -453,168 +454,199 @@ def _verification_html(name: str, url: str) -> str:
 </html>"""
 
 
-def _otp_html(name: str, code: str, expire_minutes: int) -> str:
+def _otp_html(name: str, code: str, expire_seconds: int) -> str:
     first_name = name.split()[0] if name else name
-    spaced_code = "  ".join(code)
+    expire_label = f"{expire_seconds}s" if expire_seconds < 60 else f"{expire_seconds // 60} min"
+    # Individual digit cells — gmail-safe bgcolor on td
+    digits_html = "".join(
+        f'<td align="center" valign="middle" width="52" height="64"'
+        f' bgcolor="#0a1510"'
+        f' style="font-family:Courier New,monospace;font-size:32px;font-weight:700;'
+        f'color:#a8f4b8;border:2px solid #223a28;border-radius:10px;'
+        f'padding:0 6px;mso-line-height-rule:exactly;line-height:64px;">'
+        f'{d}</td>'
+        f'<td width="8"></td>'
+        for d in code
+    )
     return f"""<!DOCTYPE html>
-<html lang="hr">
+<html lang="hr" xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>Kod za prijavu — Ingenium</title>
 </head>
-<body style="margin:0;padding:0;background:#060908;">
+<body style="margin:0;padding:0;background-color:#07090a;width:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#07090a">
+<tr><td align="center" style="padding:48px 16px 64px;">
+<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
 
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#060908;padding:0;">
-<tr><td align="center" style="padding:52px 16px 72px;">
+  <!--  LOGO  -->
+  <tr>
+    <td style="padding-bottom:32px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td width="36" height="36" align="center" valign="middle" bgcolor="#a8f4b8"
+              style="border-radius:9px;font-size:18px;line-height:36px;mso-line-height-rule:exactly;">
+            ⚡
+          </td>
+          <td style="padding-left:10px;font-family:Arial,Helvetica,sans-serif;
+                      font-size:18px;font-weight:700;color:#c8e8ca;letter-spacing:-0.3px;">
+            Ingenium
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-  <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;">
+  <!--  CARD  -->
+  <tr>
+    <td bgcolor="#0c1410" style="border-radius:20px;border:1px solid #1c2a1e;overflow:hidden;">
 
-    <!-- Logo row -->
-    <tr>
-      <td style="padding-bottom:28px;">
-        <table cellpadding="0" cellspacing="0"><tr valign="middle">
-          <td style="width:38px;height:38px;background:#a8f4b8;border-radius:10px;
-                      text-align:center;line-height:38px;font-size:20px;">⚡</td>
-          <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:18px;
-                      font-weight:700;color:#c8e8ca;letter-spacing:-0.4px;">Ingenium</td>
-        </tr></table>
-      </td>
-    </tr>
+      <!--  green top strip  -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td bgcolor="#a8f4b8" height="3" style="font-size:0;line-height:0;">&nbsp;</td>
+        </tr>
+      </table>
 
-    <!-- Main card -->
-    <tr>
-      <td style="background:#0e1510;border-radius:20px;overflow:hidden;
-                  border:1px solid #1e2d20;">
+      <!--  body padding  -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:44px 48px 40px;">
 
-        <!-- Top accent bar -->
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="height:3px;background:linear-gradient(90deg,#a8f4b8 0%,#4dd88a 50%,#a8f4b8 100%);"></td>
-          </tr>
-        </table>
+            <!--  label  -->
+            <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;
+                        font-size:11px;font-weight:700;letter-spacing:0.14em;
+                        text-transform:uppercase;color:#3e6644;">
+              Sigurnosna provjera
+            </p>
 
-        <!-- Card body -->
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding:44px 48px 40px;">
+            <!--  headline  -->
+            <h1 style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;
+                        font-size:26px;font-weight:800;color:#ddeadf;
+                        letter-spacing:-0.6px;line-height:1.2;">
+              Vaš kod za<br>prijavu je spreman
+            </h1>
 
-              <!-- Eyebrow -->
-              <p style="margin:0 0 18px;font-family:Arial,sans-serif;font-size:11px;
-                          font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
-                          color:#4a7a52;">
-                Sigurnosna verifikacija
-              </p>
+            <!--  body text  -->
+            <p style="margin:0 0 36px;font-family:Arial,Helvetica,sans-serif;
+                        font-size:14px;color:#5a7a5e;line-height:1.75;">
+              Hej <strong style="color:#a0c8a4;">{first_name}</strong> — unesite
+              kod ispod da biste ušli u Ingenium.
+              Vrijedi samo <strong style="color:#c0dcc4;">{expire_label}</strong>
+              i može se iskoristiti jednom.
+            </p>
 
-              <!-- Headline -->
-              <h1 style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:28px;
-                          font-weight:800;color:#e0ece2;letter-spacing:-0.8px;line-height:1.15;">
-                Vaš jednokratni<br>kod za prijavu
-              </h1>
+            <!--  CODE BOX  -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="margin-bottom:32px;">
+              <tr>
+                <td bgcolor="#060e09" style="border-radius:16px;border:1px solid #1e3022;
+                                              padding:28px 24px;">
+                  <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;
+                              font-size:10px;font-weight:700;letter-spacing:0.16em;
+                              text-transform:uppercase;color:#334d37;text-align:center;">
+                    Jednokratni kod · {expire_label}
+                  </p>
+                  <table role="presentation" cellpadding="0" cellspacing="0"
+                         align="center" style="margin:0 auto;">
+                    <tr>{digits_html}</tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
 
-              <!-- Subtext -->
-              <p style="margin:0 0 40px;font-family:Arial,sans-serif;font-size:14px;
-                          color:#5a7a5e;line-height:1.7;">
-                Hej, <strong style="color:#9abf9c;">{first_name}</strong> —
-                unesite ovaj kod da biste pristupili svom Ingenium računu.
-                Vrijedi <strong style="color:#c0ddc2;">{expire_minutes}&nbsp;minuta</strong>.
-              </p>
+            <!--  DIVIDER  -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="margin-bottom:24px;">
+              <tr>
+                <td bgcolor="#1a2a1c" height="1" style="font-size:0;line-height:0;">&nbsp;</td>
+              </tr>
+            </table>
 
-              <!-- Code block -->
-              <table cellpadding="0" cellspacing="0" width="100%"
-                     style="background:#070d09;border-radius:16px;border:1px solid #253528;
-                            margin-bottom:36px;">
-                <tr>
-                  <td style="padding:32px 0;text-align:center;">
-                    <p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:11px;
-                                font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
-                                color:#374d39;">
-                      Jednokratni kod
-                    </p>
-                    <p style="margin:0;font-family:'Courier New',Courier,monospace;
-                                font-size:48px;font-weight:700;letter-spacing:0.25em;
-                                color:#a8f4b8;line-height:1;">
-                      {spaced_code}
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <!--  META ROW  -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="margin-bottom:28px;">
+              <tr>
+                <td width="33%" align="center">
+                  <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                              letter-spacing:0.1em;text-transform:uppercase;color:#2e4832;">
+                    Vrijedi
+                  </p>
+                  <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
+                              font-weight:700;color:#78a880;">
+                    {expire_label}
+                  </p>
+                </td>
+                <td width="1" bgcolor="#1a2a1c">&nbsp;</td>
+                <td width="33%" align="center">
+                  <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                              letter-spacing:0.1em;text-transform:uppercase;color:#2e4832;">
+                    Upotreba
+                  </p>
+                  <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
+                              font-weight:700;color:#78a880;">
+                    1×
+                  </p>
+                </td>
+                <td width="1" bgcolor="#1a2a1c">&nbsp;</td>
+                <td width="33%" align="center">
+                  <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
+                              letter-spacing:0.1em;text-transform:uppercase;color:#2e4832;">
+                    Platforma
+                  </p>
+                  <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
+                              font-weight:700;color:#78a880;">
+                    Ingenium
+                  </p>
+                </td>
+              </tr>
+            </table>
 
-              <!-- Info row -->
-              <table width="100%" cellpadding="0" cellspacing="0"
-                     style="margin-bottom:32px;">
-                <tr>
-                  <td width="33%" style="text-align:center;padding:0 4px;">
-                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
-                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
-                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Istječe za</p>
-                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
-                                  font-weight:700;color:#8ab890;">{expire_minutes} min</p>
-                    </div>
-                  </td>
-                  <td width="33%" style="text-align:center;padding:0 4px;">
-                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
-                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
-                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Jednokratan</p>
-                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
-                                  font-weight:700;color:#8ab890;">Da</p>
-                    </div>
-                  </td>
-                  <td width="33%" style="text-align:center;padding:0 4px;">
-                    <div style="background:#0a0f0b;border:1px solid #1e2a1f;border-radius:10px;padding:14px 8px;">
-                      <p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;
-                                  letter-spacing:0.1em;text-transform:uppercase;color:#3a5a3e;">Platforma</p>
-                      <p style="margin:0;font-family:Arial,sans-serif;font-size:15px;
-                                  font-weight:700;color:#8ab890;">Ingenium</p>
-                    </div>
-                  </td>
-                </tr>
-              </table>
+            <!--  SECURITY NOTICE  -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td bgcolor="#060e09"
+                    style="border-radius:10px;border:1px solid #1a2a1e;
+                            border-left:3px solid #a8f4b8;padding:14px 18px;">
+                  <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                              font-size:12px;color:#4a6a4e;line-height:1.7;">
+                    <strong style="color:#74a07a;">Niste tražili ovaj kod?</strong>
+                    Netko je unio vašu lozinku. Ne dijelite kod ni s kim.
+                    Odmah promijenite lozinku i kontaktirajte support.
+                  </p>
+                </td>
+              </tr>
+            </table>
 
-              <!-- Security notice -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background:#06100a;border-radius:12px;
-                              border:1px solid #1a2a1d;border-left:3px solid #a8f4b8;
-                              padding:16px 20px;">
-                    <p style="margin:0;font-family:Arial,sans-serif;font-size:12.5px;
-                                color:#4a6a4e;line-height:1.7;">
-                      <strong style="color:#7aaa80;">Niste tražili ovaj kod?</strong>
-                      Netko je unio vašu lozinku i pokušava pristupiti vašem računu.
-                      Ne dijelite ovaj kod ni s kim. Odmah promijenite lozinku.
-                    </p>
-                  </td>
-                </tr>
-              </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-            </td>
-          </tr>
-        </table>
+  <!--  FOOTER  -->
+  <tr>
+    <td style="padding:22px 2px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="font-family:Arial,sans-serif;font-size:11px;
+                      color:#243624;line-height:1.6;">
+            Ingenium · AI Quote &amp; Procurement
+          </td>
+          <td align="right" style="font-family:Arial,sans-serif;font-size:11px;
+                                    color:#243624;">
+            ingeniumtrade.hr
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
 
-      </td>
-    </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="padding:24px 4px 0;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="font-family:Arial,sans-serif;font-size:11px;color:#2a3c2c;line-height:1.6;">
-              Ingenium · AI Quote &amp; Procurement Platform
-            </td>
-            <td align="right" style="font-family:Arial,sans-serif;font-size:11px;color:#2a3c2c;">
-              ingeniumtrade.hr
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-
-  </table>
-
+</table>
 </td></tr>
 </table>
-
 </body>
 </html>"""
 

@@ -78,7 +78,7 @@ def generate_verification_token() -> str:
 # --------------------------------------------------------------------------- #
 
 OTP_LENGTH = 6
-OTP_EXPIRE_MINUTES = 10
+OTP_EXPIRE_SECONDS = 120  # 2 minute
 OTP_MAX_ATTEMPTS = 3
 
 

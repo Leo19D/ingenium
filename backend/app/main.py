@@ -455,7 +455,7 @@ async function doStep1(){
     document.getElementById('otp-sub').textContent = d.message || 'Kod je poslan na vašu email adresu.';
     document.getElementById('step-credentials').style.display = 'none';
     document.getElementById('step-otp').style.display = 'block';
-    startTimer((d.expires_in_minutes || 10) * 60);
+    startTimer(d.expires_in_seconds || 120);
     document.querySelectorAll('.otp-box')[0].focus();
   } catch(e) {
     showErr('err1','Greška veze sa serverom. Pokušajte ponovo.');
@@ -511,7 +511,7 @@ async function resendOtp(){
       const d = await r.json();
       document.querySelectorAll('.otp-box').forEach(b=>{b.value='';b.classList.remove('filled','error')});
       document.getElementById('btn2').disabled = true;
-      startTimer((d.expires_in_minutes || 10) * 60);
+      startTimer(d.expires_in_seconds || 120);
     } else {
       goBack();
     }
