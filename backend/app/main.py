@@ -79,7 +79,10 @@ def create_app() -> FastAPI:
 
         @app.get("/", include_in_schema=False)
         async def root() -> FileResponse:
-            return FileResponse(index_file)
+            return FileResponse(
+                index_file,
+                headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+            )
 
         app.mount(
             "/static",
