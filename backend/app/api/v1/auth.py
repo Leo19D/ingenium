@@ -231,11 +231,29 @@ async def login(
     user.otp_attempts = 0
     await db.commit()
 
-    await send_email(
-        to=email,
-        subject="Vaš kod za prijavu — Ingenium",
-        html=_otp_html(user.full_name, otp, OTP_EXPIRE_MINUTES),
-    )
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
+    try:
+        await send_email(
+            to=email,
+            subject="Vaš kod za prijavu — Ingenium",
+            html=_otp_html(user.full_name, otp, OTP_EXPIRE_MINUTES),
+        )
+    except Exception as exc:
+        _log.error("otp_email_send_failed", extra={"email": email, "error": str(exc)})
+        # U developmentu ispiši kod u log da se može testirati bez SMTP-a
+        if settings.ENV == "development":
+            _log.warning(f"[DEV] OTP za {email}: {otp}")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Nije moguće poslati kod. Pokušajte ponovo za koji trenutak.",
+            )
+
+    # U developmentu uvijek logiraj OTP za lakše testiranje
+    if settings.ENV == "development":
+        _log.warning(f"[DEV] OTP za {email}: {otp}")
 
     # Otkrivamo samo dio emaila (npr. l***@gmail.com)
     parts = email.split("@")

@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 async def send_email(to: str, subject: str, html: str) -> None:
-    """Send an HTML email. Skips silently if SMTP is not configured (dev/test)."""
-    if not settings.SMTP_HOST or not settings.SMTP_USER:
+    """Send an HTML email. Raises if SMTP is configured but sending fails."""
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
         logger.warning("smtp_not_configured — email not sent", extra={"to": to})
         return
     await asyncio.to_thread(_send_sync, to, subject, html)
