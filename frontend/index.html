@@ -13,7 +13,8 @@ window.onerror = function(msg, src, line, col, err) {
 };
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -39,9 +40,9 @@ window.onerror = function(msg, src, line, col, err) {
   --blue-dim: rgba(26,86,153,0.10);
   --green: #1a8055;
   --green-dim: rgba(26,128,85,0.10);
-  --font-display: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
   --r: 10px;
   --r-sm: 6px;
 }
@@ -272,7 +273,7 @@ textarea.form-input { resize: vertical; }
   z-index: 9999;
   background: #e8edf4;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'DM Sans', Arial, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 .login-card {
   width: 420px; max-width: 92vw;
@@ -292,14 +293,14 @@ textarea.form-input { resize: vertical; }
 .login-error { background: rgba(210,72,59,0.09); border: 1px solid rgba(210,72,59,0.3); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #d2483b; margin-bottom: 18px; display: none; }
 .login-error.visible { display: block; }
 .login-input-wrap { margin-bottom: 14px; }
-.login-input { width: 100%; background: #e8edf4; border: 1px solid #cdd8e6; border-radius: 8px; padding: 11px 14px; color: #142238; font-family: 'DM Sans', Arial, sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+.login-input { width: 100%; background: #e8edf4; border: 1px solid #cdd8e6; border-radius: 8px; padding: 11px 14px; color: #142238; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
 .login-input:focus { border-color: #1a5699; }
 .login-input::placeholder { color: #93a1b5; }
-.login-btn { width: 100%; padding: 13px; background: #1a5699; color: #ffffff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', Arial, sans-serif; transition: background 0.15s; margin-top: 6px; }
+.login-btn { width: 100%; padding: 13px; background: #1a5699; color: #ffffff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Inter', system-ui, sans-serif; transition: background 0.15s; margin-top: 6px; }
 .login-btn:hover:not(:disabled) { background: #123f73; }
 .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .login-footer { text-align: center; font-size: 12px; color: #93a1b5; margin-top: 20px; line-height: 1.6; }
-.login-footer span { color: #1a5699; font-family: monospace; }
+.login-footer span { color: #1a5699; font-family: 'JetBrains Mono', monospace; }
 
 /* Sidebar user card */
 .user-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); }
