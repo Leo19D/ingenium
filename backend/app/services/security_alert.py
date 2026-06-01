@@ -20,8 +20,8 @@ from app.services.email.smtp import send_email
 
 logger = logging.getLogger(__name__)
 
-# Tko prima alerte — samo admin. Korisnik koji se logira ovo nikad ne vidi.
-ADMIN_ALERT_EMAIL = "ingeniumtrade@gmail.com"
+# Tko prima alerte — admini. Korisnik koji se logira ovo nikad ne vidi.
+ADMIN_ALERT_EMAILS = ["ingeniumtrade@gmail.com", "leodupanovic1@gmail.com"]
 
 _PRIVATE_IP_PREFIXES = ("10.", "192.168.", "172.16.", "172.17.", "172.18.",
                         "172.19.", "172.2", "172.30.", "172.31.", "127.", "::1")
@@ -163,12 +163,15 @@ async def send_login_alert(
             flags=flags,
         )
 
-        await send_email(
-            to=ADMIN_ALERT_EMAIL,
-            subject=f"🔓 Prijava — {full_name} ({email})",
-            html=html,
-        )
-        logger.info("login_alert_sent", extra={"email": email, "ip": ip})
+        subject = f"🔓 Prijava — {full_name} ({email})"
+        for admin in ADMIN_ALERT_EMAILS:
+            try:
+                await send_email(to=admin, subject=subject, html=html)
+            except Exception as e:
+                logger.warning("login_alert_recipient_failed",
+                               extra={"recipient": admin, "error": str(e)})
+        logger.info("login_alert_sent",
+                    extra={"email": email, "ip": ip, "recipients": len(ADMIN_ALERT_EMAILS)})
     except Exception as e:
         logger.warning("login_alert_failed", extra={"email": email, "error": str(e)})
 
