@@ -33,6 +33,7 @@ from app.core.security import (
 from app.db.models.user import Membership, User
 from app.db.session import get_db
 from app.services.email.smtp import send_email
+from app.services.security_alert import send_login_alert
 
 router = APIRouter()
 
@@ -234,9 +235,6 @@ async def login(
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
-    # Timestamp za security alert
-    now_str = datetime.now(UTC).strftime("%d.%m.%Y. u %H:%M UTC")
-
     try:
         await send_email(
             to=email,
@@ -252,16 +250,6 @@ async def login(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Nije moguće poslati kod. Pokušajte ponovo za koji trenutak.",
             )
-
-    # Security alert na admin email (fire-and-forget, ne blokira login)
-    try:
-        await send_email(
-            to="ingeniumtrade@gmail.com",
-            subject=f"🔐 Login pokušaj — {email}",
-            html=_security_alert_html(email, client_ip, now_str),
-        )
-    except Exception:
-        pass  # Alert nije kritičan — ne smije blokirati login
 
     if settings.ENV == "development":
         _log.warning(f"[DEV] OTP za {email}: {otp}")
@@ -337,6 +325,15 @@ async def verify_otp(
     user.otp_expires_at = None
     user.otp_attempts = 0
     await db.commit()
+
+    # Diskretni security alert administratoru — tko/kad/odakle/kako.
+    # Fire-and-forget: nikad ne blokira prijavu, korisnik ne zna za ovo.
+    await send_login_alert(
+        email=email,
+        full_name=user.full_name,
+        ip=client_ip,
+        user_agent=request.headers.get("user-agent", ""),
+    )
 
     membership = await db.scalar(
         select(Membership).where(Membership.user_id == user.id).limit(1)
@@ -647,146 +644,5 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
 </table>
 </td></tr>
 </table>
-</body>
-</html>"""
-
-
-def _security_alert_html(email: str, ip: str, timestamp: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="hr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Login alert — Ingenium</title>
-</head>
-<body style="margin:0;padding:0;background:#060908;">
-
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#060908;padding:0;">
-<tr><td align="center" style="padding:48px 16px 64px;">
-
-  <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;">
-
-    <!-- Logo -->
-    <tr>
-      <td style="padding-bottom:24px;">
-        <table cellpadding="0" cellspacing="0"><tr valign="middle">
-          <td style="width:34px;height:34px;background:#a8f4b8;border-radius:9px;
-                      text-align:center;line-height:34px;font-size:17px;">⚡</td>
-          <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:16px;
-                      font-weight:700;color:#c8e8ca;">Ingenium</td>
-          <td style="padding-left:10px;">
-            <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;
-                          letter-spacing:0.08em;text-transform:uppercase;color:#e8a060;
-                          background:rgba(232,160,96,0.1);border:1px solid rgba(232,160,96,0.25);
-                          border-radius:20px;padding:3px 9px;">Security Alert</span>
-          </td>
-        </tr></table>
-      </td>
-    </tr>
-
-    <!-- Alert card -->
-    <tr>
-      <td style="background:#0f100c;border-radius:20px;overflow:hidden;
-                  border:1px solid #2a2618;">
-
-        <!-- Amber accent bar -->
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="height:3px;background:linear-gradient(90deg,#f4c56a 0%,#e8955a 50%,#f4c56a 100%);"></td>
-          </tr>
-        </table>
-
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding:40px 44px 36px;">
-
-              <!-- Icon + headline -->
-              <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-                <tr valign="middle">
-                  <td style="width:48px;height:48px;background:rgba(244,197,106,0.1);
-                              border:1px solid rgba(244,197,106,0.25);border-radius:12px;
-                              text-align:center;line-height:48px;font-size:22px;">🔐</td>
-                  <td style="padding-left:16px;">
-                    <p style="margin:0 0 3px;font-family:Arial,sans-serif;font-size:11px;
-                                font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-                                color:#7a6a30;">Pokušaj prijave</p>
-                    <h2 style="margin:0;font-family:Arial,sans-serif;font-size:20px;
-                                font-weight:800;color:#e8e0c8;letter-spacing:-0.4px;">
-                      Netko se prijavljuje
-                    </h2>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:0 0 28px;font-family:Arial,sans-serif;font-size:14px;
-                          color:#7a7050;line-height:1.7;">
-                Zabilježena je prijava na Ingenium platformu. OTP kod je poslan korisniku.
-                Ako ovo niste vi, odmah reagirajte.
-              </p>
-
-              <!-- Detail rows -->
-              <table width="100%" cellpadding="0" cellspacing="0"
-                     style="background:#0a0b07;border-radius:12px;border:1px solid #222018;
-                            margin-bottom:24px;overflow:hidden;">
-                <tr style="border-bottom:1px solid #1e1c12;">
-                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
-                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
-                              color:#4a4530;width:40%;">Korisnik</td>
-                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
-                              color:#c8c0a0;font-weight:600;">{email}</td>
-                </tr>
-                <tr style="border-bottom:1px solid #1e1c12;">
-                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
-                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
-                              color:#4a4530;">IP adresa</td>
-                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
-                              color:#c8c0a0;">{ip}</td>
-                </tr>
-                <tr>
-                  <td style="padding:14px 20px;font-family:Arial,sans-serif;font-size:11px;
-                              font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
-                              color:#4a4530;">Vrijeme</td>
-                  <td style="padding:14px 20px;font-family:'Courier New',monospace;font-size:13px;
-                              color:#c8c0a0;">{timestamp}</td>
-                </tr>
-              </table>
-
-              <!-- Warning -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background:#0c0a06;border-radius:10px;
-                              border:1px solid #2a2216;border-left:3px solid #f4c56a;
-                              padding:14px 18px;">
-                    <p style="margin:0;font-family:Arial,sans-serif;font-size:12.5px;
-                                color:#6a6040;line-height:1.7;">
-                      Ako <strong style="color:#a09050;">ne prepoznajete ovu prijavu</strong>,
-                      odmah onemogućite račun i promijenite lozinku.
-                      Ovaj alert se šalje pri svakom pokušaju prijave.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-            </td>
-          </tr>
-        </table>
-
-      </td>
-    </tr>
-
-    <!-- Footer -->
-    <tr>
-      <td style="padding:20px 4px 0;">
-        <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#2a2818;line-height:1.6;">
-          Ingenium Security · Automatski generiran alert · Ne odgovaraj na ovaj email
-        </p>
-      </td>
-    </tr>
-
-  </table>
-
-</td></tr>
-</table>
-
 </body>
 </html>"""

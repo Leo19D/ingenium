@@ -255,6 +255,39 @@ async def add_line_item(
     return QuoteResponse.model_validate(quote)
 
 
+@router.patch("/{quote_id}/line-items/{item_id}", response_model=QuoteResponse)
+async def update_line_item(
+    quote_id: UUID,
+    item_id: UUID,
+    req: LineItemCreate,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> QuoteResponse:
+    result = await db.execute(
+        select(Quote)
+        .where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )
+    quote = result.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+    item = next((li for li in quote.line_items if li.id == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
+    item.description = req.description
+    item.quantity = req.quantity
+    item.unit = req.unit
+    item.unit_price = req.unit_price
+    item.unit_cost = req.unit_cost
+    item.discount_pct = req.discount_pct
+    item.tax_rate = req.tax_rate
+    item.notes = req.notes
+    _recalculate(quote)
+    await db.commit()
+    await db.refresh(quote)
+    return QuoteResponse.model_validate(quote)
+
+
 @router.delete("/{quote_id}/line-items/{item_id}", response_model=QuoteResponse)
 async def delete_line_item(
     quote_id: UUID,

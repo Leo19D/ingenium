@@ -372,10 +372,10 @@ textarea.form-input { resize: vertical; }
     <!-- DASHBOARD -->
     <div class="view active" id="view-dashboard">
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Pipeline vrijednost</div><div class="kpi-value">€847k</div><div class="kpi-delta delta-up">↑ 12.4% vs prošli mj.</div><div class="kpi-icon">◈</div></div>
-        <div class="kpi-card"><div class="kpi-label">Win rate (90d)</div><div class="kpi-value">38.2%</div><div class="kpi-delta delta-up">↑ 4.1pp</div><div class="kpi-icon">◎</div></div>
-        <div class="kpi-card"><div class="kpi-label">Avg. marža</div><div class="kpi-value">21.7%</div><div class="kpi-delta delta-down">↓ 0.8pp</div><div class="kpi-icon">◳</div></div>
-        <div class="kpi-card"><div class="kpi-label">Ponude ovaj mj.</div><div class="kpi-value">47</div><div class="kpi-delta delta-up">↑ 8 vs prošli</div><div class="kpi-icon">◫</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pipeline vrijednost</div><div class="kpi-value" id="kpi-pipeline">—</div><div class="kpi-delta delta-up" id="kpi-pipeline-sub">otvorene ponude</div><div class="kpi-icon">◈</div></div>
+        <div class="kpi-card"><div class="kpi-label">Win rate</div><div class="kpi-value" id="kpi-win-rate">—</div><div class="kpi-delta" id="kpi-win-sub">won / (won+lost)</div><div class="kpi-icon">◎</div></div>
+        <div class="kpi-card"><div class="kpi-label">Avg. marža (won)</div><div class="kpi-value" id="kpi-avg-margin">—</div><div class="kpi-delta" id="kpi-margin-sub">na dobivenim ponudama</div><div class="kpi-icon">◳</div></div>
+        <div class="kpi-card"><div class="kpi-label">Ukupno ponuda</div><div class="kpi-value" id="kpi-total-quotes">—</div><div class="kpi-delta" id="kpi-quotes-sub">u sustavu</div><div class="kpi-icon">◫</div></div>
       </div>
 
       <div class="two-col" style="margin-bottom:16px">
@@ -430,13 +430,9 @@ textarea.form-input { resize: vertical; }
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Klijent</th><th>Projekt</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Rok</th></tr></thead>
-          <tbody>
-            <tr onclick="setView('builder')"><td><span class="quote-id">QT-2024-091</span></td><td><span class="client-name">Hotel Amabilis</span></td><td style="color:var(--text2)">Rasvjeta hotelskih soba</td><td><span class="amount-cell">€84,200</span></td><td><span class="li-margin margin-high">22.4%</span></td><td><span class="badge badge-review">● review</span></td><td style="font-size:12px;color:var(--text3)">za 4d</td></tr>
-            <tr><td><span class="quote-id">QT-2024-090</span></td><td><span class="client-name">Konzum d.d.</span></td><td style="color:var(--text2)">LED retrofit — 12 dućana</td><td><span class="amount-cell">€156,400</span></td><td><span class="li-margin margin-high">19.8%</span></td><td><span class="badge badge-sent">● poslano</span></td><td style="font-size:12px;color:var(--text3)">za 12d</td></tr>
-            <tr><td><span class="quote-id">QT-2024-089</span></td><td><span class="client-name">HEP d.d.</span></td><td style="color:var(--text2)">Javna rasvjeta — Split</td><td><span class="amount-cell">€42,800</span></td><td><span class="li-margin margin-mid">16.2%</span></td><td><span class="badge badge-won">● dobiveno</span></td><td style="font-size:12px;color:var(--accent)">završeno</td></tr>
-            <tr><td><span class="quote-id">QT-2024-088</span></td><td><span class="client-name">Lidl Hrvatska</span></td><td style="color:var(--text2)">Skladišna rasvjeta — 3 lokacije</td><td><span class="amount-cell">€218,700</span></td><td><span class="li-margin margin-mid">14.1%</span></td><td><span class="badge badge-sent">● poslano</span></td><td style="font-size:12px;color:var(--red)">za 2d ⚠</td></tr>
-            <tr><td><span class="quote-id">QT-2024-087</span></td><td><span class="client-name">Grad Zagreb</span></td><td style="color:var(--text2)">Uredska rasvjeta — Grad. uprava</td><td><span class="amount-cell">€31,500</span></td><td><span class="li-margin margin-low">8.4%</span></td><td><span class="badge badge-draft">● nacrt</span></td><td style="font-size:12px;color:var(--text3)">za 18d</td></tr>
+          <thead><tr><th>Projekt</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Verzija</th><th></th></tr></thead>
+          <tbody id="dashboard-quotes-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Učitavam...</td></tr>
           </tbody>
         </table>
       </div>
@@ -639,21 +635,18 @@ textarea.form-input { resize: vertical; }
     <!-- QUOTES -->
     <div class="view" id="view-quotes">
       <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
-        <button class="btn btn-ghost" style="font-size:12px">Sve ▾</button>
-        <button class="btn btn-ghost" style="font-size:12px">2024 ▾</button>
-        <button class="btn btn-ghost" style="font-size:12px">Svi klijenti ▾</button>
-        <span style="font-size:12px;color:var(--text3);margin-left:auto;font-family:var(--font-mono)">47 ponuda</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text)">Sve ponude</span>
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="quotes-count"></span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="loadQuotes()">↻ Osvježi</button>
+          <button class="btn btn-primary" onclick="openModal('nova-ponuda')">+ Nova ponuda</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Klijent</th><th>Projekt</th><th>Stavki</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Verzija</th><th>Kreirano</th></tr></thead>
-          <tbody>
-            <tr onclick="setView('builder')"><td><span class="quote-id">QT-2024-091</span></td><td><span class="client-name">Hotel Amabilis</span></td><td style="color:var(--text2)">Rasvjeta soba</td><td style="font-family:var(--font-mono);color:var(--text3)">63</td><td><span class="amount-cell">€84,200</span></td><td><span class="li-margin margin-high">22.4%</span></td><td><span class="badge badge-review">review</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">danas</td></tr>
-            <tr><td><span class="quote-id">QT-2024-090</span></td><td><span class="client-name">Konzum d.d.</span></td><td style="color:var(--text2)">LED retrofit 12×</td><td style="font-family:var(--font-mono);color:var(--text3)">28</td><td><span class="amount-cell">€156,400</span></td><td><span class="li-margin margin-high">19.8%</span></td><td><span class="badge badge-sent">poslano</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V2</td><td style="font-size:12px;color:var(--text3)">juc.</td></tr>
-            <tr><td><span class="quote-id">QT-2024-089</span></td><td><span class="client-name">HEP d.d.</span></td><td style="color:var(--text2)">Javna rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">14</td><td><span class="amount-cell">€42,800</span></td><td><span class="li-margin margin-mid">16.2%</span></td><td><span class="badge badge-won">dobiveno</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V3</td><td style="font-size:12px;color:var(--text3)">3d</td></tr>
-            <tr><td><span class="quote-id">QT-2024-088</span></td><td><span class="client-name">Lidl Hrvatska</span></td><td style="color:var(--text2)">Skladišna 3×</td><td style="font-family:var(--font-mono);color:var(--text3)">41</td><td><span class="amount-cell">€218,700</span></td><td><span class="li-margin margin-mid">14.1%</span></td><td><span class="badge badge-sent">poslano</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">4d</td></tr>
-            <tr><td><span class="quote-id">QT-2024-087</span></td><td><span class="client-name">Grad Zagreb</span></td><td style="color:var(--text2)">Uredska rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">22</td><td><span class="amount-cell">€31,500</span></td><td><span class="li-margin margin-low">8.4%</span></td><td><span class="badge badge-draft">nacrt</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V1</td><td style="font-size:12px;color:var(--text3)">5d</td></tr>
-            <tr><td><span class="quote-id">QT-2024-086</span></td><td><span class="client-name">Mercator</span></td><td style="color:var(--text2)">Tržnica rasvjeta</td><td style="font-family:var(--font-mono);color:var(--text3)">18</td><td><span class="amount-cell">€52,100</span></td><td><span class="li-margin margin-low">11.2%</span></td><td><span class="badge badge-lost">izgubljeno</span></td><td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V2</td><td style="font-size:12px;color:var(--text3)">8d</td></tr>
+          <thead><tr><th>Projekt</th><th>Stavki</th><th>Iznos</th><th>Marža</th><th>Status</th><th>Verzija</th><th>Kreirano</th><th></th></tr></thead>
+          <tbody id="all-quotes-tbody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Učitavam ponude...</td></tr>
           </tbody>
         </table>
       </div>
@@ -663,68 +656,68 @@ textarea.form-input { resize: vertical; }
     <div class="view" id="view-builder">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <div>
-          <div style="font-size:12px;font-family:var(--font-mono);color:var(--text3);margin-bottom:2px">QT-2024-091 · V1 · nacrt</div>
-          <div style="font-family:var(--font-display);font-size:18px;font-weight:700">Hotel Amabilis — Rasvjeta hotelskih soba</div>
+          <div style="font-size:12px;font-family:var(--font-mono);color:var(--text3);margin-bottom:2px" id="builder-meta">Odaberi ponudu za uređivanje</div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:700" id="builder-title">Quote Builder</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)">↓ Excel</button>
-          <button class="btn btn-ghost">↓ PDF</button>
-          <button class="btn btn-primary">Pošalji na odobrenje →</button>
+          <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)" id="btn-export-excel">↓ Excel</button>
+          <button class="btn btn-ghost" id="btn-export-pdf">↓ PDF</button>
+          <button class="btn btn-ghost" id="btn-approve" onclick="sendForApproval()" style="display:none">Pošalji na odobrenje →</button>
+          <button class="btn btn-primary" onclick="openModal('nova-ponuda')">+ Nova ponuda</button>
         </div>
       </div>
 
       <div class="ai-insight" style="margin-bottom:16px;border-radius:var(--r)">
         <div class="ai-insight-label">✦ AI preporuka</div>
-        <div class="ai-insight-text" id="margin-suggestion">Učitavam analizu marži iz historijskih podataka...</div>
+        <div class="ai-insight-text" id="margin-suggestion">Kreiraj ili odaberi ponudu da vidiš AI preporuke marže.</div>
       </div>
 
       <div class="quote-layout">
         <div class="quote-main">
           <div class="section-header">
             <div class="section-title">Stavke ponude</div>
-            <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px">+ Dodaj stavku</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="toggleAddItemForm()">+ Dodaj stavku</button>
           </div>
-          <div class="line-items-table">
-            <div class="li-header"><span>Opis / SKU</span><span>Kol.</span><span>Nabavna</span><span>Prodajna</span><span>Marža</span><span></span></div>
-            <div class="li-row">
-              <div><div class="li-desc">LED Panel 60×60 36W 4000K UGR&lt;19</div><div class="li-cat">LED-PNL-6060-36-4K · Fagerhult</div></div>
-              <div class="li-qty">48 kom</div><div class="li-cost">€18.40</div><div class="li-price">€23.50</div><div class="li-margin margin-high">21.7%</div><button class="icon-btn">✎</button>
+
+          <!-- Inline forma za dodavanje stavke -->
+          <div id="add-item-form" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px">
+            <div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+              <input type="text" class="form-input" id="li-desc" placeholder="Opis artikla *" style="font-size:13px">
+              <input type="number" class="form-input" id="li-qty" placeholder="Količina *" step="0.01" min="0" style="font-size:13px">
+              <select class="form-input" id="li-unit" style="font-size:13px">
+                <option>pcs</option><option>m</option><option>m2</option><option>kg</option><option>set</option><option>lot</option>
+              </select>
+              <input type="number" class="form-input" id="li-cost" placeholder="Nabavna (€)" step="0.01" min="0" style="font-size:13px">
             </div>
-            <div class="li-row">
-              <div><div class="li-desc">Downlight LED 10W 3000K IP44 bijeli</div><div class="li-cat">LED-DL-10W-3K-IP44-W · Osram</div></div>
-              <div class="li-qty">124 kom</div><div class="li-cost">€6.20</div><div class="li-price">€8.10</div><div class="li-margin margin-high">23.5%</div><button class="icon-btn">✎</button>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center">
+              <input type="text" class="form-input" id="li-notes" placeholder="Napomena" style="font-size:13px">
+              <input type="number" class="form-input" id="li-price" placeholder="Prodajna (€) *" step="0.01" min="0" style="font-size:13px">
+              <input type="number" class="form-input" id="li-margin-pct" placeholder="ili marža %" step="1" min="0" max="99"
+                     oninput="calcPriceFromMargin()" style="font-size:13px">
+              <button class="btn btn-primary" style="font-size:12px;white-space:nowrap" onclick="addQuoteLineItem()">+ Dodaj</button>
             </div>
-            <div class="li-row" style="background:rgba(244,209,106,0.04)">
-              <div><div class="li-desc">Upravljačka jedinica DALI 2ch</div><div class="li-cat" style="color:var(--amber)">⚠ nije potvrđen katalog match</div></div>
-              <div class="li-qty">8 kom</div><div class="li-cost">—</div><div class="li-price">—</div><div class="li-margin" style="color:var(--amber)">—</div><button class="icon-btn" style="color:var(--amber)">!</button>
-            </div>
-            <div class="li-row">
-              <div><div class="li-desc">Kabel NYY-J 3×2.5mm² crni</div><div class="li-cat">KBL-NYY-3X25-CRN · Prysmian</div></div>
-              <div class="li-qty">320 m</div><div class="li-cost">€1.42</div><div class="li-price">€1.65</div><div class="li-margin margin-mid">13.9%</div><button class="icon-btn">✎</button>
-            </div>
-            <div class="li-row">
-              <div><div class="li-desc">Instalacijski rad i puštanje u pogon</div><div class="li-cat">SERV-INST-LIGHT · interno</div></div>
-              <div class="li-qty">1 lot</div><div class="li-cost">€4,200</div><div class="li-price">€6,800</div><div class="li-margin margin-high">38.2%</div><button class="icon-btn">✎</button>
+          </div>
+
+          <div class="line-items-table" id="builder-items">
+            <div class="li-header"><span>Opis</span><span>Kol.</span><span>Nabavna</span><span>Prodajna</span><span>Marža</span><span></span></div>
+            <div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">
+              Kreiraj ponudu ili odaberi iz liste ponuda.
             </div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
             <div class="card" style="padding:16px">
               <div style="font-size:12px;font-weight:500;margin-bottom:10px">Uvjeti ponude</div>
-              <div class="qs-row"><span class="qs-label">Valuta</span><span class="qs-value">EUR</span></div>
-              <div class="qs-row"><span class="qs-label">Incoterms</span><span class="qs-value">DAP Zagreb</span></div>
-              <div class="qs-row"><span class="qs-label">Uvjeti plaćanja</span><span class="qs-value">30 dana</span></div>
-              <div class="qs-row"><span class="qs-label">Vrijedi do</span><span class="qs-value">30.01.2025.</span></div>
-              <div class="qs-row"><span class="qs-label">PDV</span><span class="qs-value">25% (HR)</span></div>
+              <div class="qs-row"><span class="qs-label">Valuta</span><span class="qs-value" id="qs-currency">—</span></div>
+              <div class="qs-row"><span class="qs-label">Uvjeti plaćanja</span><span class="qs-value" id="qs-payment">—</span></div>
+              <div class="qs-row"><span class="qs-label">Status</span><span class="qs-value" id="qs-status">—</span></div>
             </div>
             <div class="card" style="padding:16px">
-              <div style="font-size:12px;font-weight:500;margin-bottom:10px">Dobavljači — ovaj quote</div>
-              <div class="qs-row"><span class="qs-label">Fagerhult</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€883.20</span></div>
-              <div class="qs-row"><span class="qs-label">Osram</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€768.80</span></div>
-              <div class="qs-row"><span class="qs-label">Prysmian</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€454.40</span></div>
-              <div class="qs-row"><span class="qs-label">Interno</span><span class="qs-value" style="font-size:11px;color:var(--text2)">€4,200.00</span></div>
+              <div style="font-size:12px;font-weight:500;margin-bottom:10px">Sumarno</div>
+              <div class="qs-row"><span class="qs-label">Međuzbroj</span><span class="qs-value" id="qs-subtotal">—</span></div>
+              <div class="qs-row"><span class="qs-label">Porez</span><span class="qs-value" id="qs-tax">—</span></div>
               <div class="qs-divider"></div>
-              <div class="qs-row"><span class="qs-label">Ukupno COGS</span><span class="qs-value">€6,306.40</span></div>
+              <div class="qs-row"><span class="qs-label" style="font-weight:600">Ukupno</span><span class="qs-value" id="quote-total" style="color:var(--accent);font-weight:700">—</span></div>
             </div>
           </div>
         </div>
@@ -1584,25 +1577,48 @@ async function createQuote() {
 }
 
 function renderQuoteBuilder(quote) {
-  const items = quote.line_items || [];
-  const tbody = document.getElementById('quote-line-items-body');
-  if (!tbody) return;
-  tbody.innerHTML = items.length ? items.map(li => `
-    <tr>
-      <td style="font-family:var(--font-mono);font-size:12px">${li.position}</td>
-      <td>${escapeHtml(li.description)}</td>
-      <td style="font-family:var(--font-mono)">${li.quantity} ${li.unit}</td>
-      <td><span class="amount-cell">€${parseFloat(li.unit_price).toFixed(2)}</span></td>
-      <td><span class="amount-cell">€${parseFloat(li.line_total || 0).toFixed(2)}</span></td>
-      <td>${li.margin_pct ? (parseFloat(li.margin_pct)*100).toFixed(1)+'%' : '—'}</td>
-      <td><button class="icon-btn" onclick="deleteLineItem('${li.id}')">🗑</button></td>
-    </tr>`).join('') :
-    '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Nema stavki — dodaj prvu</td></tr>';
+  const items = (quote.line_items || []).sort((a,b) => a.position - b.position);
+  const container = document.getElementById('builder-items');
+  if (!container) return;
 
-  const total = document.getElementById('quote-total');
-  if (total) total.textContent = '€' + parseFloat(quote.total || 0).toFixed(2);
-  const margin = document.getElementById('quote-margin');
-  if (margin) margin.textContent = quote.margin_pct ? (parseFloat(quote.margin_pct)*100).toFixed(1)+'%' : '—';
+  // Update header
+  const meta = document.getElementById('builder-meta');
+  const title = document.getElementById('builder-title');
+  if (meta) meta.textContent = `V${quote.version} · ${quote.status} · ${quote.currency}`;
+  if (title) title.textContent = 'Ponuda V' + quote.version;
+
+  // Show/hide approve button
+  const approveBtn = document.getElementById('btn-approve');
+  if (approveBtn) approveBtn.style.display = quote.status === 'draft' ? 'inline-flex' : 'none';
+
+  // Render line items
+  const header = `<div class="li-header"><span>Opis</span><span>Kol.</span><span>Nabavna</span><span>Prodajna</span><span>Marža</span><span></span></div>`;
+  const rows = items.length ? items.map(li => {
+    const cost = li.unit_cost ? '€'+parseFloat(li.unit_cost).toFixed(2) : '—';
+    const price = '€'+parseFloat(li.unit_price).toFixed(2);
+    const margin = li.margin_pct ? (parseFloat(li.margin_pct)*100).toFixed(1)+'%' : '—';
+    const marginCls = li.margin_pct ? _marginClass(li.margin_pct) : '';
+    return `<div class="li-row" id="li-${li.id}">
+      <div><div class="li-desc">${escapeHtml(li.description)}</div><div class="li-cat">${li.unit} · pos.${li.position}</div></div>
+      <div class="li-qty">${parseFloat(li.quantity)} ${li.unit}</div>
+      <div class="li-cost">${cost}</div>
+      <div class="li-price">${price}</div>
+      <div class="li-margin ${marginCls}">${margin}</div>
+      <button class="icon-btn" title="Obriši" onclick="deleteLineItem('${li.id}')">🗑</button>
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Nema stavki — dodaj prvu stavku gore.</div>';
+
+  container.innerHTML = header + rows;
+
+  // Update summary cards
+  const fmt = v => v != null ? '€' + parseFloat(v).toLocaleString('hr-HR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('quote-total', fmt(quote.total));
+  set('qs-subtotal', fmt(quote.subtotal));
+  set('qs-tax', fmt(quote.tax_total));
+  set('qs-currency', quote.currency || '—');
+  set('qs-payment', quote.payment_terms || '—');
+  set('qs-status', quote.status || '—');
 }
 
 async function addQuoteLineItem() {
@@ -1686,17 +1702,122 @@ async function loadDashboardStats() {
     const stats = await apiGet('/analytics/overview');
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     set('kpi-win-rate', stats.win_rate_pct.toFixed(1) + '%');
+    set('kpi-win-sub', `${stats.won} won · ${stats.lost} lost`);
     set('kpi-pipeline', '€' + (stats.pipeline_value/1000).toFixed(1) + 'k');
-    set('kpi-won-value', '€' + (stats.won_value/1000).toFixed(1) + 'k');
+    set('kpi-pipeline-sub', `${stats.open} otvorenih`);
+    set('kpi-avg-margin', stats.avg_margin_won_pct != null ? stats.avg_margin_won_pct.toFixed(1) + '%' : '—');
     set('kpi-total-quotes', stats.total_quotes);
-    set('kpi-open-quotes', stats.open);
+    set('kpi-quotes-sub', `${stats.won} won · ${stats.lost} lost`);
+  } catch(e) { console.error('loadDashboardStats', e); }
 
+  try {
     const suggestion = await apiGet('/analytics/margin-suggestion');
     const sugEl = document.getElementById('margin-suggestion');
-    if (sugEl) {
-      sugEl.textContent = `Preporučena marža: ${suggestion.suggested_min}–${suggestion.suggested_max}% (cilj ${suggestion.suggested_target}%) · ${suggestion.confidence === 'high' ? '✓ visoka' : suggestion.confidence === 'medium' ? '~ srednja' : '○ niska'} pouzdanost · ${suggestion.based_on_quotes} ponuda`;
+    if (sugEl && !_currentQuote) {
+      const conf = suggestion.confidence === 'high' ? '✓ visoka' : suggestion.confidence === 'medium' ? '~ srednja' : '○ niska';
+      sugEl.textContent = `Preporučena marža: ${suggestion.suggested_min}–${suggestion.suggested_max}% · cilj ${suggestion.suggested_target}% · ${conf} pouzdanost (${suggestion.based_on_quotes} ponuda). ${suggestion.insight}`;
     }
-  } catch(e) { console.error('loadDashboardStats', e); }
+  } catch(e) {}
+}
+
+// ========== QUOTES LIST ==========
+var _allQuotes = [];
+
+async function loadQuotes() {
+  if (!apiAvailable) return;
+  try {
+    _allQuotes = await apiGet('/quotes/');
+    renderQuotesList(_allQuotes);
+    // Also update dashboard preview
+    renderDashboardQuotes(_allQuotes.slice(0, 5));
+    const countEl = document.getElementById('quotes-count');
+    if (countEl) countEl.textContent = _allQuotes.length + ' ponuda';
+  } catch(e) { console.error('loadQuotes', e); }
+}
+
+function _statusBadge(status) {
+  const map = {
+    draft: 'badge-draft', review: 'badge-review', approved: 'badge-review',
+    sent: 'badge-sent', accepted: 'badge-won', rejected: 'badge-lost',
+    won: 'badge-won', lost: 'badge-lost', expired: 'badge-lost',
+  };
+  const labels = {
+    draft: 'nacrt', review: 'review', approved: 'odobreno',
+    sent: 'poslano', accepted: 'dobiveno', rejected: 'odbijeno',
+    won: 'dobiveno', lost: 'izgubljeno', expired: 'isteklo',
+  };
+  const cls = map[status] || 'badge-draft';
+  return `<span class="badge ${cls}">● ${labels[status] || status}</span>`;
+}
+
+function _marginClass(pct) {
+  if (!pct) return '';
+  const v = parseFloat(pct) * 100;
+  return v >= 25 ? 'margin-high' : v >= 15 ? 'margin-mid' : 'margin-low';
+}
+
+function renderQuotesList(quotes) {
+  const tbody = document.getElementById('all-quotes-tbody');
+  if (!tbody) return;
+  if (!quotes.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Nema ponuda. Kreiraj prvu iz dokumenta ili ručno.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = quotes.map(q => {
+    const margin = q.margin_pct ? (parseFloat(q.margin_pct)*100).toFixed(1)+'%' : '—';
+    const total = q.total ? '€'+parseFloat(q.total).toLocaleString('hr-HR', {minimumFractionDigits:2}) : '—';
+    const created = q.created_at ? q.created_at.slice(0,10) : '';
+    return `<tr style="cursor:pointer" onclick="openQuote('${q.id}')">
+      <td><span class="client-name">V${q.version} · Projekt</span></td>
+      <td style="font-family:var(--font-mono);color:var(--text3)">${(q.line_items||[]).length}</td>
+      <td><span class="amount-cell">${total}</span></td>
+      <td><span class="li-margin ${_marginClass(q.margin_pct)}">${margin}</span></td>
+      <td>${_statusBadge(q.status)}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V${q.version}</td>
+      <td style="font-size:12px;color:var(--text3)">${created}</td>
+      <td><button class="icon-btn" onclick="event.stopPropagation();openQuote('${q.id}')">→</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDashboardQuotes(quotes) {
+  const tbody = document.getElementById('dashboard-quotes-tbody');
+  if (!tbody) return;
+  if (!quotes.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Nema ponuda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = quotes.map(q => {
+    const margin = q.margin_pct ? (parseFloat(q.margin_pct)*100).toFixed(1)+'%' : '—';
+    const total = q.total ? '€'+parseFloat(q.total).toLocaleString('hr-HR', {minimumFractionDigits:2}) : '—';
+    return `<tr style="cursor:pointer" onclick="openQuote('${q.id}')">
+      <td style="color:var(--text2)">Projekt — V${q.version}</td>
+      <td><span class="amount-cell">${total}</span></td>
+      <td><span class="li-margin ${_marginClass(q.margin_pct)}">${margin}</span></td>
+      <td>${_statusBadge(q.status)}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">V${q.version}</td>
+      <td><button class="icon-btn">→</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function openQuote(quoteId) {
+  if (!apiAvailable) return;
+  try {
+    const quote = await apiGet('/quotes/' + quoteId);
+    _currentQuote = quote;
+    renderQuoteBuilder(quote);
+    setView('builder');
+
+    // Load AI margin suggestion for this quote
+    try {
+      const sug = await apiGet('/analytics/margin-suggestion');
+      const el = document.getElementById('margin-suggestion');
+      if (el) {
+        el.textContent = `Preporučena marža: ${sug.suggested_min}–${sug.suggested_max}% (cilj ${sug.suggested_target}%) · ${sug.based_on_quotes} ponuda u bazi`;
+      }
+    } catch(e) {}
+  } catch(e) { showToast('Greška pri učitavanju ponude: ' + e.message, 'error'); }
 }
 
 async function deleteLineItem(itemId) {
