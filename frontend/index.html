@@ -1621,23 +1621,57 @@ function renderQuoteBuilder(quote) {
   set('qs-status', quote.status || '—');
 }
 
+function toggleAddItemForm() {
+  const form = document.getElementById('add-item-form');
+  if (!form) return;
+  const showing = form.style.display !== 'none';
+  form.style.display = showing ? 'none' : 'block';
+  if (!showing) document.getElementById('li-desc')?.focus();
+}
+
+function calcPriceFromMargin() {
+  // Kad korisnik upiše maržu %, izračunaj prodajnu iz nabavne: price = cost / (1 - margin)
+  const cost = parseFloat(document.getElementById('li-cost')?.value);
+  const marginPct = parseFloat(document.getElementById('li-margin-pct')?.value);
+  if (cost > 0 && marginPct > 0 && marginPct < 100) {
+    const price = cost / (1 - marginPct / 100);
+    document.getElementById('li-price').value = price.toFixed(2);
+  }
+}
+
 async function addQuoteLineItem() {
   if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
   const desc = document.getElementById('li-desc')?.value?.trim();
   const qty = parseFloat(document.getElementById('li-qty')?.value);
   const price = parseFloat(document.getElementById('li-price')?.value);
+  const cost = parseFloat(document.getElementById('li-cost')?.value);
   const unit = document.getElementById('li-unit')?.value || 'pcs';
-  if (!desc || !qty || !price) { showToast('Popuni opis, količinu i cijenu', 'error'); return; }
+  const notes = document.getElementById('li-notes')?.value?.trim();
+  if (!desc || !qty || !price) { showToast('Popuni opis, količinu i prodajnu cijenu', 'error'); return; }
   try {
-    const updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', {
-      description: desc, quantity: qty, unit_price: price, unit,
-    });
+    const body = { description: desc, quantity: qty, unit_price: price, unit };
+    if (!isNaN(cost) && cost > 0) body.unit_cost = cost;
+    if (notes) body.notes = notes;
+    const updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', body);
     _currentQuote = updated;
     renderQuoteBuilder(updated);
-    document.getElementById('li-desc').value = '';
-    document.getElementById('li-qty').value = '';
-    document.getElementById('li-price').value = '';
+    ['li-desc','li-qty','li-price','li-cost','li-notes','li-margin-pct'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('li-desc')?.focus();
     showToast('Stavka dodana');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function sendForApproval() {
+  if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
+  if (!(_currentQuote.line_items || []).length) { showToast('Ponuda nema stavki', 'error'); return; }
+  try {
+    const updated = await apiPatch('/quotes/' + _currentQuote.id, { status: 'review' });
+    _currentQuote = updated;
+    renderQuoteBuilder(updated);
+    await loadQuotes();
+    showToast('Ponuda poslana na odobrenje');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
@@ -2471,6 +2505,21 @@ async function apiPost(path, body) {
   return r.json();
 }
 
+async function apiPatch(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'PATCH',
+    headers: _authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; throw new Error('Sesija istekla'); }
+  if (!r.ok) {
+    let detail = r.status;
+    try { detail = (await r.json()).detail || r.status; } catch (e) {}
+    throw new Error(String(detail));
+  }
+  return r.json();
+}
+
 // ========== STARTUP ==========
 (async function init() {
   const reachable = await checkApi();
@@ -2486,7 +2535,7 @@ async function apiPost(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes()]);
 })();
 </script>
 

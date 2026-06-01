@@ -175,7 +175,8 @@ async def create_quote(
     )
     db.add(quote)
     await db.commit()
-    await db.refresh(quote)
+    # Eager-load line_items (prazna lista) da izbjegnemo lazy-load u async kontekstu
+    await db.refresh(quote, attribute_names=["line_items"])
     return QuoteResponse.model_validate(quote)
 
 
