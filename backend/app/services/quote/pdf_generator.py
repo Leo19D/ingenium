@@ -10,13 +10,13 @@ from decimal import Decimal
 
 from fpdf import FPDF
 
-# Boje (RGB)
-_GREEN = (26, 58, 42)
-_GREEN_TEXT = (40, 110, 70)
-_DARK = (20, 23, 22)
-_GREY = (120, 130, 125)
-_LIGHT_GREY = (240, 242, 240)
-_LINE = (220, 224, 221)
+# Boje (RGB) — plavo-bijela paleta
+_GREEN = (22, 102, 200)        # primarna plava (zadržano ime varijable)
+_GREEN_TEXT = (15, 78, 160)    # tamnija plava
+_DARK = (20, 34, 56)           # tamno navy tekst
+_GREY = (86, 101, 124)
+_LIGHT_GREY = (238, 242, 248)
+_LINE = (226, 232, 240)
 
 
 class _QuotePDF(FPDF):

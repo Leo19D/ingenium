@@ -201,7 +201,7 @@ def _alert_html(
         flag_items = " · ".join(flags)
         flag_block = f"""
         <tr>
-          <td style="padding:14px 18px;background:#1a0e0a;border:1px solid #3a2218;
+          <td style="padding:14px 18px;background:#fdf3ee;border:1px solid #f3d9cc;
                       border-left:3px solid #f47a6a;border-radius:0 10px 10px 0;">
             <p style="margin:0;font-family:Arial,sans-serif;font-size:12.5px;color:#d89080;line-height:1.6;">
               <strong style="color:#f4a08a;">⚠ Pažnja:</strong> {flag_items} detektiran.
@@ -215,52 +215,52 @@ def _alert_html(
         fam = "Courier New,monospace" if mono else "Arial,sans-serif"
         return f"""
         <tr>
-          <td style="padding:11px 0;border-bottom:1px solid #1a2019;width:40%;
+          <td style="padding:11px 0;border-bottom:1px solid #e2e8f0;width:40%;
                       font-family:Arial,sans-serif;font-size:11px;font-weight:600;
-                      letter-spacing:0.06em;text-transform:uppercase;color:#5a7a60;
+                      letter-spacing:0.06em;text-transform:uppercase;color:#56657c;
                       vertical-align:top;">{label}</td>
-          <td style="padding:11px 0;border-bottom:1px solid #1a2019;
-                      font-family:{fam};font-size:13.5px;color:#ddeadf;
+          <td style="padding:11px 0;border-bottom:1px solid #e2e8f0;
+                      font-family:{fam};font-size:13.5px;color:#142238;
                       font-weight:600;">{value}</td>
         </tr>"""
 
     return f"""<!DOCTYPE html>
 <html lang="hr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#060908;">
-<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#060908">
+<body style="margin:0;padding:0;background:#f4f7fb;">
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f7fb">
 <tr><td align="center" style="padding:48px 16px 64px;">
   <table width="500" cellpadding="0" cellspacing="0" style="max-width:500px;">
 
     <!-- Logo -->
     <tr><td style="padding-bottom:24px;">
       <table cellpadding="0" cellspacing="0"><tr valign="middle">
-        <td width="34" height="34" bgcolor="#a8f4b8" align="center"
+        <td width="34" height="34" bgcolor="#1666c8" align="center"
             style="border-radius:9px;font-size:17px;line-height:34px;">⚡</td>
         <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:16px;
-                    font-weight:700;color:#c8e8ca;">Ingenium</td>
+                    font-weight:700;color:#1666c8;">Ingenium</td>
         <td style="padding-left:10px;">
           <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;
-                        letter-spacing:0.08em;text-transform:uppercase;color:#a8f4b8;
-                        background:rgba(168,244,184,0.08);border:1px solid rgba(168,244,184,0.2);
+                        letter-spacing:0.08em;text-transform:uppercase;color:#1666c8;
+                        background:rgba(22,102,200,0.08);border:1px solid rgba(22,102,200,0.2);
                         border-radius:20px;padding:3px 9px;">Security</span>
         </td>
       </tr></table>
     </td></tr>
 
     <!-- Card -->
-    <tr><td bgcolor="#0c1410" style="border-radius:18px;border:1px solid #1c2a1e;overflow:hidden;">
+    <tr><td bgcolor="#ffffff" style="border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;">
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td bgcolor="#a8f4b8" height="3" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+        <tr><td bgcolor="#1666c8" height="3" style="font-size:0;line-height:0;">&nbsp;</td></tr>
       </table>
 
       <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:36px 40px 32px;">
 
         <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;
-                    letter-spacing:0.12em;text-transform:uppercase;color:#4a7a52;">Uspješna prijava</p>
+                    letter-spacing:0.12em;text-transform:uppercase;color:#1666c8;">Uspješna prijava</p>
         <h1 style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:22px;font-weight:800;
-                    color:#ddeadf;letter-spacing:-0.5px;">{full_name}</h1>
-        <p style="margin:0 0 28px;font-family:Courier New,monospace;font-size:13px;color:#7a9480;">{email}</p>
+                    color:#142238;letter-spacing:-0.5px;">{full_name}</h1>
+        <p style="margin:0 0 28px;font-family:Courier New,monospace;font-size:13px;color:#56657c;">{email}</p>
 
         {flag_block}
 
@@ -279,7 +279,7 @@ def _alert_html(
 
     <!-- Footer -->
     <tr><td style="padding:20px 4px 0;">
-      <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#2a3c2c;line-height:1.6;">
+      <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#93a1b5;line-height:1.6;">
         Automatski sigurnosni izvještaj · Ingenium · Šalje se pri svakoj prijavi
       </p>
     </td></tr>

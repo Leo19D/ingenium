@@ -35,7 +35,7 @@ _LOGIN_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <title>Prijava — Ingenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300&display=swap"
@@ -43,11 +43,11 @@ _LOGIN_HTML = """<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --green:#a8f4b8;--green-dim:rgba(168,244,184,0.08);--green-glow:rgba(168,244,184,0.18);
-  --bg:#07090a;--surface:#0d110f;--border:#1a2019;--border2:#243028;
-  --text:#ddeadf;--text2:#7a9480;--text3:#3d5040;
-  --red:#f47a6a;--red-dim:rgba(244,122,106,0.08);
-  --amber:#f4c56a;--amber-dim:rgba(244,197,106,0.08);
+  --green:#1666c8;--green-dim:rgba(22,102,200,0.08);--green-glow:rgba(22,102,200,0.20);
+  --bg:#ffffff;--surface:#f4f7fb;--border:#e2e8f0;--border2:#cdd8e6;
+  --text:#142238;--text2:#56657c;--text3:#93a1b5;
+  --red:#d2483b;--red-dim:rgba(210,72,59,0.08);
+  --amber:#b8740a;--amber-dim:rgba(184,116,10,0.08);
 }
 *{font-family:'Inter',system-ui,sans-serif}
 html,body{height:100%}
@@ -63,13 +63,13 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
 }
 .panel-left::before{
   content:'';position:absolute;inset:0;
-  background-image:radial-gradient(circle,#1c2a1e 1px,transparent 1px);
+  background-image:radial-gradient(circle,#d6e2f0 1px,transparent 1px);
   background-size:28px 28px;opacity:.4;pointer-events:none;
 }
 .panel-left::after{
   content:'';position:absolute;
   width:700px;height:700px;border-radius:50%;
-  background:radial-gradient(circle,rgba(168,244,184,0.055) 0%,transparent 60%);
+  background:radial-gradient(circle,rgba(22,102,200,0.055) 0%,transparent 60%);
   top:-160px;left:-120px;pointer-events:none;
 }
 .p-logo{display:flex;align-items:center;gap:11px;position:relative;z-index:1}
@@ -77,13 +77,13 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
   width:36px;height:36px;border-radius:8px;
   background:var(--green);
   display:flex;align-items:center;justify-content:center;font-size:17px;
-  box-shadow:0 0 0 1px rgba(168,244,184,.25),0 0 18px rgba(168,244,184,.18);
+  box-shadow:0 0 0 1px rgba(22,102,200,.25),0 0 18px rgba(22,102,200,.18);
 }
 .p-logo-name{font-size:17px;font-weight:700;letter-spacing:-.4px}
 .p-logo-badge{
   margin-left:auto;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   color:var(--green);background:var(--green-dim);
-  border:1px solid rgba(168,244,184,.18);border-radius:20px;padding:3px 9px;
+  border:1px solid rgba(22,102,200,.18);border-radius:20px;padding:3px 9px;
 }
 .p-body{position:relative;z-index:1;padding:0 0 20px}
 .p-eyebrow{
@@ -102,7 +102,7 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
 .feat{display:flex;align-items:flex-start;gap:13px}
 .feat-icon{
   width:30px;height:30px;flex-shrink:0;
-  background:var(--green-dim);border:1px solid rgba(168,244,184,.12);
+  background:var(--green-dim);border:1px solid rgba(22,102,200,.12);
   border-radius:7px;display:flex;align-items:center;justify-content:center;
   font-size:13px;margin-top:1px;
 }
@@ -131,10 +131,10 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
   font-size:13px;line-height:1.5;
 }
 .banner.info{
-  background:var(--green-dim);border:1px solid rgba(168,244,184,.2);color:var(--green);
+  background:var(--green-dim);border:1px solid rgba(22,102,200,.2);color:var(--green);
 }
 .banner.warn{
-  background:var(--amber-dim);border:1px solid rgba(244,197,106,.2);color:var(--amber);
+  background:var(--amber-dim);border:1px solid rgba(184,116,10,.2);color:var(--amber);
 }
 .banner.visible{display:flex}
 .banner-icon{font-size:15px;flex-shrink:0;margin-top:1px}
@@ -148,14 +148,14 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
 }
 .field-input{
   width:100%;padding:11px 14px;
-  background:#0a0e0c;
+  background:#f4f7fb;
   border:1px solid var(--border2);
   border-radius:8px;
   color:var(--text);font-size:14px;
   outline:none;transition:border-color .15s,box-shadow .15s;
 }
 .field-input::placeholder{color:var(--text3)}
-.field-input:focus{border-color:rgba(168,244,184,.5);box-shadow:0 0 0 3px var(--green-dim)}
+.field-input:focus{border-color:rgba(22,102,200,.5);box-shadow:0 0 0 3px var(--green-dim)}
 .field-input.shake{animation:shake .35s ease}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 
@@ -168,7 +168,7 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
 }
 .btn{
   width:100%;padding:12px 20px;margin-top:6px;
-  background:var(--green);color:#041008;
+  background:var(--green);color:#ffffff;
   border:none;border-radius:8px;
   font-size:14px;font-weight:700;
   cursor:pointer;
@@ -176,7 +176,7 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
   transition:background .15s,box-shadow .15s,transform .1s,opacity .15s;
 }
 .btn:hover:not(:disabled){
-  background:#8ff5ae;box-shadow:0 0 28px var(--green-glow);transform:translateY(-1px);
+  background:#0f4ea0;box-shadow:0 0 28px var(--green-glow);transform:translateY(-1px);
 }
 .btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
 .btn:disabled{opacity:.35;cursor:not-allowed}
@@ -327,13 +327,13 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
 .otp-row{display:flex;gap:8px;margin-top:2px}
 .otp-box{
   width:46px;height:58px;
-  background:#0a0e0c;border:1.5px solid var(--border2);border-radius:10px;
+  background:#f4f7fb;border:1.5px solid var(--border2);border-radius:10px;
   color:var(--text);font-size:24px;font-weight:700;text-align:center;
   outline:none;transition:border-color .15s,box-shadow .15s;
   caret-color:transparent;
 }
-.otp-box:focus{border-color:rgba(168,244,184,.55);box-shadow:0 0 0 3px var(--green-dim)}
-.otp-box.filled{border-color:rgba(168,244,184,.35);color:var(--green)}
+.otp-box:focus{border-color:rgba(22,102,200,.55);box-shadow:0 0 0 3px var(--green-dim)}
+.otp-box.filled{border-color:rgba(22,102,200,.35);color:var(--green)}
 .otp-box.error{border-color:var(--red);animation:shake .35s ease}
 .otp-meta{display:flex;justify-content:space-between;align-items:center;margin:12px 0 18px;font-size:12px}
 .otp-timer{color:var(--text3)}

@@ -18,25 +18,27 @@ window.onerror = function(msg, src, line, col, err) {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0d0f0e;
-  --bg2: #141716;
-  --bg3: #1a1d1b;
-  --bg4: #202422;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
-  --text: #e8ede9;
-  --text2: #8a9489;
-  --text3: #5a6358;
-  --accent: #a8f4b8;
-  --accent2: #6bde8a;
-  --accent-dim: rgba(168,244,184,0.1);
-  --accent-dim2: rgba(168,244,184,0.06);
-  --amber: #f4d16a;
-  --amber-dim: rgba(244,209,106,0.1);
-  --red: #f47a6a;
-  --red-dim: rgba(244,122,106,0.1);
-  --blue: #7ab8f4;
-  --blue-dim: rgba(122,184,244,0.1);
+  --bg: #f4f7fb;
+  --bg2: #ffffff;
+  --bg3: #eef2f8;
+  --bg4: #e4ebf4;
+  --border: #e2e8f0;
+  --border2: #cdd8e6;
+  --text: #142238;
+  --text2: #56657c;
+  --text3: #93a1b5;
+  --accent: #1666c8;
+  --accent2: #0f4ea0;
+  --accent-dim: rgba(22,102,200,0.10);
+  --accent-dim2: rgba(22,102,200,0.05);
+  --amber: #b8740a;
+  --amber-dim: rgba(184,116,10,0.10);
+  --red: #d2483b;
+  --red-dim: rgba(210,72,59,0.09);
+  --blue: #1666c8;
+  --blue-dim: rgba(22,102,200,0.10);
+  --green: #1a8f5a;
+  --green-dim: rgba(26,143,90,0.10);
   --font-display: 'Syne', sans-serif;
   --font-body: 'DM Sans', sans-serif;
   --font-mono: 'DM Mono', monospace;
@@ -68,7 +70,7 @@ body {
 .nav-item.active { background: var(--accent-dim); color: var(--accent); }
 .nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--accent); border-radius: 0 2px 2px 0; }
 .nav-icon { font-size: 16px; width: 18px; text-align: center; }
-.nav-badge { margin-left: auto; background: var(--accent); color: #0d1f12; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; font-family: var(--font-mono); }
+.nav-badge { margin-left: auto; background: var(--accent); color: #ffffff; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; font-family: var(--font-mono); }
 
 .sidebar-bottom { margin-top: auto; padding: 16px 12px 0; border-top: 1px solid var(--border); }
 .org-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); cursor: pointer; }
@@ -81,7 +83,7 @@ body {
 .topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: var(--font-body); }
-.btn-primary { background: var(--accent); color: #0a1a0d; }
+.btn-primary { background: var(--accent); color: #ffffff; }
 .btn-primary:hover { background: var(--accent2); }
 .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
 .btn-ghost:hover { background: var(--bg3); color: var(--text); }
@@ -131,16 +133,16 @@ td { padding: 12px 16px; font-size: 13px; }
 .client-name { font-weight: 500; }
 .amount-cell { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
 .margin-cell { font-family: var(--font-mono); font-size: 12px; }
-.margin-high { color: var(--accent); }
+.margin-high { color: var(--green); }
 .margin-mid { color: var(--amber); }
 .margin-low { color: var(--red); }
 
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-family: var(--font-mono); border: 1px solid; }
 .badge-draft { color: var(--text2); border-color: var(--border2); background: var(--bg4); }
-.badge-sent { color: var(--blue); border-color: rgba(122,184,244,0.3); background: var(--blue-dim); }
-.badge-won { color: var(--accent); border-color: rgba(168,244,184,0.3); background: var(--accent-dim2); }
-.badge-review { color: var(--amber); border-color: rgba(244,209,106,0.3); background: var(--amber-dim); }
-.badge-lost { color: var(--red); border-color: rgba(244,122,106,0.3); background: var(--red-dim); }
+.badge-sent { color: var(--blue); border-color: rgba(22,102,200,0.3); background: var(--blue-dim); }
+.badge-won { color: var(--green); border-color: rgba(26,143,90,0.3); background: var(--green-dim); }
+.badge-review { color: var(--amber); border-color: rgba(184,116,10,0.3); background: var(--amber-dim); }
+.badge-lost { color: var(--red); border-color: rgba(210,72,59,0.3); background: var(--red-dim); }
 
 .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-dim2); }
 .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--r); padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 24px; background: var(--bg2); }
@@ -191,7 +193,7 @@ td { padding: 12px 16px; font-size: 13px; }
 .supplier-row:first-of-type { margin-top: 8px; }
 .sup-name { font-size: 11px; color: var(--text2); }
 .sup-price { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
-.sup-best { color: var(--accent); }
+.sup-best { color: var(--green); }
 .sup-lead { font-size: 10px; color: var(--text3); }
 
 .quote-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
@@ -219,12 +221,12 @@ td { padding: 12px 16px; font-size: 13px; }
 .margin-gauge { background: var(--bg4); border-radius: 4px; height: 6px; margin-bottom: 8px; overflow: hidden; }
 .margin-gauge-fill { height: 100%; background: linear-gradient(90deg, var(--red) 0%, var(--amber) 40%, var(--accent) 70%); width: 72%; border-radius: 4px; }
 .margin-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-bottom: 16px; }
-.ai-insight { background: var(--accent-dim2); border: 1px solid rgba(168,244,184,0.15); border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 14px; }
+.ai-insight { background: var(--accent-dim2); border: 1px solid var(--accent-dim); border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 14px; }
 .ai-insight-label { font-size: 10px; font-family: var(--font-mono); color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
 .ai-insight-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
 
 .chart-grid line { stroke: var(--border); stroke-width: 0.5; }
-.chart-area { fill: rgba(168,244,184,0.08); }
+.chart-area { fill: rgba(22,102,200,0.08); }
 .chart-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
 .chart-dot { fill: var(--accent); }
 
@@ -268,36 +270,36 @@ textarea.form-input { resize: vertical; }
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   width: 100vw; height: 100vh;
   z-index: 9999;
-  background: #0d0f0e;
+  background: #f4f7fb;
   display: flex; align-items: center; justify-content: center;
   font-family: 'DM Sans', Arial, sans-serif;
 }
 .login-card {
   width: 420px; max-width: 92vw;
-  background: #1e2421;
-  border: 1px solid #a8f4b8;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(168,244,184,0.15), 0 24px 64px rgba(0,0,0,0.8);
+  box-shadow: 0 24px 64px rgba(20,34,56,0.12);
 }
-.login-header { padding: 32px 36px 24px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.login-header { padding: 32px 36px 24px; border-bottom: 1px solid #e2e8f0; }
 .login-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-.login-logo-icon { width: 36px; height: 36px; background: #a8f4b8; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-.login-logo-name { font-weight: 800; font-size: 18px; color: #e8ede9; letter-spacing: -0.4px; }
-.login-title { font-weight: 700; font-size: 22px; color: #e8ede9; margin: 0 0 6px; }
-.login-sub { font-size: 13px; color: #8a9489; margin: 0; }
+.login-logo-icon { width: 36px; height: 36px; background: #1666c8; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.login-logo-name { font-weight: 800; font-size: 18px; color: #142238; letter-spacing: -0.4px; }
+.login-title { font-weight: 700; font-size: 22px; color: #142238; margin: 0 0 6px; }
+.login-sub { font-size: 13px; color: #56657c; margin: 0; }
 .login-body { padding: 28px 36px 32px; }
-.login-error { background: rgba(244,122,106,0.12); border: 1px solid rgba(244,122,106,0.3); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #f47a6a; margin-bottom: 18px; display: none; }
+.login-error { background: rgba(210,72,59,0.09); border: 1px solid rgba(210,72,59,0.3); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #d2483b; margin-bottom: 18px; display: none; }
 .login-error.visible { display: block; }
 .login-input-wrap { margin-bottom: 14px; }
-.login-input { width: 100%; background: #202422; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 11px 14px; color: #e8ede9; font-family: 'DM Sans', Arial, sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
-.login-input:focus { border-color: #a8f4b8; }
-.login-input::placeholder { color: #5a6358; }
-.login-btn { width: 100%; padding: 13px; background: #a8f4b8; color: #0a1a0d; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', Arial, sans-serif; transition: background 0.15s; margin-top: 6px; }
-.login-btn:hover:not(:disabled) { background: #6bde8a; }
+.login-input { width: 100%; background: #f4f7fb; border: 1px solid #cdd8e6; border-radius: 8px; padding: 11px 14px; color: #142238; font-family: 'DM Sans', Arial, sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+.login-input:focus { border-color: #1666c8; }
+.login-input::placeholder { color: #93a1b5; }
+.login-btn { width: 100%; padding: 13px; background: #1666c8; color: #ffffff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', Arial, sans-serif; transition: background 0.15s; margin-top: 6px; }
+.login-btn:hover:not(:disabled) { background: #0f4ea0; }
 .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.login-footer { text-align: center; font-size: 12px; color: #5a6358; margin-top: 20px; line-height: 1.6; }
-.login-footer span { color: #a8f4b8; font-family: monospace; }
+.login-footer { text-align: center; font-size: 12px; color: #93a1b5; margin-top: 20px; line-height: 1.6; }
+.login-footer span { color: #1666c8; font-family: monospace; }
 
 /* Sidebar user card */
 .user-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-sm); }
@@ -490,7 +492,7 @@ textarea.form-input { resize: vertical; }
       </div>
 
       <!-- Historical quotes import za AI trening -->
-      <div style="background:var(--surface-2,#0e1410);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">✦ AI trening — historijske ponude</div>
@@ -1442,12 +1444,12 @@ async function showExtractionPanel(docId, filename) {
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--text2)">Marža:</label>
             <input type="number" id="margin-input-${docId}" value="25" min="1" max="99" step="1"
-                   style="width:60px;padding:4px 8px;background:#0a0f0c;border:1px solid var(--border2);
+                   style="width:60px;padding:4px 8px;background:var(--bg);border:1px solid var(--border2);
                           border-radius:6px;color:var(--text);font-size:13px;text-align:center">
             <span style="font-size:12px;color:var(--text2)">%</span>
             <input type="text" id="proj-name-${docId}" placeholder="Naziv projekta"
                    value="${escapeHtml(filename.replace(/\.[^.]+$/, ''))}"
-                   style="width:200px;padding:6px 10px;background:#0a0f0c;border:1px solid var(--border2);
+                   style="width:200px;padding:6px 10px;background:var(--bg);border:1px solid var(--border2);
                           border-radius:6px;color:var(--text);font-size:13px">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 16px"
                     onclick="createQuoteFromDoc('${docId}')">
@@ -1459,7 +1461,7 @@ async function showExtractionPanel(docId, filename) {
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
-              <tr style="background:#0e1510;color:var(--text2)">
+              <tr style="background:var(--bg3);color:var(--text2)">
                 <th style="padding:8px 10px;text-align:left;font-weight:600">#</th>
                 <th style="padding:8px 10px;text-align:left;font-weight:600">Opis (iz dokumenta)</th>
                 <th style="padding:8px 10px;text-align:right;font-weight:600">Kol.</th>
@@ -1476,7 +1478,7 @@ async function showExtractionPanel(docId, filename) {
                 const cost = match?.unit_cost || 0;
                 const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span> ${escapeHtml(match.name)}` : '<span style="color:var(--text3)">— nema matcha</span>';
                 const confColor = item.confidence >= 0.9 ? 'var(--accent)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
-                return `<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:#07090a':''}">
+                return `<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--bg3)':''}">
                   <td style="padding:7px 10px;color:var(--text3);font-family:var(--font-mono)">${item.position}</td>
                   <td style="padding:7px 10px;max-width:240px">${escapeHtml(item.description)}</td>
                   <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">${item.quantity ?? '—'}</td>
