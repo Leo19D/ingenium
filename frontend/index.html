@@ -636,7 +636,7 @@ textarea.form-input { resize: vertical; }
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)" id="btn-export-excel">↓ Excel</button>
-          <button class="btn btn-ghost" id="btn-export-pdf">↓ PDF</button>
+          <button class="btn btn-ghost" onclick="exportQuotePdf(_currentQuote?.id)" id="btn-export-pdf">↓ PDF</button>
           <button class="btn btn-ghost" id="btn-approve" onclick="sendForApproval()" style="display:none">Pošalji na odobrenje →</button>
           <button class="btn btn-primary" onclick="openModal('nova-ponuda')">+ Nova ponuda</button>
         </div>
@@ -1816,6 +1816,24 @@ async function exportQuoteXlsx(quoteId) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
     showToast('Ponuda preuzeta kao Excel');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function exportQuotePdf(quoteId) {
+  if (!apiAvailable || !quoteId) { showToast('Nema aktivne ponude', 'error'); return; }
+  const token = _getToken();
+  try {
+    const r = await fetch(API_BASE + '/quotes/' + quoteId + '/export/pdf', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) throw new Error('PDF export nije uspio');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'ponuda.pdf';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('Ponuda preuzeta kao PDF');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 

@@ -381,6 +381,70 @@ async def record_outcome(
 
 # ── Quote → Excel export ──────────────────────────────────────────────────────
 
+async def _quote_with_context(quote_id: UUID, db: AsyncSession, org_id: UUID):
+    """Dohvati quote + project name + client name. Raise 404 ako ne postoji."""
+    result = await db.execute(
+        select(Quote)
+        .where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )
+    quote = result.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+    proj_result = await db.execute(select(Project).where(Project.id == quote.project_id))
+    project = proj_result.scalar_one_or_none()
+    client_name = ""
+    if project and project.client_id:
+        cl_result = await db.execute(select(Client).where(Client.id == project.client_id))
+        cl = cl_result.scalar_one_or_none()
+        if cl:
+            client_name = cl.name
+    return quote, (project.name if project else ""), client_name
+
+
+@router.get("/{quote_id}/export/pdf")
+async def export_quote_pdf(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> StreamingResponse:
+    """Generiraj klijent-spreman PDF dokument ponude."""
+    from app.services.quote.pdf_generator import generate_quote_pdf
+
+    quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
+
+    quote_dict = {
+        "version": quote.version,
+        "currency": quote.currency,
+        "status": quote.status,
+        "subtotal": quote.subtotal,
+        "tax_total": quote.tax_total,
+        "total": quote.total,
+        "payment_terms": quote.payment_terms,
+        "valid_until": quote.valid_until,
+        "notes_external": quote.notes_external,
+        "line_items": [
+            {
+                "position": li.position,
+                "description": li.description,
+                "quantity": li.quantity,
+                "unit": li.unit,
+                "unit_price": li.unit_price,
+                "line_total": li.line_total,
+            }
+            for li in quote.line_items
+        ],
+    }
+    pdf_bytes = generate_quote_pdf(
+        quote=quote_dict, project_name=project_name, client_name=client_name
+    )
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=ponuda-V{quote.version}.pdf"},
+    )
+
+
 @router.get("/{quote_id}/export/xlsx")
 async def export_quote_xlsx(
     quote_id: UUID,
