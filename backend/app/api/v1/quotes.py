@@ -23,6 +23,7 @@ from app.db.models.project import Project
 from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome
 from app.db.models.user import User
 from app.db.session import get_db
+from app.services.email.smtp import send_email
 
 router = APIRouter()
 
@@ -443,6 +444,86 @@ async def export_quote_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=ponuda-V{quote.version}.pdf"},
     )
+
+
+class SendQuoteRequest(BaseModel):
+    to_email: str
+    message: str | None = None
+
+
+@router.post("/{quote_id}/send")
+async def send_quote(
+    quote_id: UUID,
+    req: SendQuoteRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Generiraj PDF ponude i pošalji ga klijentu emailom. Status → sent."""
+    from app.services.quote.pdf_generator import generate_quote_pdf
+
+    quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
+    if not quote.line_items:
+        raise HTTPException(status_code=422, detail="Ponuda nema stavki.")
+
+    quote_dict = {
+        "version": quote.version, "currency": quote.currency, "status": quote.status,
+        "subtotal": quote.subtotal, "tax_total": quote.tax_total, "total": quote.total,
+        "payment_terms": quote.payment_terms, "valid_until": quote.valid_until,
+        "notes_external": quote.notes_external,
+        "line_items": [
+            {"position": li.position, "description": li.description, "quantity": li.quantity,
+             "unit": li.unit, "unit_price": li.unit_price, "line_total": li.line_total}
+            for li in quote.line_items
+        ],
+    }
+    pdf_bytes = generate_quote_pdf(
+        quote=quote_dict, project_name=project_name, client_name=client_name
+    )
+
+    total_str = f"{float(quote.total or 0):,.2f} {quote.currency}"
+    custom = f"<p style='color:#444;font-size:14px;line-height:1.6'>{req.message}</p>" if req.message else ""
+    html = f"""<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f7f5;padding:32px">
+      <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+        <table width="540" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e0e4e1">
+          <tr><td style="background:#1a3a2a;padding:24px 32px">
+            <span style="color:#a8f4b8;font-size:18px;font-weight:700">Ingenium</span>
+          </td></tr>
+          <tr><td style="padding:32px">
+            <h1 style="font-size:20px;color:#1a231d;margin:0 0 8px">Ponuda za {_html_escape(project_name)}</h1>
+            <p style="color:#667;font-size:14px;margin:0 0 20px">Poštovani{(' ' + _html_escape(client_name)) if client_name else ''},</p>
+            <p style="color:#444;font-size:14px;line-height:1.6">U privitku se nalazi naša ponuda
+              <strong>V{quote.version}</strong> u iznosu od <strong>{total_str}</strong>.</p>
+            {custom}
+            <p style="color:#444;font-size:14px;line-height:1.6">Stojimo na raspolaganju za sva pitanja.</p>
+            <div style="margin-top:24px;padding-top:16px;border-top:1px solid #eee;color:#999;font-size:12px">
+              Ingenium · AI Quote &amp; Procurement Platform
+            </div>
+          </td></tr>
+        </table>
+      </td></tr></table>
+    </body></html>"""
+
+    try:
+        await send_email(
+            to=req.to_email,
+            subject=f"Ponuda V{quote.version} — {project_name}",
+            html=html,
+            attachment=pdf_bytes,
+            attachment_name=f"ponuda-V{quote.version}.pdf",
+            attachment_mime="application/pdf",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Slanje emaila nije uspjelo: {e}")
+
+    quote.status = "sent"
+    quote.sent_at = datetime.now(tz=__import__("datetime").timezone.utc)
+    await db.commit()
+
+    return {"message": f"Ponuda poslana na {req.to_email}", "status": "sent"}
+
+
+def _html_escape(s: str) -> str:
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 @router.get("/{quote_id}/export/xlsx")
