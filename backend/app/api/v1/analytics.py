@@ -202,3 +202,220 @@ async def win_rate_by_segment(
         seg["win_rate_pct"] = round(seg["won"] / total * 100, 1) if total else 0.0
 
     return sorted(segments.values(), key=lambda x: x["win_rate_pct"], reverse=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Win probability model + margin optimizer
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def _historical_margins(db: AsyncSession, org_id: UUID) -> tuple[list[float], list[float]]:
+    """Vrati (won_margins_pct, lost_margins_pct) iz povijesnih ponuda."""
+    res = await db.execute(
+        select(Quote.margin_pct, QuoteOutcome.outcome)
+        .join(QuoteOutcome, QuoteOutcome.quote_id == Quote.id)
+        .where(Quote.org_id == org_id, Quote.margin_pct.isnot(None),
+               QuoteOutcome.outcome.in_(["won", "lost"]))
+    )
+    won, lost = [], []
+    for margin, outcome in res.all():
+        m = float(margin) * 100
+        (won if outcome == "won" else lost).append(m)
+    return won, lost
+
+
+def _win_probability(margin_pct: float, won: list[float], lost: list[float]) -> tuple[float, str]:
+    """
+    Logistička krivulja: niža marža → veća vjerojatnost dobitka.
+    P(win) = 1 / (1 + exp((margin - midpoint) / scale))
+    Vraća (vjerojatnost 0..1, objašnjenje). margin_pct u postocima (npr. 25.0).
+    """
+    import math
+
+    n = len(won) + len(lost)
+    if n < 4:
+        # Malo podataka — glatka krivulja oko industrijskog prosjeka (~25%)
+        midpoint, scale = 25.0, 8.0
+        expl = "Heuristika (malo povijesnih podataka) — industrijski prosjek ~25%"
+    else:
+        won_avg = sum(won) / len(won) if won else 20.0
+        lost_avg = sum(lost) / len(lost) if lost else 40.0
+        midpoint = (won_avg + lost_avg) / 2
+        scale = max(abs(lost_avg - won_avg) / 2, 4.0)
+        expl = (f"Na temelju {len(won)} dobivenih (prosj. {won_avg:.0f}%) "
+                f"i {len(lost)} izgubljenih ({lost_avg:.0f}%)")
+
+    prob = 1.0 / (1.0 + math.exp((margin_pct - midpoint) / scale))
+    prob = max(0.05, min(0.95, prob))
+    return round(prob, 2), expl
+
+
+class WinProbability(BaseModel):
+    margin_pct: float
+    win_probability: float
+    confidence: str
+    explanation: str
+
+
+@router.get("/win-probability", response_model=WinProbability)
+async def win_probability(
+    margin: float,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> WinProbability:
+    """Vjerojatnost dobitka za zadanu maržu (%). margin = npr. 25 za 25%."""
+    won, lost = await _historical_margins(db, org_id)
+    prob, expl = _win_probability(margin, won, lost)
+    n = len(won) + len(lost)
+    conf = "high" if n >= 20 else "medium" if n >= 4 else "low"
+    return WinProbability(
+        margin_pct=margin, win_probability=prob, confidence=conf, explanation=expl
+    )
+
+
+class MarginCurvePoint(BaseModel):
+    margin_pct: float
+    win_probability: float
+    expected_value: float   # P(win) × profit u valuti ponude
+
+
+class MarginOptimizer(BaseModel):
+    quote_total: float
+    quote_cost: float
+    current_margin_pct: float
+    optimal_margin_pct: float
+    optimal_expected_value: float
+    curve: list[MarginCurvePoint]
+
+
+@router.get("/margin-optimizer/{quote_id}", response_model=MarginOptimizer)
+async def margin_optimizer(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> MarginOptimizer:
+    """
+    Za zadanu ponudu izračunaj krivulju: za svaku maržu (5%–50%) → vjerojatnost
+    dobitka i očekivanu vrijednost P(win) × profit. Nađi maržu koja maksimizira EV.
+    """
+    res = await db.execute(select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id))
+    quote = res.scalar_one_or_none()
+    if not quote:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+
+    cost = float(quote.cost_total or 0)
+    total = float(quote.total or 0)
+    current_margin = float(quote.margin_pct or 0) * 100
+
+    # Ako nemamo cost, procijeni ga iz total i trenutne marže
+    if cost <= 0 and total > 0 and current_margin > 0:
+        cost = total * (1 - current_margin / 100)
+
+    won, lost = await _historical_margins(db, org_id)
+
+    curve: list[MarginCurvePoint] = []
+    best_ev = -1.0
+    best_margin = current_margin
+    for m_int in range(5, 51, 1):
+        m = float(m_int)
+        prob, _ = _win_probability(m, won, lost)
+        # prodajna = cost / (1 - margin); profit = prodajna - cost
+        sell = cost / (1 - m / 100) if cost > 0 else 0.0
+        profit = sell - cost
+        ev = round(prob * profit, 2)
+        if m_int % 5 == 0:  # krivulja na svakih 5% za prikaz
+            curve.append(MarginCurvePoint(margin_pct=m, win_probability=prob, expected_value=ev))
+        if ev > best_ev:
+            best_ev = ev
+            best_margin = m
+
+    return MarginOptimizer(
+        quote_total=round(total, 2),
+        quote_cost=round(cost, 2),
+        current_margin_pct=round(current_margin, 1),
+        optimal_margin_pct=round(best_margin, 1),
+        optimal_expected_value=round(best_ev, 2),
+        curve=curve,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Client risk/value profile
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ClientProfile(BaseModel):
+    client_id: UUID
+    client_name: str
+    total_quotes: int
+    won: int
+    lost: int
+    win_rate_pct: float
+    avg_margin_won_pct: float | None
+    total_won_value: float
+    score: int          # 0..100 kompozitni "value" score
+    rating: str         # A / B / C / D
+    notes: list[str]
+
+
+@router.get("/client-profile/{client_id}", response_model=ClientProfile)
+async def client_profile(
+    client_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> ClientProfile:
+    """Profil klijenta: win rate, prosječna marža, vrijednost, kompozitni score."""
+    from fastapi import HTTPException
+
+    from app.db.models.project import Project
+
+    cl = (await db.execute(
+        select(Client).where(Client.id == client_id, Client.org_id == org_id)
+    )).scalar_one_or_none()
+    if not cl:
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
+
+    rows = (await db.execute(
+        select(Quote.margin_pct, Quote.total, QuoteOutcome.outcome)
+        .join(Project, Project.id == Quote.project_id)
+        .join(QuoteOutcome, QuoteOutcome.quote_id == Quote.id)
+        .where(Project.client_id == client_id, Quote.org_id == org_id)
+    )).all()
+
+    won = [(float(m) * 100 if m else None, float(t or 0)) for m, t, o in rows if o == "won"]
+    lost = [r for r in rows if r[2] == "lost"]
+    n_won, n_lost = len(won), len(lost)
+    total_decided = n_won + n_lost
+    win_rate = (n_won / total_decided * 100) if total_decided else 0.0
+
+    won_margins = [m for m, _ in won if m is not None]
+    avg_margin = round(sum(won_margins) / len(won_margins), 1) if won_margins else None
+    total_won_value = round(sum(t for _, t in won), 2)
+
+    # Kompozitni score: win rate (40%) + volumen (30%) + marža (30%)
+    score = 0.0
+    score += min(win_rate, 100) * 0.4
+    score += min(total_won_value / 1000, 100) * 0.3  # €100k+ → max
+    if avg_margin:
+        score += min(avg_margin / 30 * 100, 100) * 0.3
+    score_int = int(round(score))
+    rating = "A" if score_int >= 70 else "B" if score_int >= 45 else "C" if score_int >= 25 else "D"
+
+    notes: list[str] = []
+    if total_decided == 0:
+        notes.append("Nema zatvorenih ponuda — novi/neaktivan klijent.")
+    if win_rate >= 60:
+        notes.append("Visok win rate — pouzdan kupac, razmotri agresivniju maržu.")
+    elif win_rate < 30 and total_decided >= 3:
+        notes.append("Nizak win rate — cjenovno osjetljiv, oprez s maržom.")
+    if avg_margin and avg_margin >= 25:
+        notes.append("Prihvaća visoke marže — vrijedan klijent.")
+    if (cl.payment_terms_days or 30) > 60:
+        notes.append(f"Dugi rok plaćanja ({cl.payment_terms_days}d) — trošak kapitala.")
+
+    return ClientProfile(
+        client_id=client_id, client_name=cl.name,
+        total_quotes=total_decided, won=n_won, lost=n_lost,
+        win_rate_pct=round(win_rate, 1), avg_margin_won_pct=avg_margin,
+        total_won_value=total_won_value, score=score_int, rating=rating,
+        notes=notes or ["Nedovoljno podataka za detaljne uvide."],
+    )

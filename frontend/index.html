@@ -1037,6 +1037,17 @@ textarea.form-input { resize: vertical; }
     </div>
   </div>
 
+  <!-- CLIENT PROFILE MODAL -->
+  <div class="modal-box" id="modal-client-profile" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">✦ AI profil klijenta</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body" id="client-profile-body">
+      <div style="color:var(--text3);padding:20px">Učitavam...</div>
+    </div>
+  </div>
+
   <!-- PRODUCT (KATALOG) MODAL -->
   <div class="modal-box" id="modal-product" style="display:none">
     <div class="modal-header">
@@ -1213,7 +1224,7 @@ function renderClientRow(d) {
     '<td style="font-family:var(--font-mono);font-size:12px">' + escapeHtml(d.payment || '30') + 'd</td>' +
     '<td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">0</td>' +
     '<td><span class="li-margin margin-mid">—</span></td>' +
-    '<td><button class="icon-btn">→</button></td>';
+    '<td>' + (d.id ? '<button class="icon-btn" title="AI profil klijenta" onclick="showClientProfile(\'' + d.id + '\')">◎</button>' : '<button class="icon-btn">→</button>') + '</td>';
   tbody.insertBefore(tr, tbody.firstChild);
 }
 async function loadClients() {
@@ -1224,7 +1235,7 @@ async function loadClients() {
     const npSelect = document.getElementById('np-client');
     if (npSelect) npSelect.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
     clients.forEach(c => {
-      renderClientRow({ name: c.name, vat: c.tax_id, cc: c.country_code, segLower: c.segment, payment: String(c.payment_terms_days) });
+      renderClientRow({ id: c.id, name: c.name, vat: c.tax_id, cc: c.country_code, segLower: c.segment, payment: String(c.payment_terms_days) });
       if (npSelect) { const o = document.createElement('option'); o.textContent = c.name; npSelect.appendChild(o); }
     });
   } catch (e) { console.error('loadClients', e); }
@@ -1552,6 +1563,49 @@ async function loadProjects() {
   } catch(e) { console.error('loadProjects', e); }
 }
 
+// ========== AI CLIENT PROFILE ==========
+async function showClientProfile(clientId) {
+  openModal('client-profile');
+  const body = document.getElementById('client-profile-body');
+  body.innerHTML = '<div style="color:var(--text3);padding:20px">Učitavam profil...</div>';
+  try {
+    const p = await apiGet('/analytics/client-profile/' + clientId);
+    const ratingColor = { A: 'var(--accent)', B: 'var(--accent)', C: 'var(--amber)', D: 'var(--red)' }[p.rating] || 'var(--text2)';
+    const fmt = v => '€' + parseFloat(v || 0).toLocaleString('hr-HR', {minimumFractionDigits:0, maximumFractionDigits:0});
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+        <div style="width:54px;height:54px;border-radius:12px;background:${ratingColor};color:#041008;
+                    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;font-family:var(--font-display)">${p.rating}</div>
+        <div>
+          <div style="font-size:16px;font-weight:700">${escapeHtml(p.client_name)}</div>
+          <div style="font-size:12px;color:var(--text3)">Kompozitni score: <strong style="color:${ratingColor}">${p.score}/100</strong></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
+        <div class="card" style="padding:12px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Win rate</div>
+          <div style="font-size:20px;font-weight:700;color:var(--accent)">${p.win_rate_pct}%</div>
+          <div style="font-size:11px;color:var(--text3)">${p.won}W / ${p.lost}L</div>
+        </div>
+        <div class="card" style="padding:12px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Avg. marža</div>
+          <div style="font-size:20px;font-weight:700">${p.avg_margin_won_pct != null ? p.avg_margin_won_pct + '%' : '—'}</div>
+          <div style="font-size:11px;color:var(--text3)">na dobivenim</div>
+        </div>
+        <div class="card" style="padding:12px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Vrijednost</div>
+          <div style="font-size:20px;font-weight:700">${fmt(p.total_won_value)}</div>
+          <div style="font-size:11px;color:var(--text3)">dobiveno ukupno</div>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">AI uvidi</div>
+      ${p.notes.map(n => `<div style="display:flex;gap:8px;font-size:13px;color:var(--text);line-height:1.5;margin-bottom:6px"><span style="color:var(--accent)">▸</span><span>${escapeHtml(n)}</span></div>`).join('')}
+    `;
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--red);padding:20px">Greška: ${e.message}</div>`;
+  }
+}
+
 // ========== KATALOG (PRODUCTS) ==========
 var _products = [];
 
@@ -1750,6 +1804,9 @@ function renderQuoteBuilder(quote) {
   set('qs-currency', quote.currency || '—');
   set('qs-payment', quote.payment_terms || '—');
   set('qs-status', quote.status || '—');
+
+  // Osvježi AI win-prob/optimizer ako ima stavki
+  if ((quote.line_items || []).length && quote.id) loadQuoteIntelligence(quote.id);
 }
 
 function toggleAddItemForm() {
@@ -2023,15 +2080,41 @@ async function openQuote(quoteId) {
     renderQuoteBuilder(quote);
     setView('builder');
 
-    // Load AI margin suggestion for this quote
+    // AI: win probability + margin optimizer za ovu ponudu
+    loadQuoteIntelligence(quote.id);
+  } catch(e) { showToast('Greška pri učitavanju ponude: ' + e.message, 'error'); }
+}
+
+async function loadQuoteIntelligence(quoteId) {
+  const el = document.getElementById('margin-suggestion');
+  if (!el) return;
+  try {
+    const opt = await apiGet('/analytics/margin-optimizer/' + quoteId);
+    const cur = opt.current_margin_pct;
+    const best = opt.optimal_margin_pct;
+    // Win prob za trenutnu maržu
+    let probTxt = '';
+    try {
+      const wp = await apiGet('/analytics/win-probability?margin=' + cur);
+      probTxt = `Vjerojatnost dobitka pri ${cur}% marži: <strong>${(wp.win_probability*100).toFixed(0)}%</strong>. `;
+    } catch(e) {}
+
+    let advice;
+    if (Math.abs(best - cur) < 1.5) {
+      advice = `Trenutna marža (${cur}%) je blizu optimalne.`;
+    } else if (best > cur) {
+      advice = `Možeš podići maržu na <strong>${best}%</strong> — očekivana vrijednost raste (EV €${opt.optimal_expected_value}).`;
+    } else {
+      advice = `Spusti maržu na <strong>${best}%</strong> za veću šansu i bolju očekivanu vrijednost (EV €${opt.optimal_expected_value}).`;
+    }
+    el.innerHTML = probTxt + advice;
+  } catch(e) {
+    // fallback na opću preporuku
     try {
       const sug = await apiGet('/analytics/margin-suggestion');
-      const el = document.getElementById('margin-suggestion');
-      if (el) {
-        el.textContent = `Preporučena marža: ${sug.suggested_min}–${sug.suggested_max}% (cilj ${sug.suggested_target}%) · ${sug.based_on_quotes} ponuda u bazi`;
-      }
-    } catch(e) {}
-  } catch(e) { showToast('Greška pri učitavanju ponude: ' + e.message, 'error'); }
+      el.textContent = `Preporučena marža: ${sug.suggested_min}–${sug.suggested_max}% (cilj ${sug.suggested_target}%) · ${sug.based_on_quotes} ponuda u bazi`;
+    } catch(_) {}
+  }
 }
 
 async function deleteLineItem(itemId) {
