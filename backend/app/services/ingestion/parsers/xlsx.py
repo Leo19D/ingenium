@@ -165,7 +165,9 @@ def _detect_columns(headers: list[str], rows: list[list[str]]) -> dict[str, int 
     used: set[int] = set()
     for field in ("description", "quantity", "unit", "unit_price", "sku"):
         chosen = None
-        for _, idx in sorted(scored[field], reverse=True):
+        # Najveći keyword score; kod neriješenog → niža (lijevija) kolona pobjeđuje.
+        # Npr. "Naziv" (col 1) ima prednost pred "Opis" (col 5) za description.
+        for _, idx in sorted(scored[field], key=lambda x: (-x[0], x[1])):
             if idx not in used:
                 chosen = idx
                 used.add(idx)

@@ -589,46 +589,21 @@ textarea.form-input { resize: vertical; }
 
     <!-- CATALOG -->
     <div class="view" id="view-catalog">
-      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
-        <div class="search-box" style="width:300px"><span style="font-size:14px;opacity:0.5">⌕</span><input type="text" placeholder="LED panel, 36W, UGR..."></div>
-        <button class="btn btn-ghost">Sve kategorije ▾</button>
-        <span style="font-size:12px;color:var(--text3);margin-left:auto;font-family:var(--font-mono)">2,847 artikala · 3 aktivna dobavljača</span>
+      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap">
+        <div class="search-box" style="width:280px"><span style="font-size:14px;opacity:0.5">⌕</span>
+          <input type="text" placeholder="Pretraži katalog..." oninput="filterList(this,'product-card')"></div>
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="catalog-count"></span>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <input type="file" id="catalog-file-input" accept=".xlsx,.xls,.pdf" style="display:none"
+                 onchange="importCatalogFile(this.files[0]);this.value=''">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="exportXlsx('products')">↓ Export</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="downloadCatalogTemplate()">↓ Template</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="document.getElementById('catalog-file-input').click()">⬆ Uvezi Excel/PDF</button>
+          <button class="btn btn-primary" style="font-size:12px" onclick="openProductModal()">+ Novi artikl</button>
+        </div>
       </div>
-      <div class="catalog-grid">
-        <div class="product-card">
-          <div class="product-cat">LED panel</div>
-          <div class="product-name">LED Panel 60×60 36W</div>
-          <div class="product-sku">SKU: LED-PNL-6060-36-4K</div>
-          <div class="product-specs">
-            <span class="spec-tag">36W</span><span class="spec-tag">4000K</span><span class="spec-tag">3600lm</span>
-            <span class="spec-tag">UGR&lt;19</span><span class="spec-tag">IP20</span><span class="spec-tag">595×595</span>
-          </div>
-          <div class="supplier-row"><span class="sup-name">Fagerhult</span><div style="text-align:right"><div class="sup-price sup-best">€18.40</div><div class="sup-lead">7d · MOQ 10</div></div></div>
-          <div class="supplier-row"><span class="sup-name">Trilux GmbH</span><div style="text-align:right"><div class="sup-price">€21.20</div><div class="sup-lead">5d · MOQ 1</div></div></div>
-          <div class="supplier-row"><span class="sup-name">Световик SRL</span><div style="text-align:right"><div class="sup-price">€15.80</div><div class="sup-lead">21d · MOQ 50</div></div></div>
-        </div>
-        <div class="product-card">
-          <div class="product-cat">LED downlight</div>
-          <div class="product-name">Downlight LED 10W IP44</div>
-          <div class="product-sku">SKU: LED-DL-10W-3K-IP44-W</div>
-          <div class="product-specs">
-            <span class="spec-tag">10W</span><span class="spec-tag">3000K</span><span class="spec-tag">900lm</span>
-            <span class="spec-tag">IP44</span><span class="spec-tag">Ø90mm</span><span class="spec-tag">bijeli</span>
-          </div>
-          <div class="supplier-row"><span class="sup-name">Osram</span><div style="text-align:right"><div class="sup-price sup-best">€6.20</div><div class="sup-lead">10d · MOQ 25</div></div></div>
-          <div class="supplier-row"><span class="sup-name">Philips Signify</span><div style="text-align:right"><div class="sup-price">€7.80</div><div class="sup-lead">4d · MOQ 1</div></div></div>
-        </div>
-        <div class="product-card">
-          <div class="product-cat">kabel</div>
-          <div class="product-name">NYY-J 3×2.5mm² crni</div>
-          <div class="product-sku">SKU: KBL-NYY-3X25-CRN</div>
-          <div class="product-specs">
-            <span class="spec-tag">3×2.5mm²</span><span class="spec-tag">NYY-J</span><span class="spec-tag">0.6/1kV</span>
-            <span class="spec-tag">crni</span><span class="spec-tag">≤100m/kolut</span>
-          </div>
-          <div class="supplier-row"><span class="sup-name">Prysmian</span><div style="text-align:right"><div class="sup-price sup-best">€1.42/m</div><div class="sup-lead">3d · MOQ 100m</div></div></div>
-          <div class="supplier-row"><span class="sup-name">Nexans</span><div style="text-align:right"><div class="sup-price">€1.68/m</div><div class="sup-lead">5d · MOQ 50m</div></div></div>
-        </div>
+      <div class="catalog-grid" id="catalog-grid">
+        <div style="color:var(--text3);font-size:13px;padding:20px">Učitavam katalog...</div>
       </div>
     </div>
 
@@ -1056,6 +1031,33 @@ textarea.form-input { resize: vertical; }
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
         <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
         <button class="btn btn-primary" onclick="addStockItem()">Spremi artikl</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCT (KATALOG) MODAL -->
+  <div class="modal-box" id="modal-product" style="display:none">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700" id="product-modal-title">Novi artikl u katalogu</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">SKU *</label><input type="text" class="form-input" id="pm-sku" placeholder="LED-PNL-36W"></div>
+        <div class="form-group"><label class="form-label">Naziv *</label><input type="text" class="form-input" id="pm-name" placeholder="LED Panel 60×60 36W"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Kategorija</label><input type="text" class="form-input" id="pm-cat" placeholder="led_panel"></div>
+        <div class="form-group"><label class="form-label">Brend</label><input type="text" class="form-input" id="pm-brand" placeholder="Fagerhult"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Jedinica</label><select class="form-input" id="pm-unit"><option>pcs</option><option>m</option><option>m2</option><option>kg</option><option>set</option><option>lot</option></select></div>
+        <div class="form-group"><label class="form-label">Opis</label><input type="text" class="form-input" id="pm-desc" placeholder="opcionalno"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" id="pm-save-btn" onclick="saveProduct()">Spremi</button>
       </div>
     </div>
   </div>
@@ -1546,6 +1548,129 @@ async function loadProjects() {
         _projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
     }
   } catch(e) { console.error('loadProjects', e); }
+}
+
+// ========== KATALOG (PRODUCTS) ==========
+var _products = [];
+
+async function loadProducts() {
+  if (!apiAvailable) return;
+  try {
+    _products = await apiGet('/products/');
+    renderCatalog(_products);
+  } catch(e) { console.error('loadProducts', e); }
+}
+
+function renderCatalog(products) {
+  const grid = document.getElementById('catalog-grid');
+  const count = document.getElementById('catalog-count');
+  if (count) count.textContent = products.length + ' artikala';
+  if (!grid) return;
+  if (!products.length) {
+    grid.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:20px">Katalog je prazan. Uvezi Excel/PDF cjenik ili dodaj artikl ručno.</div>';
+    return;
+  }
+  grid.innerHTML = products.map(p => `
+    <div class="product-card">
+      <div class="product-cat">${escapeHtml(p.category || '—')}</div>
+      <div class="product-name">${escapeHtml(p.name)}</div>
+      <div class="product-sku">SKU: ${escapeHtml(p.sku)}</div>
+      <div class="product-specs">
+        ${p.brand ? `<span class="spec-tag">${escapeHtml(p.brand)}</span>` : ''}
+        <span class="spec-tag">${escapeHtml(p.unit)}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex:1" onclick='editProduct(${JSON.stringify(p)})'>✎ Uredi</button>
+        <button class="icon-btn" title="Obriši" onclick="deleteProduct('${p.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function openProductModal() {
+  document.getElementById('product-modal-title').textContent = 'Novi artikl u katalogu';
+  ['pm-id','pm-sku','pm-name','pm-cat','pm-brand','pm-desc'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('pm-unit').value = 'pcs';
+  document.getElementById('pm-sku').disabled = false;
+  openModal('product');
+}
+
+function editProduct(p) {
+  document.getElementById('product-modal-title').textContent = 'Uredi artikl';
+  document.getElementById('pm-id').value = p.id;
+  document.getElementById('pm-sku').value = p.sku;
+  document.getElementById('pm-sku').disabled = true; // SKU se ne mijenja
+  document.getElementById('pm-name').value = p.name || '';
+  document.getElementById('pm-cat').value = p.category || '';
+  document.getElementById('pm-brand').value = p.brand || '';
+  document.getElementById('pm-unit').value = p.unit || 'pcs';
+  document.getElementById('pm-desc').value = p.description || '';
+  openModal('product');
+}
+
+async function saveProduct() {
+  const id = document.getElementById('pm-id').value;
+  const sku = document.getElementById('pm-sku').value.trim();
+  const name = document.getElementById('pm-name').value.trim();
+  if (!sku || !name) { showToast('SKU i naziv su obavezni', 'error'); return; }
+  const body = {
+    name,
+    category: document.getElementById('pm-cat').value.trim() || null,
+    brand: document.getElementById('pm-brand').value.trim() || null,
+    unit: document.getElementById('pm-unit').value,
+    description: document.getElementById('pm-desc').value.trim() || null,
+  };
+  try {
+    if (id) {
+      await apiPatch('/products/' + id, body);
+      showToast('Artikl ažuriran');
+    } else {
+      await apiPost('/products/', { sku, ...body });
+      showToast('Artikl dodan');
+    }
+    closeModal();
+    await loadProducts();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Obrisati ovaj artikl iz kataloga?')) return;
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/products/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 204) { showToast('Artikl obrisan'); await loadProducts(); }
+    else showToast('Greška pri brisanju', 'error');
+  } catch(e) { showToast('Greška', 'error'); }
+}
+
+async function importCatalogFile(file) {
+  if (!file || !apiAvailable) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  showToast('Učitavam ' + file.name + '...');
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/products/import-file', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Import greška');
+    showToast(`✓ Katalog: ${d.inserted} novih, ${d.updated} ažurirano${d.skipped ? ', '+d.skipped+' preskočeno' : ''}`);
+    await loadProducts();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+function downloadCatalogTemplate() {
+  if (typeof XLSX === 'undefined') { showToast('SheetJS nije učitan', 'error'); return; }
+  const headers = ['SKU','Naziv','Kategorija','Brend','Jedinica','Opis'];
+  const ex = [
+    ['LED-PNL-36W','LED Panel 60x60 36W 4000K','led_panel','Fagerhult','pcs','UGR<19, 3600lm'],
+    ['DL-10W-IP44','Downlight LED 10W IP44','downlight','Osram','pcs','3000K bijeli'],
+    ['KBL-NYY-3X25','NYY-J kabel 3x2.5mm crni','kabel','Prysmian','m','0.6/1kV'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...ex]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length+2, 16) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Katalog');
+  XLSX.writeFile(wb, 'template-katalog.xlsx');
+  showToast('Template preuzet');
 }
 
 async function createQuote() {
@@ -2535,7 +2660,7 @@ async function apiPatch(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts()]);
 })();
 </script>
 
