@@ -410,7 +410,7 @@ def _verification_html(name: str, url: str) -> str:
         <tr>
           <td style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.07)">
             <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:32px;height:32px;background:#1666c8;border-radius:8px;display:inline-block;
+              <div style="width:32px;height:32px;background:#1a5699;border-radius:8px;display:inline-block;
                           text-align:center;line-height:32px;font-size:16px">⚡</div>
               <span style="font-size:17px;font-weight:700;color:#142238;letter-spacing:-0.3px;vertical-align:middle;margin-left:10px">Ingenium</span>
             </div>
@@ -427,13 +427,13 @@ def _verification_html(name: str, url: str) -> str:
               Klikni gumb ispod da aktiviraš račun. Link vrijedi {_VERIFY_TOKEN_HOURS} sati.
             </p>
             <a href="{url}"
-               style="display:inline-block;background:#1666c8;color:#ffffff;padding:13px 28px;
+               style="display:inline-block;background:#1a5699;color:#ffffff;padding:13px 28px;
                       border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
               Potvrdi email →
             </a>
             <p style="color:#93a1b5;font-size:12px;margin:24px 0 0;line-height:1.5">
               Ako nisi tražio/la pristup, ignorij ovaj email.<br>
-              Link: <a href="{url}" style="color:#1666c8">{url}</a>
+              Link: <a href="{url}" style="color:#1a5699">{url}</a>
             </p>
           </td>
         </tr>
@@ -459,7 +459,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
         f'<td align="center" valign="middle" width="52" height="64"'
         f' bgcolor="#ffffff"'
         f' style="font-family:Courier New,monospace;font-size:32px;font-weight:700;'
-        f'color:#1666c8;border:2px solid #cdd8e6;border-radius:10px;'
+        f'color:#1a5699;border:2px solid #cdd8e6;border-radius:10px;'
         f'padding:0 6px;mso-line-height-rule:exactly;line-height:64px;">'
         f'{d}</td>'
         f'<td width="8"></td>'
@@ -483,12 +483,12 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
     <td style="padding-bottom:32px;">
       <table role="presentation" cellpadding="0" cellspacing="0">
         <tr>
-          <td width="36" height="36" align="center" valign="middle" bgcolor="#1666c8"
+          <td width="36" height="36" align="center" valign="middle" bgcolor="#1a5699"
               style="border-radius:9px;font-size:18px;line-height:36px;mso-line-height-rule:exactly;">
             ⚡
           </td>
           <td style="padding-left:10px;font-family:Arial,Helvetica,sans-serif;
-                      font-size:18px;font-weight:700;color:#1666c8;letter-spacing:-0.3px;">
+                      font-size:18px;font-weight:700;color:#1a5699;letter-spacing:-0.3px;">
             Ingenium
           </td>
         </tr>
@@ -503,7 +503,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
       <!--  green top strip  -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td bgcolor="#1666c8" height="3" style="font-size:0;line-height:0;">&nbsp;</td>
+          <td bgcolor="#1a5699" height="3" style="font-size:0;line-height:0;">&nbsp;</td>
         </tr>
       </table>
 
@@ -515,7 +515,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
             <!--  label  -->
             <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;
                         font-size:11px;font-weight:700;letter-spacing:0.14em;
-                        text-transform:uppercase;color:#1666c8;">
+                        text-transform:uppercase;color:#1a5699;">
               Sigurnosna provjera
             </p>
 
@@ -572,7 +572,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
                     Vrijedi
                   </p>
                   <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
-                              font-weight:700;color:#1a8f5a;">
+                              font-weight:700;color:#1a8055;">
                     {expire_label}
                   </p>
                 </td>
@@ -583,7 +583,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
                     Upotreba
                   </p>
                   <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
-                              font-weight:700;color:#1a8f5a;">
+                              font-weight:700;color:#1a8055;">
                     1×
                   </p>
                 </td>
@@ -594,7 +594,7 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
                     Platforma
                   </p>
                   <p style="margin:0;font-family:Arial,sans-serif;font-size:16px;
-                              font-weight:700;color:#1a8f5a;">
+                              font-weight:700;color:#1a8055;">
                     Ingenium
                   </p>
                 </td>
@@ -606,10 +606,10 @@ def _otp_html(name: str, code: str, expire_seconds: int) -> str:
               <tr>
                 <td bgcolor="#eef4ff"
                     style="border-radius:10px;border:1px solid #e2e8f0;
-                            border-left:3px solid #1666c8;padding:14px 18px;">
+                            border-left:3px solid #1a5699;padding:14px 18px;">
                   <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
                               font-size:12px;color:#56657c;line-height:1.7;">
-                    <strong style="color:#1a8f5a;">Niste tražili ovaj kod?</strong>
+                    <strong style="color:#1a8055;">Niste tražili ovaj kod?</strong>
                     Netko je unio vašu lozinku. Ne dijelite kod ni s kim.
                     Odmah promijenite lozinku i kontaktirajte support.
                   </p>

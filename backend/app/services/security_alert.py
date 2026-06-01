@@ -235,14 +235,14 @@ def _alert_html(
     <!-- Logo -->
     <tr><td style="padding-bottom:24px;">
       <table cellpadding="0" cellspacing="0"><tr valign="middle">
-        <td width="34" height="34" bgcolor="#1666c8" align="center"
+        <td width="34" height="34" bgcolor="#1a5699" align="center"
             style="border-radius:9px;font-size:17px;line-height:34px;">⚡</td>
         <td style="padding-left:10px;font-family:Arial,sans-serif;font-size:16px;
-                    font-weight:700;color:#1666c8;">Ingenium</td>
+                    font-weight:700;color:#1a5699;">Ingenium</td>
         <td style="padding-left:10px;">
           <span style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;
-                        letter-spacing:0.08em;text-transform:uppercase;color:#1666c8;
-                        background:rgba(22,102,200,0.08);border:1px solid rgba(22,102,200,0.2);
+                        letter-spacing:0.08em;text-transform:uppercase;color:#1a5699;
+                        background:rgba(26,86,153,0.08);border:1px solid rgba(26,86,153,0.2);
                         border-radius:20px;padding:3px 9px;">Security</span>
         </td>
       </tr></table>
@@ -251,13 +251,13 @@ def _alert_html(
     <!-- Card -->
     <tr><td bgcolor="#ffffff" style="border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;">
       <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td bgcolor="#1666c8" height="3" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+        <tr><td bgcolor="#1a5699" height="3" style="font-size:0;line-height:0;">&nbsp;</td></tr>
       </table>
 
       <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:36px 40px 32px;">
 
         <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;
-                    letter-spacing:0.12em;text-transform:uppercase;color:#1666c8;">Uspješna prijava</p>
+                    letter-spacing:0.12em;text-transform:uppercase;color:#1a5699;">Uspješna prijava</p>
         <h1 style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:22px;font-weight:800;
                     color:#142238;letter-spacing:-0.5px;">{full_name}</h1>
         <p style="margin:0 0 28px;font-family:Courier New,monospace;font-size:13px;color:#56657c;">{email}</p>
