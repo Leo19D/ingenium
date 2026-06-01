@@ -381,46 +381,27 @@ textarea.form-input { resize: vertical; }
       <div class="two-col" style="margin-bottom:16px">
         <div class="card">
           <div class="section-header">
-            <div class="section-title">Prihodi — ponude poslane</div>
-            <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">zadnjih 8 tjedana</span>
+            <div class="section-title">Vrijednost ponuda — zadnjih 6 mjeseci</div>
           </div>
-          <svg width="100%" height="80" viewBox="0 0 400 80">
-            <polyline class="chart-area" points="0,80 0,52 50,45 100,38 150,42 200,28 250,32 300,18 350,14 400,10 400,80" />
-            <polyline class="chart-line" points="0,52 50,45 100,38 150,42 200,28 250,32 300,18 350,14 400,10" />
-            <circle class="chart-dot" cx="400" cy="10" r="3"/>
-          </svg>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-top:4px">
-            <span>T-8</span><span>T-7</span><span>T-6</span><span>T-5</span><span>T-4</span><span>T-3</span><span>T-2</span><span>T-1</span><span>sada</span>
+          <div id="revenue-chart" style="height:120px;display:flex;align-items:flex-end;gap:10px;padding-top:10px">
+            <div style="color:var(--text3);font-size:12px;align-self:center">Učitavam...</div>
           </div>
         </div>
         <div class="card">
           <div class="section-header">
-            <div class="section-title">Posljednja aktivnost</div>
-            <span style="font-size:11px;font-family:var(--font-mono);color:var(--accent);cursor:pointer">sve →</span>
+            <div class="section-title">⚠ Treba pažnju</div>
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--accent);cursor:pointer" onclick="setView('quotes')">ponude →</span>
           </div>
-          <div class="activity-list">
-            <div class="activity-item">
-              <div class="activity-dot" style="background:var(--accent-dim);"><span style="font-size:12px">✦</span></div>
-              <div class="activity-content">
-                <div class="activity-text">AI parsirao <strong>RFQ-hotel-konavle.pdf</strong> — 47 stavki, confidence 91%</div>
-                <div class="activity-time">prije 3 min</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-dot" style="background:var(--blue-dim);"><span style="font-size:12px">◎</span></div>
-              <div class="activity-content">
-                <div class="activity-text"><strong>Marko Perić</strong> odobrio ponudu QT-2024-089 · €42,800</div>
-                <div class="activity-time">prije 28 min</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-dot" style="background:var(--amber-dim);"><span style="font-size:12px">◳</span></div>
-              <div class="activity-content">
-                <div class="activity-text">Ponuda QT-2024-086 označena kao <strong>izgubljena</strong> — razlog: cijena</div>
-                <div class="activity-time">prije 2 h</div>
-              </div>
-            </div>
+          <div id="notifications-list">
+            <div style="color:var(--text3);font-size:12px;padding:12px 0">Učitavam...</div>
           </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="section-header"><div class="section-title">Pipeline funnel</div></div>
+        <div id="pipeline-funnel" style="display:flex;gap:8px;padding-top:8px">
+          <div style="color:var(--text3);font-size:12px">Učitavam...</div>
         </div>
       </div>
 
@@ -638,6 +619,7 @@ textarea.form-input { resize: vertical; }
           <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)" id="btn-export-excel">↓ Excel</button>
           <button class="btn btn-ghost" onclick="exportQuotePdf(_currentQuote?.id)" id="btn-export-pdf">↓ PDF</button>
           <button class="btn btn-ghost" id="btn-approve" onclick="sendForApproval()" style="display:none">Na odobrenje →</button>
+          <button class="btn btn-ghost" id="btn-do-approve" onclick="approveQuote()" style="display:none;color:var(--accent)">✓ Odobri</button>
           <button class="btn btn-ghost" id="btn-won" onclick="markOutcome('won')" style="display:none;color:var(--accent)">✓ Dobiveno</button>
           <button class="btn btn-ghost" id="btn-lost" onclick="markOutcome('lost')" style="display:none;color:var(--red)">✗ Izgubljeno</button>
           <button class="btn btn-primary" id="btn-send-client" onclick="sendQuoteToClient()">✉ Pošalji klijentu</button>
@@ -647,6 +629,11 @@ textarea.form-input { resize: vertical; }
       <div class="ai-insight" style="margin-bottom:16px;border-radius:var(--r)">
         <div class="ai-insight-label">✦ AI preporuka</div>
         <div class="ai-insight-text" id="margin-suggestion">Kreiraj ili odaberi ponudu da vidiš AI preporuke marže.</div>
+      </div>
+
+      <div id="approval-banner" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:var(--r);
+           background:var(--amber-dim);border:1px solid var(--amber);border-left:3px solid var(--amber)">
+        <span style="font-size:13px;color:var(--amber)" id="approval-banner-text"></span>
       </div>
 
       <div class="quote-layout">
@@ -1771,10 +1758,14 @@ function renderQuoteBuilder(quote) {
   // Kontekstualni gumbi po statusu
   const show = (id, cond) => { const el = document.getElementById(id); if (el) el.style.display = cond ? 'inline-flex' : 'none'; };
   show('btn-approve', quote.status === 'draft');
-  // Won/Lost dostupni nakon slanja (sent) ili odobrenja
+  show('btn-do-approve', quote.status === 'review');
   const canOutcome = ['sent', 'approved', 'review'].includes(quote.status);
   show('btn-won', canOutcome);
   show('btn-lost', canOutcome);
+
+  // Approval banner — provjeri treba li ponuda odobrenje
+  if (quote.id && (quote.line_items || []).length) checkApproval(quote.id);
+  else { const b = document.getElementById('approval-banner'); if (b) b.style.display = 'none'; }
 
   // Render line items
   const header = `<div class="li-header"><span>Opis</span><span>Kol.</span><span>Nabavna</span><span>Prodajna</span><span>Marža</span><span></span></div>`;
@@ -1879,6 +1870,36 @@ async function exportQuoteXlsx(quoteId) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
     showToast('Ponuda preuzeta kao Excel');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function checkApproval(quoteId) {
+  const banner = document.getElementById('approval-banner');
+  const text = document.getElementById('approval-banner-text');
+  const sendBtn = document.getElementById('btn-send-client');
+  if (!banner) return;
+  try {
+    const s = await apiGet('/quotes/' + quoteId + '/approval-status');
+    if (s.needs_approval && !s.can_send) {
+      banner.style.display = 'block';
+      text.textContent = '⚠ ' + s.reason + ' — ne može se poslati klijentu dok nije odobrena.';
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.4'; sendBtn.title = 'Treba odobrenje'; }
+    } else {
+      banner.style.display = 'none';
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; sendBtn.title = ''; }
+    }
+  } catch(e) {}
+}
+
+async function approveQuote() {
+  if (!_currentQuote) return;
+  if (!confirm('Odobriti ovu ponudu?')) return;
+  try {
+    const r = await apiPost('/quotes/' + _currentQuote.id + '/approve', {});
+    _currentQuote = r;
+    renderQuoteBuilder(r);
+    await loadQuotes();
+    showToast('Ponuda odobrena');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
@@ -1989,6 +2010,60 @@ async function loadDashboardStats() {
       sugEl.textContent = `Preporučena marža: ${suggestion.suggested_min}–${suggestion.suggested_max}% · cilj ${suggestion.suggested_target}% · ${conf} pouzdanost (${suggestion.based_on_quotes} ponuda). ${suggestion.insight}`;
     }
   } catch(e) {}
+}
+
+// ========== DASHBOARD TRENDS + NOTIFIKACIJE ==========
+async function loadTrends() {
+  if (!apiAvailable) return;
+  try {
+    const d = await apiGet('/analytics/trends');
+    // Revenue bar chart
+    const chart = document.getElementById('revenue-chart');
+    if (chart) {
+      const maxV = Math.max(...d.monthly.map(m => m.value), 1);
+      chart.innerHTML = d.monthly.map(m => {
+        const h = Math.max((m.value / maxV) * 100, 2);
+        const label = m.month.slice(5) + '.';
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">${m.value >= 1000 ? '€'+(m.value/1000).toFixed(0)+'k' : (m.value>0?'€'+m.value.toFixed(0):'')}</div>
+          <div title="${m.count} ponuda · €${m.value.toFixed(0)}" style="width:100%;height:${h}%;background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px 4px 0 0;min-height:2px"></div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono)">${label}</div>
+        </div>`;
+      }).join('');
+    }
+    // Pipeline funnel
+    const funnel = document.getElementById('pipeline-funnel');
+    if (funnel) {
+      const maxC = Math.max(...d.funnel.map(f => f.count), 1);
+      funnel.innerHTML = d.funnel.map(f => {
+        const pct = Math.round((f.count / maxC) * 100);
+        return `<div style="flex:1;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--accent)">${f.count}</div>
+          <div style="height:4px;background:var(--accent);opacity:${0.3 + pct/150};border-radius:2px;margin:6px 0"></div>
+          <div style="font-size:11px;color:var(--text2)">${f.stage}</div>
+        </div>`;
+      }).join('<div style="align-self:center;color:var(--text3);font-size:14px">→</div>');
+    }
+  } catch(e) { console.error('loadTrends', e); }
+}
+
+async function loadNotifications() {
+  if (!apiAvailable) return;
+  try {
+    const items = await apiGet('/analytics/notifications');
+    const el = document.getElementById('notifications-list');
+    if (!el) return;
+    if (!items.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0">✓ Sve pod kontrolom — ništa ne treba hitnu pažnju.</div>';
+      return;
+    }
+    const dot = { warning: 'var(--amber)', info: 'var(--blue)', muted: 'var(--text3)' };
+    el.innerHTML = items.map(n => `
+      <div class="activity-item" style="cursor:pointer" onclick="openQuote('${n.quote_id}')">
+        <div class="activity-dot" style="background:var(--bg3)"><span style="color:${dot[n.severity]||'var(--text3)'};font-size:12px">●</span></div>
+        <div class="activity-content"><div class="activity-text">${escapeHtml(n.message)}</div></div>
+      </div>`).join('');
+  } catch(e) { console.error('loadNotifications', e); }
 }
 
 // ========== QUOTES LIST ==========
@@ -2798,7 +2873,7 @@ async function apiPatch(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications()]);
 })();
 </script>
 

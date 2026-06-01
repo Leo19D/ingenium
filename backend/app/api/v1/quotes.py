@@ -27,6 +27,23 @@ from app.services.email.smtp import send_email
 
 router = APIRouter()
 
+# ── Approval pravila (konfigurabilno kasnije po org) ─────────────────────────
+APPROVAL_THRESHOLD = Decimal("5000")      # iznad → treba odobrenje
+DUAL_APPROVAL_THRESHOLD = Decimal("50000")  # iznad → treba "visoko" odobrenje
+MIN_MARGIN_PCT = Decimal("0.05")          # ispod 5% marže → treba odobrenje
+
+
+def _approval_reason(quote: Quote) -> str | None:
+    """Vrati razlog zašto ponuda treba odobrenje, ili None ako ne treba."""
+    total = quote.total or Decimal("0")
+    if total >= DUAL_APPROVAL_THRESHOLD:
+        return f"Visok iznos (≥ {DUAL_APPROVAL_THRESHOLD:,.0f}) — potrebno dvostruko odobrenje"
+    if total >= APPROVAL_THRESHOLD:
+        return f"Iznos ≥ {APPROVAL_THRESHOLD:,.0f} — potrebno odobrenje voditelja"
+    if quote.margin_pct is not None and quote.margin_pct < MIN_MARGIN_PCT:
+        return f"Niska marža (< {float(MIN_MARGIN_PCT)*100:.0f}%) — potrebno odobrenje"
+    return None
+
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -446,6 +463,53 @@ async def export_quote_pdf(
     )
 
 
+class ApprovalStatus(BaseModel):
+    needs_approval: bool
+    reason: str | None
+    status: str
+    can_send: bool
+
+
+@router.get("/{quote_id}/approval-status", response_model=ApprovalStatus)
+async def approval_status(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> ApprovalStatus:
+    res = await db.execute(select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id))
+    quote = res.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+    reason = _approval_reason(quote)
+    needs = reason is not None
+    can_send = (not needs) or quote.status in ("approved", "sent", "accepted")
+    return ApprovalStatus(needs_approval=needs, reason=reason, status=quote.status, can_send=can_send)
+
+
+@router.post("/{quote_id}/approve", response_model=QuoteResponse)
+async def approve_quote(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+    current_user: User = Depends(get_current_user),
+) -> QuoteResponse:
+    """Odobri ponudu (status → approved). Bilježi tko je odobrio."""
+    res = await db.execute(
+        select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )
+    quote = res.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+    if quote.status in ("sent", "accepted", "rejected"):
+        raise HTTPException(status_code=409, detail=f"Ponuda je već u statusu '{quote.status}'.")
+    quote.status = "approved"
+    quote.approved_by = current_user.id
+    await db.commit()
+    await db.refresh(quote, attribute_names=["line_items"])
+    return QuoteResponse.model_validate(quote)
+
+
 class SendQuoteRequest(BaseModel):
     to_email: str
     message: str | None = None
@@ -464,6 +528,14 @@ async def send_quote(
     quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
     if not quote.line_items:
         raise HTTPException(status_code=422, detail="Ponuda nema stavki.")
+
+    # Approval gate — blokiraj slanje ako treba odobrenje a nije odobreno
+    reason = _approval_reason(quote)
+    if reason and quote.status not in ("approved", "sent", "accepted"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Ponuda treba odobrenje prije slanja. {reason}",
+        )
 
     quote_dict = {
         "version": quote.version, "currency": quote.currency, "status": quote.status,

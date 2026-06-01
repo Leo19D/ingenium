@@ -419,3 +419,117 @@ async def client_profile(
         total_won_value=total_won_value, score=score_int, rating=rating,
         notes=notes or ["Nedovoljno podataka za detaljne uvide."],
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dashboard trends (revenue trend + pipeline funnel)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/trends")
+async def trends(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Mjesečni trend (zadnjih 6 mj) + pipeline funnel po statusu."""
+    from collections import defaultdict
+    from datetime import datetime, timezone
+
+    # Sve ponude
+    rows = (await db.execute(
+        select(Quote.created_at, Quote.total, Quote.status)
+        .where(Quote.org_id == org_id)
+    )).all()
+
+    # Mjesečni: broj ponuda + vrijednost po YYYY-MM
+    monthly: dict[str, dict] = defaultdict(lambda: {"count": 0, "value": 0.0})
+    now = datetime.now(timezone.utc)
+    # zadnjih 6 mjeseci kao prazni bucketi
+    buckets = []
+    for i in range(5, -1, -1):
+        y = now.year
+        m = now.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        key = f"{y}-{m:02d}"
+        buckets.append(key)
+        monthly[key]  # init
+
+    for created, total, status in rows:
+        if not created:
+            continue
+        key = created.strftime("%Y-%m")
+        if key in monthly:
+            monthly[key]["count"] += 1
+            monthly[key]["value"] += float(total or 0)
+
+    trend = [
+        {"month": k, "count": monthly[k]["count"], "value": round(monthly[k]["value"], 2)}
+        for k in buckets
+    ]
+
+    # Pipeline funnel
+    funnel_counts: dict[str, int] = defaultdict(int)
+    for _, _, status in rows:
+        funnel_counts[status] += 1
+
+    funnel = [
+        {"stage": "Nacrt",       "status": "draft",    "count": funnel_counts.get("draft", 0)},
+        {"stage": "Na odobrenju","status": "review",   "count": funnel_counts.get("review", 0)},
+        {"stage": "Odobreno",    "status": "approved", "count": funnel_counts.get("approved", 0)},
+        {"stage": "Poslano",     "status": "sent",     "count": funnel_counts.get("sent", 0)},
+        {"stage": "Dobiveno",    "status": "accepted", "count": funnel_counts.get("accepted", 0)},
+    ]
+
+    return {"monthly": trend, "funnel": funnel}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Notifikacije / "treba pažnju"
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/notifications")
+async def notifications(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> list[dict]:
+    """Stavke koje trebaju pažnju: isteci, čekaju odobrenje, ustajali nacrti."""
+    from datetime import date, datetime, timedelta, timezone
+
+    items: list[dict] = []
+    today = date.today()
+    soon = today + timedelta(days=7)
+    now = datetime.now(timezone.utc)
+    stale_cutoff = now - timedelta(days=14)
+
+    rows = (await db.execute(
+        select(Quote.id, Quote.version, Quote.status, Quote.total,
+               Quote.valid_until, Quote.created_at)
+        .where(Quote.org_id == org_id)
+    )).all()
+
+    for qid, ver, status, total, valid_until, created in rows:
+        amount = f"{float(total or 0):,.0f}"
+        # Poslane ponude koje uskoro ističu
+        if status == "sent" and valid_until and today <= valid_until <= soon:
+            days = (valid_until - today).days
+            items.append({
+                "type": "expiring", "severity": "warning", "quote_id": str(qid),
+                "message": f"Ponuda V{ver} (€{amount}) ističe za {days} dan(a)",
+            })
+        # Čekaju odobrenje
+        if status == "review":
+            items.append({
+                "type": "awaiting_approval", "severity": "info", "quote_id": str(qid),
+                "message": f"Ponuda V{ver} (€{amount}) čeka odobrenje",
+            })
+        # Ustajali nacrti
+        if status == "draft" and created and created.replace(tzinfo=timezone.utc) < stale_cutoff:
+            items.append({
+                "type": "stale_draft", "severity": "muted", "quote_id": str(qid),
+                "message": f"Nacrt V{ver} (€{amount}) star > 14 dana",
+            })
+
+    sev_order = {"warning": 0, "info": 1, "muted": 2}
+    items.sort(key=lambda x: sev_order.get(x["severity"], 3))
+    return items
