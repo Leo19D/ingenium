@@ -163,15 +163,22 @@ async def send_login_alert(
             flags=flags,
         )
 
+        # Anti-spam: ne šalji alert osobi koja se upravo prijavila —
+        # ona zna da se prijavila i već je dobila OTP kod.
+        recipients = [a for a in ADMIN_ALERT_EMAILS if a.lower() != email.lower()]
+        if not recipients:
+            logger.info("login_alert_skipped_self", extra={"email": email})
+            return
+
         subject = f"🔓 Prijava — {full_name} ({email})"
-        for admin in ADMIN_ALERT_EMAILS:
+        for admin in recipients:
             try:
                 await send_email(to=admin, subject=subject, html=html)
             except Exception as e:
                 logger.warning("login_alert_recipient_failed",
                                extra={"recipient": admin, "error": str(e)})
         logger.info("login_alert_sent",
-                    extra={"email": email, "ip": ip, "recipients": len(ADMIN_ALERT_EMAILS)})
+                    extra={"email": email, "ip": ip, "recipients": len(recipients)})
     except Exception as e:
         logger.warning("login_alert_failed", extra={"email": email, "error": str(e)})
 
