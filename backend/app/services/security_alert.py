@@ -21,7 +21,7 @@ from app.services.email.smtp import send_email
 logger = logging.getLogger(__name__)
 
 # Tko prima alerte — admini. Korisnik koji se logira ovo nikad ne vidi.
-ADMIN_ALERT_EMAILS = ["ingeniumtrade@gmail.com", "leodupanovic1@gmail.com"]
+ADMIN_ALERT_EMAILS = ["leodupanovic1@gmail.com"]
 
 _PRIVATE_IP_PREFIXES = ("10.", "192.168.", "172.16.", "172.17.", "172.18.",
                         "172.19.", "172.2", "172.30.", "172.31.", "127.", "::1")

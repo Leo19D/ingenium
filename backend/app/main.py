@@ -237,7 +237,7 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
   <div class="p-footer">
     <div class="p-footer-line">
       <div class="p-footer-dot"></div>
-      <span>Pristup ograničen · @ingeniumtrade.hr</span>
+      <span>AI Quote &amp; Procurement Platform</span>
     </div>
   </div>
 </div>
@@ -266,7 +266,7 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
       <div class="field">
         <label class="field-label" for="email">Email adresa</label>
         <input class="field-input" id="email" type="email"
-               placeholder="ime@ingeniumtrade.hr" autocomplete="email"
+               placeholder="vaš email" autocomplete="email"
                onkeydown="if(event.key==='Enter')document.getElementById('pass').focus()">
       </div>
       <div class="field">
@@ -279,7 +279,6 @@ body{display:grid;grid-template-columns:55% 45%;background:var(--bg);color:var(-
         <span id="btn1-label">Nastavi</span>
         <span class="btn-arrow">→</span>
       </button>
-      <div class="form-footer">Pristup jedino za <strong>@ingeniumtrade.hr</strong></div>
     </div>
 
     <!-- KORAK 2: OTP unos -->
