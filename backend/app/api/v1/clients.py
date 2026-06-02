@@ -77,16 +77,25 @@ def _parse_int(value: str | None, default: int = 30) -> int:
         return default
 
 
-@router.get("/", response_model=list[ClientResponse])
+@router.get("/")
 async def list_clients(
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
-) -> list[Client]:
-    """Lista svih klijenata u trenutnoj organizaciji."""
-    result = await db.execute(
-        select(Client).where(Client.org_id == org_id).order_by(Client.created_at.desc())
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+) -> dict:
+    """Lista klijenata — paginirano + pretraga po nazivu/PDV/zemlji."""
+    from app.schemas.common import paginate
+
+    base = select(Client).where(Client.org_id == org_id)
+    result = await paginate(
+        db, base, page=page, page_size=page_size, search=search,
+        search_columns=[Client.name, Client.tax_id, Client.country_code],
+        order_by=Client.created_at.desc(),
     )
-    return list(result.scalars().all())
+    result["items"] = [ClientResponse.model_validate(c) for c in result["items"]]
+    return result
 
 
 @router.get("/{client_id}", response_model=ClientResponse)

@@ -29,17 +29,24 @@ from app.schemas.supplier import (
 router = APIRouter()
 
 
-@router.get("/", response_model=list[SupplierResponse])
+@router.get("/")
 async def list_suppliers(
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
-) -> list[Supplier]:
-    result = await db.execute(
-        select(Supplier)
-        .where(Supplier.org_id == org_id)
-        .order_by(Supplier.created_at.desc())
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+) -> dict:
+    from app.schemas.common import paginate
+
+    base = select(Supplier).where(Supplier.org_id == org_id)
+    result = await paginate(
+        db, base, page=page, page_size=page_size, search=search,
+        search_columns=[Supplier.name, Supplier.country_code],
+        order_by=Supplier.created_at.desc(),
     )
-    return list(result.scalars().all())
+    result["items"] = [SupplierResponse.model_validate(s) for s in result["items"]]
+    return result
 
 
 @router.get("/{supplier_id}", response_model=SupplierResponse)

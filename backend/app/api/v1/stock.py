@@ -77,15 +77,24 @@ async def list_locations(
     return list(result.scalars().all())
 
 
-@router.get("/", response_model=list[StockItemResponse])
+@router.get("/")
 async def list_stock_items(
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
-) -> list[StockItem]:
-    result = await db.execute(
-        select(StockItem).where(StockItem.org_id == org_id).order_by(StockItem.created_at.desc())
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+) -> dict:
+    from app.schemas.common import paginate
+
+    base = select(StockItem).where(StockItem.org_id == org_id)
+    result = await paginate(
+        db, base, page=page, page_size=page_size, search=search,
+        search_columns=[StockItem.sku, StockItem.name, StockItem.category],
+        order_by=StockItem.created_at.desc(),
     )
-    return list(result.scalars().all())
+    result["items"] = [StockItemResponse.model_validate(s) for s in result["items"]]
+    return result
 
 
 @router.get("/{item_id}", response_model=StockItemResponse)

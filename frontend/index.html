@@ -1223,7 +1223,8 @@ function renderClientRow(d) {
 async function loadClients() {
   if (!apiAvailable) return;
   try {
-    const clients = await apiGet('/clients/');
+    const _r = await apiGet('/clients/?page_size=200');
+    const clients = _r.items || _r;
     const tbody = document.getElementById('clients-tbody'); tbody.innerHTML = '';
     const npSelect = document.getElementById('np-client');
     if (npSelect) npSelect.querySelectorAll('option:not(:first-child)').forEach(o => o.remove());
@@ -1276,7 +1277,8 @@ function renderSupplierRow(d) {
 async function loadSuppliers() {
   if (!apiAvailable) return;
   try {
-    const sups = await apiGet('/suppliers/');
+    const _r = await apiGet('/suppliers/?page_size=200');
+    const sups = _r.items || _r;
     const tbody = document.getElementById('suppliers-tbody'); tbody.innerHTML = '';
     sups.forEach(s => renderSupplierRow({ name: s.name, cc: s.country_code, currency: s.currency, incoterms: s.incoterms_default, lead: s.lead_time_days_avg }));
   } catch (e) { console.error('loadSuppliers', e); }
@@ -1605,7 +1607,8 @@ var _products = [];
 async function loadProducts() {
   if (!apiAvailable) return;
   try {
-    _products = await apiGet('/products/');
+    const _r = await apiGet('/products/?page_size=200');
+    _products = _r.items || _r;
     renderCatalog(_products);
   } catch(e) { console.error('loadProducts', e); }
 }
@@ -2600,7 +2603,8 @@ async function addStockItem() {
 async function loadStock() {
   if (!apiAvailable) return;
   try {
-    const items = await apiGet('/stock-items/');
+    const _r = await apiGet('/stock-items/?page_size=200');
+    const items = _r.items || _r;
     const tbody = document.getElementById('stock-tbody'); tbody.innerHTML = '';
     items.forEach(it => importStock({
       sku: it.sku, naziv: it.name, cat: it.category,

@@ -52,17 +52,27 @@ class ProductUpdate(BaseModel):
     is_active: bool | None = None
 
 
-@router.get("/", response_model=list[ProductResponse])
+@router.get("/")
 async def list_products(
     category: str | None = None,
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
-) -> list[Product]:
+    page: int = 1,
+    page_size: int = 50,
+    search: str | None = None,
+) -> dict:
+    from app.schemas.common import paginate
+
     q = select(Product).where(Product.org_id == org_id, Product.is_active == True)
     if category:
         q = q.where(Product.category == category)
-    result = await db.execute(q.order_by(Product.name))
-    return list(result.scalars().all())
+    result = await paginate(
+        db, q, page=page, page_size=page_size, search=search,
+        search_columns=[Product.sku, Product.name, Product.category, Product.brand],
+        order_by=Product.name,
+    )
+    result["items"] = [ProductResponse.model_validate(p) for p in result["items"]]
+    return result
 
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
