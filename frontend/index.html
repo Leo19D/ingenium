@@ -862,6 +862,14 @@ textarea.form-input { resize: vertical; }
           <div class="form-group" style="max-width:200px"><label class="form-label">Min. marža bez odobrenja (%)</label><input type="number" class="form-input" id="set-minmargin" min="0" max="99" step="1"></div>
           <div style="font-size:11px;color:var(--text3);margin-top:8px">Ponude iznad limita ili ispod min. marže ne mogu se poslati klijentu dok ih voditelj ne odobri.</div>
         </div>
+
+        <div class="card" style="padding:20px;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">🔒 Audit log — tko je što radio</span>
+            <button class="btn btn-ghost" style="font-size:12px" onclick="loadAudit()">↻ Osvježi</button>
+          </div>
+          <div id="audit-list" style="font-size:13px"><div style="color:var(--text3)">Učitavam...</div></div>
+        </div>
       </div>
     </div>
 
@@ -1673,7 +1681,41 @@ async function loadSettings() {
     set('set-minmargin', Math.round((s.min_margin_pct || 0.05) * 100));
     _catMargins = s.category_margins || {};
     renderCategoryMargins();
+    loadAudit();
   } catch(e) { console.error('loadSettings', e); }
+}
+
+const _AUDIT_LABELS = {
+  'auth.login': '🔑 Prijava',
+  'quote.created': '✦ Ponuda kreirana',
+  'quote.sent': '✉ Ponuda poslana',
+  'quote.approved': '✓ Ponuda odobrena',
+  'quote.outcome': '◳ Ishod zabilježen',
+  'client.created': '◎ Klijent dodan',
+  'document.uploaded': '◉ Dokument uploadan',
+};
+
+async function loadAudit() {
+  if (!apiAvailable) return;
+  const el = document.getElementById('audit-list');
+  if (!el) return;
+  try {
+    const rows = await apiGet('/analytics/audit?limit=40');
+    if (!rows.length) {
+      el.innerHTML = '<div style="color:var(--text3)">Još nema zabilježenih akcija.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(r => {
+      const label = _AUDIT_LABELS[r.action] || r.action;
+      const when = r.at ? new Date(r.at).toLocaleString('hr-HR') : '';
+      const ip = r.ip_address && r.ip_address !== 'unknown' ? ` · ${r.ip_address}` : '';
+      return `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:0 0 160px;color:var(--text)">${label}</span>
+        <span style="flex:1;color:var(--text2)">${escapeHtml(r.user)}${ip}</span>
+        <span style="color:var(--text3);font-family:var(--font-mono);font-size:11px;white-space:nowrap">${when}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--red)">Greška: '+e.message+'</div>'; }
 }
 
 function renderCategoryMargins() {

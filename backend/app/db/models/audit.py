@@ -5,11 +5,14 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BIGINT, String, Text, func
+from sqlalchemy import BIGINT, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+# BIGINT autoincrement radi na Postgresu (BIGSERIAL); SQLite traži INTEGER PK.
+_AUTO_PK = BIGINT().with_variant(Integer, "sqlite")
 
 
 class AuditLog(Base):
@@ -17,7 +20,7 @@ class AuditLog(Base):
 
     __tablename__ = "audit_log"
 
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(_AUTO_PK, primary_key=True, autoincrement=True)
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)

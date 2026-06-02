@@ -533,3 +533,47 @@ async def notifications(
     sev_order = {"warning": 0, "info": 1, "muted": 2}
     items.sort(key=lambda x: sev_order.get(x["severity"], 3))
     return items
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit log pregled
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/audit")
+async def audit_log(
+    limit: int = 50,
+    action: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> list[dict]:
+    """Zadnjih N audit zapisa za organizaciju (tko/što/kad)."""
+    from sqlalchemy import select as _select
+
+    from app.db.models.audit import AuditLog
+    from app.db.models.user import User
+
+    q = _select(AuditLog).where(AuditLog.org_id == org_id)
+    if action:
+        q = q.where(AuditLog.action == action)
+    q = q.order_by(AuditLog.at.desc()).limit(min(limit, 200))
+    rows = list((await db.execute(q)).scalars().all())
+
+    # Mapiraj user_id → ime/email
+    user_ids = {r.user_id for r in rows if r.user_id}
+    users: dict = {}
+    if user_ids:
+        ures = await db.execute(_select(User).where(User.id.in_(user_ids)))
+        users = {u.id: (u.full_name or u.email) for u in ures.scalars().all()}
+
+    return [
+        {
+            "id": r.id,
+            "action": r.action,
+            "user": users.get(r.user_id, "—"),
+            "entity_type": r.entity_type,
+            "entity_id": str(r.entity_id) if r.entity_id else None,
+            "ip_address": r.ip_address,
+            "at": r.at.isoformat() if r.at else None,
+        }
+        for r in rows
+    ]

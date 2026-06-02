@@ -340,6 +340,13 @@ async def verify_otp(
     )
     org_id = str(membership.org_id) if membership else str(_DEMO_ORG_ID)
 
+    # Audit: uspješna prijava
+    from app.services.audit import log_action
+    await log_action(
+        db, org_id=uuid.UUID(org_id), user_id=user.id, action="auth.login",
+        ip_address=client_ip, user_agent=request.headers.get("user-agent", ""),
+    )
+
     return TokenResponse(
         access_token=create_access_token(str(user.id), org_id),
         refresh_token=create_refresh_token(str(user.id)),

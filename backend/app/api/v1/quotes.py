@@ -24,6 +24,7 @@ from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome
 from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.db.session import get_db
+from app.services.audit import log_action
 from app.services.email.smtp import send_email
 from app.services.tax.engine import TaxContext, TaxEngine
 
@@ -200,6 +201,8 @@ async def create_quote(
     await db.commit()
     # Eager-load line_items (prazna lista) da izbjegnemo lazy-load u async kontekstu
     await db.refresh(quote, attribute_names=["line_items"])
+    await log_action(db, org_id=org_id, user_id=current_user.id, action="quote.created",
+                     entity_type="quote", entity_id=quote.id)
     return QuoteResponse.model_validate(quote)
 
 
@@ -399,6 +402,8 @@ async def record_outcome(
     db.add(outcome)
     quote.status = "accepted" if req.outcome == "won" else "rejected" if req.outcome == "lost" else req.outcome
     await db.commit()
+    await log_action(db, org_id=org_id, user_id=current_user.id, action="quote.outcome",
+                     entity_type="quote", entity_id=quote_id, after_state={"outcome": req.outcome})
     return {"message": "Ishod zabilježen.", "outcome": req.outcome}
 
 
@@ -568,6 +573,8 @@ async def approve_quote(
     quote.approved_by = current_user.id
     await db.commit()
     await db.refresh(quote, attribute_names=["line_items"])
+    await log_action(db, org_id=org_id, user_id=current_user.id, action="quote.approved",
+                     entity_type="quote", entity_id=quote_id)
     return QuoteResponse.model_validate(quote)
 
 
@@ -653,6 +660,9 @@ async def send_quote(
     quote.status = "sent"
     quote.sent_at = datetime.now(tz=__import__("datetime").timezone.utc)
     await db.commit()
+    await log_action(db, org_id=org_id, action="quote.sent",
+                     entity_type="quote", entity_id=quote_id,
+                     after_state={"to": req.to_email})
 
     return {"message": f"Ponuda poslana na {req.to_email}", "status": "sent"}
 
