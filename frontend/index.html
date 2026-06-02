@@ -345,6 +345,11 @@ textarea.form-input { resize: vertical; }
     <div class="nav-item" onclick="setView('suppliers')"><span class="nav-icon">◷</span> Dobavljači</div>
   </nav>
 
+  <nav class="nav-section">
+    <div class="nav-label">Sustav</div>
+    <div class="nav-item" onclick="setView('settings')"><span class="nav-icon">⚙</span> Postavke</div>
+  </nav>
+
   <div class="sidebar-bottom">
     <div class="user-card" id="sidebar-user">
       <div class="user-avatar" id="user-initials">–</div>
@@ -809,6 +814,54 @@ textarea.form-input { resize: vertical; }
             <tr class="supplier-row"><td><span class="client-name">Световик SRL</span></td><td>🇷🇴 RO</td><td><span class="quote-id">EUR</span></td><td style="font-size:12px;color:var(--text2)">EXW</td><td style="font-family:var(--font-mono);font-size:12px">21d</td><td><span class="li-margin margin-low">3.1★</span></td><td style="font-family:var(--font-mono);font-size:12px;color:var(--red)">71%</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">198</td><td><button class="icon-btn">→</button></td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div style="max-width:680px">
+        <div class="section-header" style="margin-bottom:16px">
+          <div class="section-title">Postavke firme</div>
+          <button class="btn btn-primary" style="font-size:12px" onclick="saveSettings()">Spremi promjene</button>
+        </div>
+
+        <div class="card" style="padding:20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text)">Osnovni podaci</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Naziv firme</label><input type="text" class="form-input" id="set-name" placeholder="Ingenium Trade d.o.o."></div>
+            <div class="form-group"><label class="form-label">VAT / PDV ID</label><input type="text" class="form-input" id="set-vat" placeholder="HR12345678901"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Država (ISO-2)</label><input type="text" class="form-input" id="set-country" placeholder="HR" maxlength="2"></div>
+            <div class="form-group"><label class="form-label">Valuta (ISO-3)</label><input type="text" class="form-input" id="set-currency" placeholder="EUR" maxlength="3"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">VAT ID se koristi za reverse charge (EU B2B) i ide na ponude.</div>
+        </div>
+
+        <div class="card" style="padding:20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text)">Marže</div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Default marža (%)</label>
+            <input type="number" class="form-input" id="set-default-margin" min="0" max="99" step="1" style="max-width:120px">
+          </div>
+          <label class="form-label">Marže po kategoriji (%)</label>
+          <div id="category-margins-list" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input type="text" class="form-input" id="new-cat-name" placeholder="kategorija (npr. led_panel)" style="flex:2;font-size:13px">
+            <input type="number" class="form-input" id="new-cat-margin" placeholder="%" min="0" max="99" style="flex:1;font-size:13px">
+            <button class="btn btn-ghost" style="font-size:12px;white-space:nowrap" onclick="addCategoryMargin()">+ Dodaj</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text)">Approval limiti</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Treba odobrenje iznad (€)</label><input type="number" class="form-input" id="set-appr" min="0" step="100"></div>
+            <div class="form-group"><label class="form-label">Dvostruko odobrenje iznad (€)</label><input type="number" class="form-input" id="set-dual" min="0" step="1000"></div>
+          </div>
+          <div class="form-group" style="max-width:200px"><label class="form-label">Min. marža bez odobrenja (%)</label><input type="number" class="form-input" id="set-minmargin" min="0" max="99" step="1"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:8px">Ponude iznad limita ili ispod min. marže ne mogu se poslati klijentu dok ih voditelj ne odobri.</div>
+        </div>
       </div>
     </div>
 
@@ -1602,6 +1655,78 @@ async function showClientProfile(clientId) {
 }
 
 // ========== KATALOG (PRODUCTS) ==========
+// ========== POSTAVKE FIRME ==========
+var _catMargins = {};
+
+async function loadSettings() {
+  if (!apiAvailable) return;
+  try {
+    const s = await apiGet('/organizations/current');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('set-name', s.name || '');
+    set('set-vat', s.vat_id || '');
+    set('set-country', s.country_code || '');
+    set('set-currency', s.base_currency || '');
+    set('set-default-margin', Math.round((s.default_margin_pct || 0.25) * 100));
+    set('set-appr', s.approval_threshold || 5000);
+    set('set-dual', s.dual_approval_threshold || 50000);
+    set('set-minmargin', Math.round((s.min_margin_pct || 0.05) * 100));
+    _catMargins = s.category_margins || {};
+    renderCategoryMargins();
+  } catch(e) { console.error('loadSettings', e); }
+}
+
+function renderCategoryMargins() {
+  const el = document.getElementById('category-margins-list');
+  if (!el) return;
+  const keys = Object.keys(_catMargins);
+  if (!keys.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Nema kategorija — dodaj ispod.</div>';
+    return;
+  }
+  el.innerHTML = keys.map(k => `
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="flex:2;font-size:13px;color:var(--text)">${escapeHtml(k)}</span>
+      <span style="flex:1;font-family:var(--font-mono);font-size:13px;color:var(--accent)">${Math.round(_catMargins[k]*100)}%</span>
+      <button class="icon-btn" onclick="removeCategoryMargin('${k}')">🗑</button>
+    </div>`).join('');
+}
+
+function addCategoryMargin() {
+  const name = document.getElementById('new-cat-name').value.trim();
+  const pct = parseFloat(document.getElementById('new-cat-margin').value);
+  if (!name || isNaN(pct)) { showToast('Unesi kategoriju i maržu', 'error'); return; }
+  _catMargins[name] = pct / 100;
+  document.getElementById('new-cat-name').value = '';
+  document.getElementById('new-cat-margin').value = '';
+  renderCategoryMargins();
+}
+
+function removeCategoryMargin(k) {
+  delete _catMargins[k];
+  renderCategoryMargins();
+}
+
+async function saveSettings() {
+  if (!apiAvailable) { showToast('Postavke trebaju backend', 'error'); return; }
+  const num = id => parseFloat(document.getElementById(id).value);
+  const body = {
+    name: document.getElementById('set-name').value.trim(),
+    vat_id: document.getElementById('set-vat').value.trim(),
+    country_code: document.getElementById('set-country').value.trim().toUpperCase(),
+    base_currency: document.getElementById('set-currency').value.trim().toUpperCase(),
+    default_margin_pct: num('set-default-margin') / 100,
+    approval_threshold: num('set-appr'),
+    dual_approval_threshold: num('set-dual'),
+    min_margin_pct: num('set-minmargin') / 100,
+    category_margins: _catMargins,
+  };
+  try {
+    await apiPut('/organizations/current', body);
+    showToast('Postavke spremljene');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
 var _products = [];
 
 async function loadProducts() {
@@ -2880,6 +3005,21 @@ async function apiPatch(path, body) {
   return r.json();
 }
 
+async function apiPut(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: 'PUT',
+    headers: _authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; throw new Error('Sesija istekla'); }
+  if (!r.ok) {
+    let detail = r.status;
+    try { detail = (await r.json()).detail || r.status; } catch (e) {}
+    throw new Error(String(detail));
+  }
+  return r.json();
+}
+
 // ========== STARTUP ==========
 (async function init() {
   const reachable = await checkApi();
@@ -2895,7 +3035,7 @@ async function apiPatch(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications(), loadSettings()]);
 })();
 </script>
 

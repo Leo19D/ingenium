@@ -29,21 +29,24 @@ from app.services.tax.engine import TaxContext, TaxEngine
 
 router = APIRouter()
 
-# ── Approval pravila (konfigurabilno kasnije po org) ─────────────────────────
-APPROVAL_THRESHOLD = Decimal("5000")      # iznad → treba odobrenje
-DUAL_APPROVAL_THRESHOLD = Decimal("50000")  # iznad → treba "visoko" odobrenje
-MIN_MARGIN_PCT = Decimal("0.05")          # ispod 5% marže → treba odobrenje
+# ── Approval pravila — fallback ako org nema postavke ────────────────────────
+APPROVAL_THRESHOLD = Decimal("5000")
+DUAL_APPROVAL_THRESHOLD = Decimal("50000")
+MIN_MARGIN_PCT = Decimal("0.05")
 
 
-def _approval_reason(quote: Quote) -> str | None:
-    """Vrati razlog zašto ponuda treba odobrenje, ili None ako ne treba."""
+def _approval_reason(quote: Quote, limits: dict | None = None) -> str | None:
+    """Razlog zašto ponuda treba odobrenje, ili None. limits iz org postavki."""
+    appr = limits["approval_threshold"] if limits else APPROVAL_THRESHOLD
+    dual = limits["dual_approval_threshold"] if limits else DUAL_APPROVAL_THRESHOLD
+    min_m = limits["min_margin_pct"] if limits else MIN_MARGIN_PCT
     total = quote.total or Decimal("0")
-    if total >= DUAL_APPROVAL_THRESHOLD:
-        return f"Visok iznos (≥ {DUAL_APPROVAL_THRESHOLD:,.0f}) — potrebno dvostruko odobrenje"
-    if total >= APPROVAL_THRESHOLD:
-        return f"Iznos ≥ {APPROVAL_THRESHOLD:,.0f} — potrebno odobrenje voditelja"
-    if quote.margin_pct is not None and quote.margin_pct < MIN_MARGIN_PCT:
-        return f"Niska marža (< {float(MIN_MARGIN_PCT)*100:.0f}%) — potrebno odobrenje"
+    if total >= dual:
+        return f"Visok iznos (≥ {dual:,.0f}) — potrebno dvostruko odobrenje"
+    if total >= appr:
+        return f"Iznos ≥ {appr:,.0f} — potrebno odobrenje voditelja"
+    if quote.margin_pct is not None and quote.margin_pct < min_m:
+        return f"Niska marža (< {float(min_m)*100:.0f}%) — potrebno odobrenje"
     return None
 
 
@@ -536,7 +539,9 @@ async def approval_status(
     quote = res.scalar_one_or_none()
     if not quote:
         raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
-    reason = _approval_reason(quote)
+    from app.api.v1.organizations import get_org_limits
+    limits = await get_org_limits(db, org_id)
+    reason = _approval_reason(quote, limits)
     needs = reason is not None
     can_send = (not needs) or quote.status in ("approved", "sent", "accepted")
     return ApprovalStatus(needs_approval=needs, reason=reason, status=quote.status, can_send=can_send)
@@ -586,7 +591,9 @@ async def send_quote(
         raise HTTPException(status_code=422, detail="Ponuda nema stavki.")
 
     # Approval gate — blokiraj slanje ako treba odobrenje a nije odobreno
-    reason = _approval_reason(quote)
+    from app.api.v1.organizations import get_org_limits
+    limits = await get_org_limits(db, org_id)
+    reason = _approval_reason(quote, limits)
     if reason and quote.status not in ("approved", "sent", "accepted"):
         raise HTTPException(
             status_code=403,
