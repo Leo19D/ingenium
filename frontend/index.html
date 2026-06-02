@@ -680,9 +680,12 @@ textarea.form-input { resize: vertical; }
               <div class="qs-row"><span class="qs-label">Status</span><span class="qs-value" id="qs-status">—</span></div>
             </div>
             <div class="card" style="padding:16px">
-              <div style="font-size:12px;font-weight:500;margin-bottom:10px">Sumarno</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <span style="font-size:12px;font-weight:500">Sumarno</span>
+                <button class="btn btn-ghost" style="font-size:11px;padding:3px 9px" onclick="applyTax()">⊞ Primijeni PDV</button>
+              </div>
               <div class="qs-row"><span class="qs-label">Međuzbroj</span><span class="qs-value" id="qs-subtotal">—</span></div>
-              <div class="qs-row"><span class="qs-label">Porez</span><span class="qs-value" id="qs-tax">—</span></div>
+              <div class="qs-row"><span class="qs-label">Porez (PDV)</span><span class="qs-value" id="qs-tax">—</span></div>
               <div class="qs-divider"></div>
               <div class="qs-row"><span class="qs-label" style="font-weight:600">Ukupno</span><span class="qs-value" id="quote-total" style="color:var(--accent);font-weight:700">—</span></div>
             </div>
@@ -1873,6 +1876,18 @@ async function exportQuoteXlsx(quoteId) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
     showToast('Ponuda preuzeta kao Excel');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function applyTax() {
+  if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
+  if (!(_currentQuote.line_items || []).length) { showToast('Ponuda nema stavki', 'error'); return; }
+  try {
+    const r = await apiPost('/quotes/' + _currentQuote.id + '/apply-tax', {});
+    _currentQuote = r;
+    renderQuoteBuilder(r);
+    const tax = parseFloat(r.tax_total || 0);
+    showToast(tax > 0 ? `PDV primijenjen: €${tax.toFixed(2)}` : 'PDV 0% (reverse charge / izvoz)');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 

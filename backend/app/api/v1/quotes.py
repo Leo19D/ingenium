@@ -21,9 +21,11 @@ from app.api.deps import get_current_org_id, get_current_user
 from app.db.models.client import Client
 from app.db.models.project import Project
 from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome
+from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services.email.smtp import send_email
+from app.services.tax.engine import TaxContext, TaxEngine
 
 router = APIRouter()
 
@@ -461,6 +463,60 @@ async def export_quote_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=ponuda-V{quote.version}.pdf"},
     )
+
+
+@router.post("/{quote_id}/apply-tax", response_model=QuoteResponse)
+async def apply_tax(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> QuoteResponse:
+    """
+    Izračunaj i primijeni PDV/porez po jurisdikciji (prodavač org → kupac klijent).
+    Koristi TaxEngine: domaći EU → VAT, EU B2B s VAT ID → reverse charge, izvoz → 0%.
+    Postavlja tax_rate na sve stavke i ponovo računa totale.
+    """
+    result = await db.execute(
+        select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )
+    quote = result.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    seller_country = (org.country_code if org else "HR") or "HR"
+    seller_vat = (org.settings or {}).get("vat_id") if org else None
+
+    # Kupac iz projekta → klijenta
+    buyer_country = seller_country
+    buyer_vat = None
+    buyer_is_business = True
+    proj = (await db.execute(select(Project).where(Project.id == quote.project_id))).scalar_one_or_none()
+    if proj and proj.client_id:
+        cl = (await db.execute(select(Client).where(Client.id == proj.client_id))).scalar_one_or_none()
+        if cl:
+            buyer_country = cl.country_code or seller_country
+            buyer_vat = cl.tax_id
+
+    engine = TaxEngine()
+    ctx = TaxContext(
+        seller_country=seller_country, seller_vat_id=seller_vat,
+        buyer_country=buyer_country, buyer_vat_id=buyer_vat,
+        buyer_is_business=buyer_is_business,
+    )
+    # Izračunaj stopu na uzorku (stopa je ista za sve stavke; iznos po stavci)
+    sample = await engine.calculate(Decimal("100"), ctx)
+    rate = sample.rate
+
+    for item in quote.line_items:
+        item.tax_rate = rate
+    _recalculate(quote)
+    await db.commit()
+    await db.refresh(quote, attribute_names=["line_items"])
+
+    resp = QuoteResponse.model_validate(quote)
+    return resp
 
 
 class ApprovalStatus(BaseModel):
