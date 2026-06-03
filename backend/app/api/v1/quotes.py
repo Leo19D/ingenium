@@ -206,6 +206,53 @@ async def create_quote(
     return QuoteResponse.model_validate(quote)
 
 
+@router.post("/{quote_id}/new-version", response_model=QuoteResponse, status_code=status.HTTP_201_CREATED)
+async def new_version(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+    current_user: User = Depends(get_current_user),
+) -> QuoteResponse:
+    """Kreira novu verziju ponude kopiranjem stavki iz postojeće (za pregovaranje)."""
+    src = (await db.execute(
+        select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )).scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+
+    last = (await db.execute(
+        select(Quote.version).where(Quote.project_id == src.project_id, Quote.org_id == org_id)
+        .order_by(Quote.version.desc()).limit(1)
+    )).scalar_one_or_none() or 0
+
+    new_q = Quote(
+        org_id=org_id, project_id=src.project_id, version=last + 1,
+        currency=src.currency, status="draft", discount_total=Decimal("0"),
+        payment_terms=src.payment_terms, valid_until=src.valid_until,
+        notes_internal=src.notes_internal, notes_external=src.notes_external,
+        created_by=current_user.id,
+    )
+    db.add(new_q)
+    await db.flush()
+    for li in src.line_items:
+        db.add(QuoteLineItem(
+            quote_id=new_q.id, position=li.position, description=li.description,
+            quantity=li.quantity, unit=li.unit, unit_price=li.unit_price,
+            unit_cost=li.unit_cost, discount_pct=li.discount_pct,
+            tax_rate=li.tax_rate, notes=li.notes,
+        ))
+    await db.flush()
+    await db.refresh(new_q, attribute_names=["line_items"])
+    _recalculate(new_q)
+    await db.commit()
+    await db.refresh(new_q, attribute_names=["line_items"])
+    await log_action(db, org_id=org_id, user_id=current_user.id, action="quote.new_version",
+                     entity_type="quote", entity_id=new_q.id,
+                     after_state={"from_version": src.version, "new_version": new_q.version})
+    return QuoteResponse.model_validate(new_q)
+
+
 @router.get("/{quote_id}", response_model=QuoteResponse)
 async def get_quote(
     quote_id: UUID,

@@ -589,10 +589,12 @@ textarea.form-input { resize: vertical; }
         <div>
           <div style="font-size:12px;font-family:var(--font-mono);color:var(--text3);margin-bottom:2px" id="builder-meta">Odaberi ponudu za uređivanje</div>
           <div style="font-family:var(--font-display);font-size:18px;font-weight:700" id="builder-title">Quote Builder</div>
+          <div id="builder-versions" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"></div>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)" id="btn-export-excel">↓ Excel</button>
           <button class="btn btn-ghost" onclick="exportQuotePdf(_currentQuote?.id)" id="btn-export-pdf">↓ PDF</button>
+          <button class="btn btn-ghost" id="btn-new-version" onclick="newQuoteVersion()" title="Kopiraj u novu verziju za pregovaranje">⎘ Nova verzija</button>
           <button class="btn btn-ghost" id="btn-approve" onclick="sendForApproval()" style="display:none">Na odobrenje →</button>
           <button class="btn btn-ghost" id="btn-do-approve" onclick="approveQuote()" style="display:none;color:var(--accent)">✓ Odobri</button>
           <button class="btn btn-ghost" id="btn-won" onclick="markOutcome('won')" style="display:none;color:var(--accent)">✓ Dobiveno</button>
@@ -2636,10 +2638,37 @@ async function openQuote(quoteId) {
     _currentQuote = quote;
     renderQuoteBuilder(quote);
     setView('builder');
-
-    // AI: win probability + margin optimizer za ovu ponudu
     loadQuoteIntelligence(quote.id);
+    renderVersions(quote);
   } catch(e) { showToast('Greška pri učitavanju ponude: ' + e.message, 'error'); }
+}
+
+async function renderVersions(quote) {
+  const el = document.getElementById('builder-versions');
+  if (!el) return;
+  try {
+    // Sve verzije za isti projekt
+    const all = await apiGet('/quotes/?project_id=' + quote.project_id);
+    if (all.length <= 1) { el.innerHTML = ''; return; }
+    const sorted = all.sort((a,b) => a.version - b.version);
+    el.innerHTML = '<span style="font-size:11px;color:var(--text3);align-self:center">Verzije:</span>' +
+      sorted.map(q => {
+        const active = q.id === quote.id;
+        return `<button onclick="openQuote('${q.id}')" style="font-size:11px;padding:2px 9px;border-radius:12px;cursor:pointer;border:1px solid var(--border2);
+          background:${active?'var(--accent)':'var(--bg2)'};color:${active?'#fff':'var(--text2)'};font-weight:${active?'600':'400'}">V${q.version}</button>`;
+      }).join('');
+  } catch(e) { el.innerHTML = ''; }
+}
+
+async function newQuoteVersion() {
+  if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
+  if (!confirm('Kreirati novu verziju (kopija stavki za pregovaranje)?')) return;
+  try {
+    const nv = await apiPost('/quotes/' + _currentQuote.id + '/new-version', {});
+    showToast('Kreirana verzija V' + nv.version);
+    await loadQuotes();
+    await openQuote(nv.id);
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
 async function loadQuoteIntelligence(quoteId) {
