@@ -1103,6 +1103,42 @@ textarea.form-input { resize: vertical; }
   </div>
 
   <!-- PRODUCT (KATALOG) MODAL -->
+  <div class="modal-box" id="modal-send-quote" style="display:none;width:560px;max-width:94vw">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">✉ Pošalji ponudu klijentu</div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Email klijenta *</label>
+        <input type="email" class="form-input" id="send-email" placeholder="kontakt@klijent.hr">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+        <div class="form-group" style="flex:1;margin:0">
+          <label class="form-label">Tip poruke</label>
+          <select class="form-input" id="send-draft-type">
+            <option value="cover">Propratna (uz ponudu)</option>
+            <option value="follow_up">Podsjetnik (follow-up)</option>
+            <option value="thank_you">Zahvala (nakon prihvaćanja)</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost" id="btn-gen-draft" onclick="generateDraft()" style="white-space:nowrap">✦ Generiraj AI draft</button>
+      </div>
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="form-label">Poruka</label>
+          <span id="draft-source" style="font-size:11px;color:var(--accent)"></span>
+        </div>
+        <textarea class="form-input" id="send-message" rows="9" placeholder="Poruka uz ponudu — možeš generirati AI draft ili napisati ručno..." style="resize:vertical;font-family:var(--font-body);line-height:1.5"></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px">PDF ponude se automatski prilaže. Poruka je opcionalna.</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" id="btn-confirm-send" onclick="confirmSendQuote()">Pošalji ponudu →</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-box" id="modal-product" style="display:none">
     <div class="modal-header">
       <div style="font-family:var(--font-display);font-size:16px;font-weight:700" id="product-modal-title">Novi artikl u katalogu</div>
@@ -2105,21 +2141,45 @@ async function markOutcome(outcome) {
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
-async function sendQuoteToClient() {
+function sendQuoteToClient() {
   if (!_currentQuote) { showToast('Nema aktivne ponude', 'error'); return; }
   if (!(_currentQuote.line_items || []).length) { showToast('Ponuda nema stavki', 'error'); return; }
-  const email = prompt('Email adresa klijenta:');
-  if (!email) return;
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showToast('Neispravan email', 'error'); return; }
-  const message = prompt('Poruka (opcionalno):') || null;
+  // Reset polja
+  document.getElementById('send-email').value = '';
+  document.getElementById('send-message').value = '';
+  document.getElementById('send-draft-type').value = 'cover';
+  openModal('send-quote');
+}
+
+async function generateDraft() {
+  if (!_currentQuote) return;
+  const type = document.getElementById('send-draft-type').value;
+  const msgEl = document.getElementById('send-message');
+  const btn = document.getElementById('btn-gen-draft');
+  btn.disabled = true; btn.textContent = '✦ Generiram...';
   try {
-    showToast('Šaljem ponudu...');
+    const d = await apiPost('/quotes/' + _currentQuote.id + '/draft-email', { draft_type: type });
+    msgEl.value = d.body || '';
+    const badge = document.getElementById('draft-source');
+    if (badge) badge.textContent = d.generated_by === 'claude' ? '✦ AI generirano' : '✦ predložak';
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '✦ Generiraj AI draft'; }
+}
+
+async function confirmSendQuote() {
+  const email = document.getElementById('send-email').value.trim();
+  const message = document.getElementById('send-message').value.trim() || null;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showToast('Neispravan email', 'error'); return; }
+  const btn = document.getElementById('btn-confirm-send');
+  btn.disabled = true; btn.textContent = 'Šaljem...';
+  try {
     const r = await apiPost('/quotes/' + _currentQuote.id + '/send', { to_email: email, message });
+    closeModal();
     showToast('✓ ' + r.message);
-    // Osvježi ponudu da pokaže status=sent
     await openQuote(_currentQuote.id);
     await loadQuotes();
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Pošalji ponudu →'; }
 }
 
 async function exportQuotePdf(quoteId) {

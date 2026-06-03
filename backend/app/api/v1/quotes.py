@@ -578,6 +578,38 @@ async def approve_quote(
     return QuoteResponse.model_validate(quote)
 
 
+class DraftEmailRequest(BaseModel):
+    draft_type: str = "cover"  # cover | follow_up | thank_you
+
+
+@router.post("/{quote_id}/draft-email")
+async def draft_email(
+    quote_id: UUID,
+    req: DraftEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """AI/template draft poruke uz ponudu. Ne šalje — samo predlaže."""
+    from app.services.email_assistant import generate_email_draft
+    from app.api.v1.organizations import get_org_limits
+
+    quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    org_name = org.name if org else "Ingenium"
+
+    total_str = f"{float(quote.total or 0):,.2f}"
+    draft = await generate_email_draft(
+        draft_type=req.draft_type,
+        client_name=client_name,
+        project_name=project_name or "projekt",
+        total=total_str,
+        currency=quote.currency,
+        version=quote.version,
+        org_name=org_name,
+    )
+    return draft
+
+
 class SendQuoteRequest(BaseModel):
     to_email: str
     message: str | None = None
