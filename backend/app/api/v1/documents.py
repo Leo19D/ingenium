@@ -9,7 +9,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -222,10 +222,11 @@ async def get_extraction(
 
 
 class CreateQuoteFromDocRequest(BaseModel):
-    project_name: str
+    project_name: str = Field(min_length=1)
     client_id: UUID | None = None
     currency: str = "EUR"
-    margin_pct: float = 0.25
+    # Marža 0..0.95 — formula cost/(1-margin) puca na margin>=1 (dijeljenje s nulom)
+    margin_pct: float = Field(default=0.25, ge=0, le=0.95)
     selected_items: list[dict] | None = None
 
 
@@ -294,8 +295,8 @@ async def create_quote_from_document(
         )
         unit_cost = Decimal(str(match.get("unit_cost") or item.get("unit_price") or 0))
 
-        # Prodajna cijena = nabavna + marža
-        margin = Decimal(str(req.margin_pct))
+        # Prodajna cijena = nabavna / (1 - marža). Guard: margin u [0, 0.95]
+        margin = max(Decimal("0"), min(Decimal(str(req.margin_pct)), Decimal("0.95")))
         unit_price = (unit_cost / (1 - margin)).quantize(Decimal("0.01")) if unit_cost > 0 else Decimal("0")
 
         line_total = (qty * unit_price).quantize(Decimal("0.01"))

@@ -6,7 +6,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,10 +48,10 @@ class OrgSettingsUpdate(BaseModel):
     base_currency: str | None = None
     vat_id: str | None = None
     category_margins: dict | None = None
-    default_margin_pct: float | None = None
-    approval_threshold: float | None = None
-    dual_approval_threshold: float | None = None
-    min_margin_pct: float | None = None
+    default_margin_pct: float | None = Field(default=None, ge=0, le=0.95)
+    approval_threshold: float | None = Field(default=None, ge=0)
+    dual_approval_threshold: float | None = Field(default=None, ge=0)
+    min_margin_pct: float | None = Field(default=None, ge=0, le=1)
 
 
 def _merged(org: Organization) -> dict:

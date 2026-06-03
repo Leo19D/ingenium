@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,13 +54,13 @@ def _approval_reason(quote: Quote, limits: dict | None = None) -> str | None:
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
 class LineItemCreate(BaseModel):
-    description: str
-    quantity: Decimal
+    description: str = Field(min_length=1)
+    quantity: Decimal = Field(gt=0, description="Mora biti > 0")
     unit: str = "pcs"
-    unit_price: Decimal
-    unit_cost: Decimal | None = None
-    discount_pct: Decimal = Decimal("0")
-    tax_rate: Decimal | None = None
+    unit_price: Decimal = Field(ge=0, description="Ne može biti negativna")
+    unit_cost: Decimal | None = Field(default=None, ge=0)
+    discount_pct: Decimal = Field(default=Decimal("0"), ge=0, le=1, description="0..1 (npr. 0.1 = 10%)")
+    tax_rate: Decimal | None = Field(default=None, ge=0, le=1)
     notes: str | None = None
 
 
