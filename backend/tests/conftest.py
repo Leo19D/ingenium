@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from app.core.security import login_rate_limiter
 from sqlalchemy import JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.security import login_rate_limiter
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import create_app

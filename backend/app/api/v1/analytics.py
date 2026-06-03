@@ -397,7 +397,7 @@ async def client_profile(
     score += min(total_won_value / 1000, 100) * 0.3  # €100k+ → max
     if avg_margin:
         score += min(avg_margin / 30 * 100, 100) * 0.3
-    score_int = int(round(score))
+    score_int = round(score)
     rating = "A" if score_int >= 70 else "B" if score_int >= 45 else "C" if score_int >= 25 else "D"
 
     notes: list[str] = []

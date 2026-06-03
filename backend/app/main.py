@@ -531,7 +531,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from app.db.session import _patch_metadata_for_sqlite
         _patch_metadata_for_sqlite()
         logger.info("sqlite_pg_types_patched")
+
+    # Background scheduler — automatske notifikacije (podsjetnici za isteke ponuda)
+    import asyncio
+
+    from app.services.scheduler import scheduler_loop, should_run_scheduler
+    scheduler_task: asyncio.Task | None = None
+    if should_run_scheduler():
+        scheduler_task = asyncio.create_task(scheduler_loop())
+        logger.info("scheduler_enabled")
+
     yield
+
+    if scheduler_task:
+        import contextlib
+        scheduler_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await scheduler_task
     logger.info("shutting_down_application")
 
 

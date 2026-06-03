@@ -114,6 +114,9 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # function call in default arg — FastAPI Depends() idiom (codebase-wide)
     "E712",  # == True/False — ispravan SQLAlchemy ORM filter (is True ne radi u SQL-u)
+    "RUF001",  # ambiguous unicode u stringu — hrvatski tekst i simboli (·, →) su namjerni
+    "RUF002",  # isto, u docstringu
+    "RUF003",  # isto, u komentaru
 ]
 
 # -----------------------------------------------------------------------------

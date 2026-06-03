@@ -1546,6 +1546,24 @@ async function parseDocument(docId) {
 
 var _extractionData = {};
 
+function _reviewRow(item, i) {
+  const match = item.accepted_match || (item.match_candidates && item.match_candidates[0]);
+  const cost = match ? (match.unit_cost || 0) : 0;
+  const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span>` : '<span style="color:var(--text3)">—</span>';
+  const confColor = item.confidence >= 0.9 ? 'var(--green)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
+  const inp = 'background:var(--bg2);border:1px solid var(--border2);border-radius:5px;padding:4px 7px;font-size:12px;color:var(--text)';
+  return `<tr class="review-row" data-cost="${cost}" data-match='${match?JSON.stringify(match):""}' style="border-bottom:1px solid var(--border)">
+    <td style="padding:6px 10px;color:var(--text3)">${i+1}</td>
+    <td style="padding:6px 8px"><input class="rv-desc" value="${escapeHtml(item.description||'')}" style="${inp};width:200px"></td>
+    <td style="padding:6px 8px"><input class="rv-qty" type="number" step="0.01" value="${item.quantity??''}" style="${inp};width:64px;text-align:right"></td>
+    <td style="padding:6px 8px"><input class="rv-unit" value="${escapeHtml(item.unit||'pcs')}" style="${inp};width:50px"></td>
+    <td style="padding:6px 10px">${bestMatch}</td>
+    <td style="padding:6px 10px;text-align:right;color:var(--accent)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
+    <td style="padding:6px 10px;text-align:center;color:${confColor};font-weight:600">${(item.confidence*100).toFixed(0)}%</td>
+    <td style="padding:6px 8px"><button class="icon-btn" title="Ukloni" onclick="this.closest('tr').remove()">🗑</button></td>
+  </tr>`;
+}
+
 async function showExtractionPanel(docId, filename) {
   const panel = document.getElementById('extraction-panel-' + docId);
   if (!panel) return;
@@ -1592,37 +1610,23 @@ async function showExtractionPanel(docId, filename) {
           </div>
         </div>
 
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">✎ Ispravi stavke prije kreiranja ponude. Crveni confidence = provjeri ručno.</div>
         <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="review-table-${docId}">
             <thead>
               <tr style="background:var(--bg3);color:var(--text2)">
                 <th style="padding:8px 10px;text-align:left;font-weight:600">#</th>
-                <th style="padding:8px 10px;text-align:left;font-weight:600">Opis (iz dokumenta)</th>
+                <th style="padding:8px 10px;text-align:left;font-weight:600">Opis</th>
                 <th style="padding:8px 10px;text-align:right;font-weight:600">Kol.</th>
                 <th style="padding:8px 10px;text-align:left;font-weight:600">Jed.</th>
-                <th style="padding:8px 10px;text-align:right;font-weight:600">Cijena doc.</th>
                 <th style="padding:8px 10px;text-align:left;font-weight:600">Match u katalogu</th>
                 <th style="padding:8px 10px;text-align:right;font-weight:600">Naša cijena</th>
-                <th style="padding:8px 10px;text-align:center;font-weight:600">Confi.</th>
+                <th style="padding:8px 10px;text-align:center;font-weight:600">Conf.</th>
+                <th></th>
               </tr>
             </thead>
-            <tbody>
-              ${items.map((item, i) => {
-                const match = item.accepted_match || item.match_candidates?.[0];
-                const cost = match?.unit_cost || 0;
-                const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span> ${escapeHtml(match.name)}` : '<span style="color:var(--text3)">— nema matcha</span>';
-                const confColor = item.confidence >= 0.9 ? 'var(--accent)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
-                return `<tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--bg3)':''}">
-                  <td style="padding:7px 10px;color:var(--text3);font-family:var(--font-mono)">${item.position}</td>
-                  <td style="padding:7px 10px;max-width:240px">${escapeHtml(item.description)}</td>
-                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono)">${item.quantity ?? '—'}</td>
-                  <td style="padding:7px 10px;color:var(--text2)">${item.unit}</td>
-                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);color:var(--text2)">${item.unit_price ? '€'+item.unit_price.toFixed(2) : '—'}</td>
-                  <td style="padding:7px 10px">${bestMatch}</td>
-                  <td style="padding:7px 10px;text-align:right;font-family:var(--font-mono);color:var(--accent)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
-                  <td style="padding:7px 10px;text-align:center;color:${confColor};font-family:var(--font-mono)">${(item.confidence*100).toFixed(0)}%</td>
-                </tr>`;
-              }).join('')}
+            <tbody id="review-tbody-${docId}">
+              ${items.map((item, i) => _reviewRow(item, i)).join('')}
             </tbody>
           </table>
         </div>
@@ -1641,11 +1645,27 @@ async function createQuoteFromDoc(docId) {
 
   if (!projName) { showToast('Unesite naziv projekta', 'error'); return; }
 
+  // Skupi ISPRAVLJENE stavke iz review tablice
+  const rows = document.querySelectorAll('#review-tbody-' + docId + ' .review-row');
+  const selected = [];
+  rows.forEach(tr => {
+    const desc = tr.querySelector('.rv-desc')?.value?.trim();
+    const qty = parseFloat(tr.querySelector('.rv-qty')?.value);
+    const unit = tr.querySelector('.rv-unit')?.value?.trim() || 'pcs';
+    if (!desc || isNaN(qty) || qty <= 0) return;
+    let match = null;
+    try { match = tr.dataset.match ? JSON.parse(tr.dataset.match) : null; } catch(e) {}
+    selected.push({ description: desc, quantity: qty, unit, accepted_match: match,
+                    unit_price: match?.unit_cost || null });
+  });
+  if (!selected.length) { showToast('Nema valjanih stavki', 'error'); return; }
+
   try {
     const result = await apiPost('/documents/' + docId + '/create-quote', {
       project_name: projName,
       currency: 'EUR',
       margin_pct: margin,
+      selected_items: selected,
     });
     showToast(`✓ ${result.message} · Ukupno: €${result.total.toFixed(2)}`);
     await loadDocuments();

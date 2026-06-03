@@ -12,6 +12,7 @@ overrides the heuristic result if confidence is higher.
 
 from __future__ import annotations
 
+import contextlib
 import io
 import re
 
@@ -52,10 +53,8 @@ def _col_numbers(rows: list[list[str]], col_idx: int) -> list[float]:
             continue
         val = str(row[col_idx]).strip().replace(",", ".").replace(" ", "")
         val = re.sub(r"[^\d.\-]", "", val)
-        try:
+        with contextlib.suppress(ValueError, IndexError):
             nums.append(float(val))
-        except (ValueError, IndexError):
-            pass
     return nums
 
 

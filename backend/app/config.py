@@ -119,6 +119,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "no-reply@example.com"
 
+    # In-process scheduler (automatske notifikacije bez Celery brokera)
+    ENABLE_SCHEDULER: bool = True
+
     # ---------------------------------------------------------------------
     # FX
     # ---------------------------------------------------------------------

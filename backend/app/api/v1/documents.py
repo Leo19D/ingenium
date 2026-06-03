@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import uuid as uuid_module
 from pathlib import Path
@@ -125,10 +126,8 @@ async def upload_document(
 
     proj_id: UUID | None = None
     if project_id:
-        try:
+        with contextlib.suppress(ValueError):
             proj_id = UUID(project_id)
-        except ValueError:
-            pass
 
     doc = Document(
         org_id=org_id,
