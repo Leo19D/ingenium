@@ -315,3 +315,125 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Artikal nije pronađen.")
     await db.delete(product)
     await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Supplier price lists — više dobavljača po artiklu, usporedba
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SupplierLinkRequest(BaseModel):
+    supplier_id: UUID
+    unit_price: float
+    currency: str = "EUR"
+    supplier_sku: str | None = None
+    moq: int = 1
+    lead_time_days: int | None = None
+
+
+@router.post("/{product_id}/suppliers", status_code=status.HTTP_201_CREATED)
+async def add_supplier_to_product(
+    product_id: UUID,
+    req: SupplierLinkRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Poveži dobavljača s artiklom + cijena (ide u price history)."""
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from app.db.models.product import SupplierProduct, SupplierPriceHistory
+    from app.db.models.supplier import Supplier
+
+    prod = (await db.execute(select(Product).where(Product.id == product_id, Product.org_id == org_id))).scalar_one_or_none()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Artikal nije pronađen.")
+    sup = (await db.execute(select(Supplier).where(Supplier.id == req.supplier_id, Supplier.org_id == org_id))).scalar_one_or_none()
+    if not sup:
+        raise HTTPException(status_code=404, detail="Dobavljač nije pronađen.")
+
+    # Postojeći link ili novi
+    sp = (await db.execute(
+        select(SupplierProduct).where(
+            SupplierProduct.product_id == product_id, SupplierProduct.supplier_id == req.supplier_id
+        )
+    )).scalar_one_or_none()
+    if not sp:
+        sp = SupplierProduct(
+            product_id=product_id, supplier_id=req.supplier_id,
+            supplier_sku=req.supplier_sku, supplier_name=sup.name,
+            moq=req.moq, lead_time_days=req.lead_time_days, is_active=True,
+        )
+        db.add(sp)
+        await db.flush()
+    else:
+        sp.moq = req.moq
+        sp.lead_time_days = req.lead_time_days
+        if req.supplier_sku:
+            sp.supplier_sku = req.supplier_sku
+        sp.is_active = True
+
+    # Nova cijena u price history (append-only)
+    db.add(SupplierPriceHistory(
+        supplier_product_id=sp.id,
+        unit_price=Decimal(str(req.unit_price)),
+        currency=req.currency.upper(),
+        valid_from=datetime.now(UTC),
+        source="manual",
+    ))
+    await db.commit()
+    return {"message": f"{sup.name} povezan s artiklom ({req.unit_price} {req.currency.upper()}).", "supplier_product_id": str(sp.id)}
+
+
+@router.get("/{product_id}/suppliers")
+async def compare_suppliers(
+    product_id: UUID,
+    quote_currency: str = "EUR",
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> list[dict]:
+    """
+    Usporedba dobavljača za artikl: zadnja cijena, lead time, MOQ.
+    Cijene se konvertiraju u quote_currency za fer usporedbu; jeftiniji prvi.
+    """
+    from app.db.models.product import SupplierProduct, SupplierPriceHistory
+    from app.db.models.supplier import Supplier
+    from app.services.fx.rates import convert
+    from decimal import Decimal
+
+    prod = (await db.execute(select(Product).where(Product.id == product_id, Product.org_id == org_id))).scalar_one_or_none()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Artikal nije pronađen.")
+
+    sps = (await db.execute(
+        select(SupplierProduct).where(SupplierProduct.product_id == product_id, SupplierProduct.is_active == True)
+    )).scalars().all()
+
+    out = []
+    for sp in sps:
+        sup = (await db.execute(select(Supplier).where(Supplier.id == sp.supplier_id))).scalar_one_or_none()
+        # zadnja cijena
+        last = (await db.execute(
+            select(SupplierPriceHistory).where(SupplierPriceHistory.supplier_product_id == sp.id)
+            .order_by(SupplierPriceHistory.valid_from.desc()).limit(1)
+        )).scalar_one_or_none()
+        if not last:
+            continue
+        conv = await convert(last.unit_price, last.currency, quote_currency)
+        out.append({
+            "supplier_id": str(sp.supplier_id),
+            "supplier_name": sup.name if sup else (sp.supplier_name or "—"),
+            "supplier_sku": sp.supplier_sku,
+            "unit_price": float(last.unit_price),
+            "currency": last.currency,
+            "price_in_quote_ccy": float(conv["amount"]),
+            "quote_currency": quote_currency.upper(),
+            "fx_rate": float(conv["rate"]),
+            "moq": sp.moq,
+            "lead_time_days": sp.lead_time_days,
+        })
+
+    # Jeftiniji (u quote valuti) prvi
+    out.sort(key=lambda x: x["price_in_quote_ccy"])
+    if out:
+        out[0]["is_best"] = True
+    return out

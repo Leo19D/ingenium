@@ -17,6 +17,7 @@ from sqlalchemy import (
     CHAR,
     Boolean,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -24,6 +25,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+# BIGINT autoincrement radi na Postgresu (BIGSERIAL); SQLite traži INTEGER PK.
+_AUTO_PK = BIGINT().with_variant(Integer, "sqlite")
 
 from app.config import settings
 from app.db.base import Base, TimestampedBase, UUIDPrimaryKey
@@ -95,7 +99,7 @@ class SupplierPriceHistory(Base):
 
     __tablename__ = "supplier_price_history"
 
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(_AUTO_PK, primary_key=True, autoincrement=True)
     supplier_product_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("supplier_products.id", ondelete="CASCADE"),

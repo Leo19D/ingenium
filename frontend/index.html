@@ -1160,6 +1160,32 @@ textarea.form-input { resize: vertical; }
     </div>
   </div>
 
+  <div class="modal-box" id="modal-suppliers-compare" style="display:none;width:600px;max-width:94vw">
+    <div class="modal-header">
+      <div style="font-family:var(--font-display);font-size:16px;font-weight:700">⚖ Dobavljači — <span id="sup-product-name"></span></div>
+      <button class="icon-btn" onclick="closeModal()" style="font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Cijene se konvertiraju u EUR (ECB tečaj) za usporedbu. Najjeftiniji označen ⭐.</div>
+      <div id="sup-compare-list" style="margin-bottom:16px"><div style="color:var(--text3)">Učitavam...</div></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:10px">Dodaj / ažuriraj dobavljača</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="flex:2;min-width:160px;margin:0"><label class="form-label">Dobavljač</label>
+            <select class="form-input" id="sup-link-supplier"></select></div>
+          <div class="form-group" style="flex:1;min-width:90px;margin:0"><label class="form-label">Cijena</label>
+            <input type="number" class="form-input" id="sup-link-price" step="0.01" placeholder="0.00"></div>
+          <div class="form-group" style="flex:0 0 70px;margin:0"><label class="form-label">MOQ</label>
+            <input type="number" class="form-input" id="sup-link-moq" value="1"></div>
+          <div class="form-group" style="flex:0 0 70px;margin:0"><label class="form-label">Rok (d)</label>
+            <input type="number" class="form-input" id="sup-link-lead" placeholder="7"></div>
+          <button class="btn btn-primary" style="font-size:12px" onclick="linkSupplier()">+ Poveži</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Valuta se uzima iz dobavljača. Cijena ide u povijest cijena (append-only).</div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-box" id="modal-product" style="display:none">
     <div class="modal-header">
       <div style="font-family:var(--font-display);font-size:16px;font-weight:700" id="product-modal-title">Novi artikl u katalogu</div>
@@ -1397,6 +1423,7 @@ async function loadSuppliers() {
   try {
     const _r = await apiGet('/suppliers/?page_size=200');
     const sups = _r.items || _r;
+    window._suppliersCache = sups;  // za supplier-product dropdown
     const tbody = document.getElementById('suppliers-tbody'); tbody.innerHTML = '';
     sups.forEach(s => renderSupplierRow({ name: s.name, cc: s.country_code, currency: s.currency, incoterms: s.incoterms_default, lead: s.lead_time_days_avg }));
   } catch (e) { console.error('loadSuppliers', e); }
@@ -1931,10 +1958,67 @@ function renderCatalog(products) {
         <span class="spec-tag">${escapeHtml(p.unit)}</span>
       </div>
       <div style="display:flex;gap:6px;margin-top:12px">
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;flex:1" onclick='editProduct(${JSON.stringify(p)})'>✎ Uredi</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;flex:1" onclick='editProduct(${JSON.stringify(p)})'>✎ Uredi</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 8px;flex:1" onclick="openSuppliers('${p.id}','${escapeHtml(p.name)}')">⚖ Dobavljači</button>
         <button class="icon-btn" title="Obriši" onclick="deleteProduct('${p.id}')">🗑</button>
       </div>
     </div>`).join('');
+}
+
+// ========== SUPPLIER USPOREDBA (multi-currency) ==========
+var _suppliersProductId = null;
+
+async function openSuppliers(productId, name) {
+  _suppliersProductId = productId;
+  document.getElementById('sup-product-name').textContent = name;
+  // Napuni dropdown dobavljača
+  const sel = document.getElementById('sup-link-supplier');
+  sel.innerHTML = '<option value="">— odaberi dobavljača —</option>' +
+    (window._suppliersCache || []).map(s => `<option value="${s.id}" data-ccy="${s.currency||'EUR'}">${escapeHtml(s.name)} (${s.currency||'EUR'})</option>`).join('');
+  document.getElementById('sup-link-price').value = '';
+  document.getElementById('sup-link-moq').value = '1';
+  document.getElementById('sup-link-lead').value = '';
+  openModal('suppliers-compare');
+  await renderSupplierComparison();
+}
+
+async function renderSupplierComparison() {
+  const el = document.getElementById('sup-compare-list');
+  el.innerHTML = '<div style="color:var(--text3)">Učitavam...</div>';
+  try {
+    const rows = await apiGet('/products/' + _suppliersProductId + '/suppliers?quote_currency=EUR');
+    if (!rows.length) { el.innerHTML = '<div style="color:var(--text3)">Nema povezanih dobavljača — dodaj prvog.</div>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--text3);text-align:left">
+        <th style="padding:6px">Dobavljač</th><th style="padding:6px;text-align:right">Cijena</th>
+        <th style="padding:6px;text-align:right">€ usporedivo</th><th style="padding:6px;text-align:right">Rok</th><th style="padding:6px;text-align:right">MOQ</th>
+      </tr></thead><tbody>` +
+      rows.map(s => `<tr style="border-top:1px solid var(--border);${s.is_best?'background:var(--green-dim)':''}">
+        <td style="padding:6px">${s.is_best?'⭐ ':''}${escapeHtml(s.supplier_name)}</td>
+        <td style="padding:6px;text-align:right;font-family:var(--font-mono)">${s.unit_price.toFixed(2)} ${s.currency}</td>
+        <td style="padding:6px;text-align:right;font-family:var(--font-mono);color:${s.is_best?'var(--green)':'var(--text)'}">€${s.price_in_quote_ccy.toFixed(2)}</td>
+        <td style="padding:6px;text-align:right">${s.lead_time_days||'—'}d</td>
+        <td style="padding:6px;text-align:right">${s.moq}</td>
+      </tr>`).join('') + '</tbody></table>';
+  } catch(e) { el.innerHTML = '<div style="color:var(--red)">Greška: '+e.message+'</div>'; }
+}
+
+async function linkSupplier() {
+  const supplierId = document.getElementById('sup-link-supplier').value;
+  const price = parseFloat(document.getElementById('sup-link-price').value);
+  const sel = document.getElementById('sup-link-supplier');
+  const ccy = sel.options[sel.selectedIndex]?.getAttribute('data-ccy') || 'EUR';
+  const moq = parseInt(document.getElementById('sup-link-moq').value) || 1;
+  const lead = parseInt(document.getElementById('sup-link-lead').value) || null;
+  if (!supplierId || isNaN(price)) { showToast('Odaberi dobavljača i cijenu', 'error'); return; }
+  try {
+    await apiPost('/products/' + _suppliersProductId + '/suppliers', {
+      supplier_id: supplierId, unit_price: price, currency: ccy, moq, lead_time_days: lead
+    });
+    showToast('Dobavljač povezan');
+    document.getElementById('sup-link-price').value = '';
+    await renderSupplierComparison();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
 function openProductModal() {
