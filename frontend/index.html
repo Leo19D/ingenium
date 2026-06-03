@@ -437,50 +437,9 @@ textarea.form-input { resize: vertical; }
 
     <!-- PIPELINE -->
     <div class="view" id="view-pipeline">
-      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-        <div class="kpi-card"><div class="kpi-label">Nacrt</div><div class="kpi-value" style="font-size:22px">3</div><div class="kpi-delta" style="color:var(--text3)">€28k</div></div>
-        <div class="kpi-card"><div class="kpi-label">Quoting</div><div class="kpi-value" style="font-size:22px">5</div><div class="kpi-delta" style="color:var(--text3)">€312k</div></div>
-        <div class="kpi-card"><div class="kpi-label">Poslano</div><div class="kpi-value" style="font-size:22px">4</div><div class="kpi-delta" style="color:var(--text3)">€420k</div></div>
-        <div class="kpi-card"><div class="kpi-label">Dobiveno</div><div class="kpi-value" style="font-size:22px;color:var(--accent)">6</div><div class="kpi-delta delta-up">€284k</div></div>
-        <div class="kpi-card"><div class="kpi-label">Izgubljeno</div><div class="kpi-value" style="font-size:22px;color:var(--red)">3</div><div class="kpi-delta" style="color:var(--text3)">€95k</div></div>
-      </div>
-      <div class="pipeline-stages">
-        <div class="stage-col">
-          <div class="stage-head"><span class="stage-name">Nacrt</span><span class="stage-count">3</span></div>
-          <div class="stage-items">
-            <div class="deal-card"><div class="deal-name">Pula Airport</div><div class="deal-client">Rasvjeta terminala</div><div class="deal-meta"><span class="deal-value">€14k</span><span class="deal-days">za 18d</span></div></div>
-            <div class="deal-card"><div class="deal-name">Grad Zagreb</div><div class="deal-client">Uredska rasvjeta</div><div class="deal-meta"><span class="deal-value">€31k</span><span class="deal-days">za 18d</span></div></div>
-            <div class="deal-card"><div class="deal-name">Arena Centar</div><div class="deal-client">Parkirna rasvjeta</div><div class="deal-meta"><span class="deal-value">€8k</span><span class="deal-days">za 22d</span></div></div>
-          </div>
-        </div>
-        <div class="stage-col">
-          <div class="stage-head"><span class="stage-name">Quoting</span><span class="stage-count">5</span></div>
-          <div class="stage-items">
-            <div class="deal-card deal-urgent" onclick="setView('builder')"><div class="deal-name">Hotel Amabilis</div><div class="deal-client">Hotelske sobe</div><div class="deal-meta"><span class="deal-value">€84k</span><span class="deal-days">za 4d ⚠</span></div></div>
-            <div class="deal-card"><div class="deal-name">Valamar</div><div class="deal-client">Resort rasvjeta</div><div class="deal-meta"><span class="deal-value">€212k</span><span class="deal-days">za 9d</span></div></div>
-            <div class="deal-card"><div class="deal-name">DM drogerie</div><div class="deal-client">5 novih dućana</div><div class="deal-meta"><span class="deal-value">€44k</span><span class="deal-days">za 14d</span></div></div>
-          </div>
-        </div>
-        <div class="stage-col">
-          <div class="stage-head"><span class="stage-name">Poslano</span><span class="stage-count">4</span></div>
-          <div class="stage-items">
-            <div class="deal-card deal-urgent"><div class="deal-name">Lidl Hrvatska</div><div class="deal-client">Skladišna 3× lok.</div><div class="deal-meta"><span class="deal-value">€219k</span><span class="deal-days">za 2d ⚠</span></div></div>
-            <div class="deal-card"><div class="deal-name">Konzum d.d.</div><div class="deal-client">LED retrofit 12×</div><div class="deal-meta"><span class="deal-value">€156k</span><span class="deal-days">za 12d</span></div></div>
-          </div>
-        </div>
-        <div class="stage-col">
-          <div class="stage-head"><span class="stage-name">Dobiveno ✓</span><span class="stage-count" style="color:var(--accent)">6</span></div>
-          <div class="stage-items">
-            <div class="deal-card" style="border-color:rgba(168,244,184,0.2);background:rgba(168,244,184,0.03)"><div class="deal-name">HEP d.d.</div><div class="deal-client">Javna rasvjeta</div><div class="deal-meta"><span class="deal-value" style="color:var(--accent)">€43k</span><span class="deal-days" style="color:var(--accent)">zaključeno</span></div></div>
-            <div class="deal-card" style="border-color:rgba(168,244,184,0.2);background:rgba(168,244,184,0.03)"><div class="deal-name">Jadran Hotels</div><div class="deal-client">3 hotela LED</div><div class="deal-meta"><span class="deal-value" style="color:var(--accent)">€128k</span><span class="deal-days" style="color:var(--accent)">zaključeno</span></div></div>
-          </div>
-        </div>
-        <div class="stage-col">
-          <div class="stage-head"><span class="stage-name">Izgubljeno</span><span class="stage-count">3</span></div>
-          <div class="stage-items">
-            <div class="deal-card" style="opacity:0.6"><div class="deal-name">Mercator</div><div class="deal-client">Cijena</div><div class="deal-meta"><span class="deal-value" style="color:var(--text3)">€52k</span></div></div>
-          </div>
-        </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px" id="pipeline-kpis"></div>
+      <div class="pipeline-stages" id="pipeline-board">
+        <div style="color:var(--text3);font-size:13px;padding:20px">Učitavam pipeline...</div>
       </div>
     </div>
 
@@ -674,7 +633,7 @@ textarea.form-input { resize: vertical; }
               <input type="number" class="form-input" id="li-price" placeholder="Prodajna (€) *" step="0.01" min="0" style="font-size:13px">
               <input type="number" class="form-input" id="li-margin-pct" placeholder="ili marža %" step="1" min="0" max="99"
                      oninput="calcPriceFromMargin()" style="font-size:13px">
-              <button class="btn btn-primary" style="font-size:12px;white-space:nowrap" onclick="addQuoteLineItem()">+ Dodaj</button>
+              <button class="btn btn-primary" id="btn-add-item" style="font-size:12px;white-space:nowrap" onclick="addQuoteLineItem()">+ Dodaj</button>
             </div>
           </div>
 
@@ -2180,7 +2139,10 @@ function renderQuoteBuilder(quote) {
       <div class="li-cost">${cost}</div>
       <div class="li-price">${price}</div>
       <div class="li-margin ${marginCls}">${margin}</div>
-      <button class="icon-btn" title="Obriši" onclick="deleteLineItem('${li.id}')">🗑</button>
+      <span style="display:flex;gap:2px">
+        <button class="icon-btn" title="Uredi" onclick='editLineItem(${JSON.stringify(li)})'>✎</button>
+        <button class="icon-btn" title="Obriši" onclick="deleteLineItem('${li.id}')">🗑</button>
+      </span>
     </div>`;
   }).join('') : '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Nema stavki — dodaj prvu stavku gore.</div>';
 
@@ -2200,12 +2162,39 @@ function renderQuoteBuilder(quote) {
   if ((quote.line_items || []).length && quote.id) loadQuoteIntelligence(quote.id);
 }
 
+var _editingItemId = null;
+
 function toggleAddItemForm() {
   const form = document.getElementById('add-item-form');
   if (!form) return;
   const showing = form.style.display !== 'none';
   form.style.display = showing ? 'none' : 'block';
-  if (!showing) document.getElementById('li-desc')?.focus();
+  if (showing) _resetItemForm();
+  else document.getElementById('li-desc')?.focus();
+}
+
+function _resetItemForm() {
+  _editingItemId = null;
+  ['li-desc','li-qty','li-price','li-cost','li-notes','li-margin-pct'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const btn = document.getElementById('btn-add-item');
+  if (btn) btn.textContent = '+ Dodaj';
+}
+
+function editLineItem(li) {
+  _editingItemId = li.id;
+  const form = document.getElementById('add-item-form');
+  if (form) form.style.display = 'block';
+  document.getElementById('li-desc').value = li.description || '';
+  document.getElementById('li-qty').value = parseFloat(li.quantity) || '';
+  document.getElementById('li-unit').value = li.unit || 'pcs';
+  document.getElementById('li-cost').value = li.unit_cost ? parseFloat(li.unit_cost) : '';
+  document.getElementById('li-price').value = parseFloat(li.unit_price) || '';
+  document.getElementById('li-notes').value = li.notes || '';
+  const btn = document.getElementById('btn-add-item');
+  if (btn) btn.textContent = '✓ Spremi izmjene';
+  document.getElementById('li-desc')?.focus();
 }
 
 function calcPriceFromMargin() {
@@ -2231,14 +2220,18 @@ async function addQuoteLineItem() {
     const body = { description: desc, quantity: qty, unit_price: price, unit };
     if (!isNaN(cost) && cost > 0) body.unit_cost = cost;
     if (notes) body.notes = notes;
-    const updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', body);
+    let updated;
+    if (_editingItemId) {
+      updated = await apiPatch('/quotes/' + _currentQuote.id + '/line-items/' + _editingItemId, body);
+      showToast('Stavka ažurirana');
+    } else {
+      updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', body);
+      showToast('Stavka dodana');
+    }
     _currentQuote = updated;
     renderQuoteBuilder(updated);
-    ['li-desc','li-qty','li-price','li-cost','li-notes','li-margin-pct'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
+    _resetItemForm();
     document.getElementById('li-desc')?.focus();
-    showToast('Stavka dodana');
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
@@ -2510,11 +2503,64 @@ async function loadQuotes() {
   try {
     _allQuotes = await apiGet('/quotes/');
     renderQuotesList(_allQuotes);
-    // Also update dashboard preview
     renderDashboardQuotes(_allQuotes.slice(0, 5));
+    renderPipeline(_allQuotes);
     const countEl = document.getElementById('quotes-count');
     if (countEl) countEl.textContent = _allQuotes.length + ' ponuda';
   } catch(e) { console.error('loadQuotes', e); }
+}
+
+// ========== PIPELINE KANBAN ==========
+const _PIPELINE_STAGES = [
+  { key: 'draft',    label: 'Nacrt',     statuses: ['draft'] },
+  { key: 'review',   label: 'Na odobrenju', statuses: ['review','approved'] },
+  { key: 'sent',     label: 'Poslano',   statuses: ['sent'] },
+  { key: 'won',      label: 'Dobiveno',  statuses: ['accepted'] },
+  { key: 'lost',     label: 'Izgubljeno', statuses: ['rejected','expired'] },
+];
+
+function renderPipeline(quotes) {
+  const board = document.getElementById('pipeline-board');
+  const kpis = document.getElementById('pipeline-kpis');
+  if (!board) return;
+  const byStage = {};
+  _PIPELINE_STAGES.forEach(s => byStage[s.key] = []);
+  quotes.forEach(q => {
+    const stage = _PIPELINE_STAGES.find(s => s.statuses.includes(q.status));
+    if (stage) byStage[stage.key].push(q);
+  });
+
+  // KPI vrh
+  if (kpis) {
+    kpis.innerHTML = _PIPELINE_STAGES.map(s => {
+      const list = byStage[s.key];
+      const sum = list.reduce((a,q) => a + parseFloat(q.total||0), 0);
+      const color = s.key==='won' ? 'var(--green)' : s.key==='lost' ? 'var(--red)' : 'var(--text)';
+      return `<div class="kpi-card"><div class="kpi-label">${s.label}</div>
+        <div class="kpi-value" style="font-size:22px;color:${color}">${list.length}</div>
+        <div class="kpi-delta" style="color:var(--text3)">€${(sum/1000).toFixed(1)}k</div></div>`;
+    }).join('');
+  }
+
+  // Kanban kolone
+  board.innerHTML = _PIPELINE_STAGES.map(s => {
+    const list = byStage[s.key];
+    const cards = list.length ? list.map(q => {
+      const total = q.total ? '€'+(parseFloat(q.total)/1000).toFixed(1)+'k' : '—';
+      const marginCls = q.margin_pct ? _marginClass(q.margin_pct) : '';
+      const accent = s.key==='won' ? 'border-left:2px solid var(--green)' : s.key==='lost' ? 'opacity:0.65' : '';
+      return `<div class="deal-card" style="${accent}" onclick="openQuote('${q.id}')">
+        <div class="deal-name">Ponuda V${q.version}</div>
+        <div class="deal-client">${(q.line_items||[]).length} stavki</div>
+        <div class="deal-meta"><span class="deal-value">${total}</span>
+          <span class="${marginCls}" style="font-size:11px">${q.margin_pct?(parseFloat(q.margin_pct)*100).toFixed(0)+'%':''}</span></div>
+      </div>`;
+    }).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px;text-align:center">—</div>';
+    return `<div class="stage-col">
+      <div class="stage-head"><span class="stage-name">${s.label}</span><span class="stage-count">${list.length}</span></div>
+      <div class="stage-items">${cards}</div>
+    </div>`;
+  }).join('');
 }
 
 function _statusBadge(status) {
