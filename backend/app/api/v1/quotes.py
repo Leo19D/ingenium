@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_org_id, get_current_user
+from app.api.deps import get_current_org_id, get_current_user, require_role
 from app.db.models.client import Client
 from app.db.models.project import Project
 from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome
@@ -558,8 +558,9 @@ async def approve_quote(
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
     current_user: User = Depends(get_current_user),
+    _role: str = Depends(require_role("approver")),
 ) -> QuoteResponse:
-    """Odobri ponudu (status → approved). Bilježi tko je odobrio."""
+    """Odobri ponudu (status → approved). Samo approver/admin/owner."""
     res = await db.execute(
         select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
         .options(selectinload(Quote.line_items))

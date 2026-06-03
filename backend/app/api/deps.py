@@ -68,3 +68,50 @@ async def get_current_org_id(
     if not org_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ne sadrži org.")
     return UUID(org_str)
+
+
+# ── Role-based access ────────────────────────────────────────────────────────
+
+# Hijerarhija — viša rola obuhvaća prava nižih
+ROLE_RANK = {"viewer": 0, "sales": 1, "procurement": 1, "approver": 2, "admin": 3, "owner": 4}
+
+
+async def get_current_role(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> str:
+    """Vrati rolu trenutnog korisnika u njegovoj org. Default 'viewer'."""
+    from sqlalchemy import select
+
+    from app.db.models.user import Membership
+
+    try:
+        payload = decode_token(token)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Sesija istekla.")
+    user_id = payload.get("sub")
+    org_id = payload.get("org")
+    if not user_id or not org_id:
+        return "viewer"
+    m = await db.scalar(
+        select(Membership).where(
+            Membership.user_id == UUID(user_id),
+            Membership.org_id == UUID(org_id),
+        )
+    )
+    return m.role if m else "viewer"
+
+
+def require_role(min_role: str):
+    """Dependency factory — traži barem `min_role` (po ROLE_RANK hijerarhiji)."""
+    min_rank = ROLE_RANK.get(min_role, 0)
+
+    async def _check(role: str = Depends(get_current_role)) -> str:
+        if ROLE_RANK.get(role, 0) < min_rank:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Nedovoljna prava — potrebna rola '{min_role}' ili viša (vaša: '{role}').",
+            )
+        return role
+
+    return _check

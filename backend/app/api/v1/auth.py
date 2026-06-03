@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, oauth2_scheme
+from app.api.deps import get_current_role, get_current_user, oauth2_scheme
 from app.config import settings
 from app.core.security import (
     OTP_EXPIRE_SECONDS,
@@ -92,6 +92,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     is_verified: bool
+    role: str = "viewer"
 
 
 # --------------------------------------------------------------------------- #
@@ -396,9 +397,16 @@ async def logout(token: str = Depends(oauth2_scheme)) -> None:
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)) -> User:
-    """Vrati podatke trenutno prijavljenog korisnika."""
-    return current_user
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    role: str = Depends(get_current_role),
+) -> UserResponse:
+    """Vrati podatke trenutno prijavljenog korisnika + rolu."""
+    return UserResponse(
+        id=current_user.id, email=current_user.email,
+        full_name=current_user.full_name, is_verified=current_user.is_verified,
+        role=role,
+    )
 
 
 # --------------------------------------------------------------------------- #

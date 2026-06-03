@@ -865,6 +865,27 @@ textarea.form-input { resize: vertical; }
 
         <div class="card" style="padding:20px;margin-top:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">👥 Tim — članovi i role</span>
+            <button class="btn btn-ghost" style="font-size:12px" id="btn-invite" onclick="openInvite()">+ Pozovi člana</button>
+          </div>
+          <div id="members-list" style="font-size:13px"><div style="color:var(--text3)">Učitavam...</div></div>
+          <div id="invite-form" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div class="form-group" style="flex:2;min-width:160px;margin:0"><label class="form-label">Email</label><input type="email" class="form-input" id="inv-email" placeholder="ime@ingeniumtrade.hr"></div>
+              <div class="form-group" style="flex:2;min-width:140px;margin:0"><label class="form-label">Ime</label><input type="text" class="form-input" id="inv-name" placeholder="Ime Prezime"></div>
+              <div class="form-group" style="flex:1;min-width:110px;margin:0"><label class="form-label">Rola</label>
+                <select class="form-input" id="inv-role">
+                  <option value="sales">Sales</option><option value="procurement">Procurement</option>
+                  <option value="approver">Approver</option><option value="admin">Admin</option><option value="viewer">Viewer</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="font-size:12px" onclick="inviteMember()">Pošalji poziv</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <span style="font-size:13px;font-weight:600;color:var(--text)">🔒 Audit log — tko je što radio</span>
             <button class="btn btn-ghost" style="font-size:12px" onclick="loadAudit()">↻ Osvježi</button>
           </div>
@@ -1718,6 +1739,7 @@ async function loadSettings() {
     _catMargins = s.category_margins || {};
     renderCategoryMargins();
     loadAudit();
+    loadMembers();
   } catch(e) { console.error('loadSettings', e); }
 }
 
@@ -1730,6 +1752,80 @@ const _AUDIT_LABELS = {
   'client.created': '◎ Klijent dodan',
   'document.uploaded': '◉ Dokument uploadan',
 };
+
+// ========== TIM / ČLANOVI ==========
+const _ROLE_LABELS = { owner:'Vlasnik', admin:'Admin', approver:'Approver', sales:'Sales', procurement:'Procurement', viewer:'Viewer' };
+const _ROLE_RANK = { viewer:0, sales:1, procurement:1, approver:2, admin:3, owner:4 };
+
+function _isAdmin() { return currentUser && _ROLE_RANK[currentUser.role] >= 3; }
+
+async function loadMembers() {
+  if (!apiAvailable) return;
+  const el = document.getElementById('members-list');
+  if (!el) return;
+  try {
+    const members = await apiGet('/members/');
+    const canManage = _isAdmin();
+    el.innerHTML = members.map(m => {
+      const me = currentUser && m.user_id === currentUser.id;
+      const roleOpts = ['viewer','sales','procurement','approver','admin'].map(r =>
+        `<option value="${r}" ${m.role===r?'selected':''}>${_ROLE_LABELS[r]}</option>`).join('');
+      const roleCell = (canManage && !me && m.role !== 'owner')
+        ? `<select onchange="changeRole('${m.user_id}', this.value)" style="font-size:12px;padding:3px 6px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text)">${roleOpts}</select>`
+        : `<span class="badge ${m.role==='owner'?'badge-won':'badge-draft'}">${_ROLE_LABELS[m.role]||m.role}</span>`;
+      const del = (canManage && !me && m.role !== 'owner')
+        ? `<button class="icon-btn" title="Ukloni" onclick="removeMember('${m.user_id}','${escapeHtml(m.email)}')">🗑</button>` : '';
+      return `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="flex:2;color:var(--text)">${escapeHtml(m.full_name)}${me?' <span style="color:var(--text3)">(vi)</span>':''}</span>
+        <span style="flex:2;color:var(--text2);font-size:12px">${escapeHtml(m.email)}</span>
+        <span style="flex:0 0 auto">${m.is_verified?'':'<span style="font-size:11px;color:var(--amber)">⏳ čeka potvrdu</span>'}</span>
+        <span style="flex:0 0 130px;text-align:right">${roleCell}</span>
+        <span style="flex:0 0 auto">${del}</span>
+      </div>`;
+    }).join('');
+    // Sakrij invite gumb ako nije admin
+    const btn = document.getElementById('btn-invite');
+    if (btn) btn.style.display = canManage ? 'inline-flex' : 'none';
+  } catch(e) { el.innerHTML = '<div style="color:var(--red)">Greška: '+e.message+'</div>'; }
+}
+
+function openInvite() {
+  const f = document.getElementById('invite-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function inviteMember() {
+  const email = document.getElementById('inv-email').value.trim();
+  const name = document.getElementById('inv-name').value.trim();
+  const role = document.getElementById('inv-role').value;
+  if (!email || !name) { showToast('Email i ime su obavezni', 'error'); return; }
+  try {
+    const r = await apiPost('/members/invite', { email, full_name: name, role });
+    showToast('✓ ' + r.message);
+    document.getElementById('inv-email').value = '';
+    document.getElementById('inv-name').value = '';
+    document.getElementById('invite-form').style.display = 'none';
+    await loadMembers();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function changeRole(userId, role) {
+  try {
+    await apiPatch('/members/' + userId + '/role', { role });
+    showToast('Rola promijenjena');
+    await loadMembers();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); await loadMembers(); }
+}
+
+async function removeMember(userId, email) {
+  if (!confirm('Ukloniti ' + email + ' iz organizacije?')) return;
+  try {
+    const token = _getToken();
+    const r = await fetch(API_BASE + '/members/' + userId, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
+    if (r.status === 204) { showToast('Član uklonjen'); await loadMembers(); }
+    else { const d = await r.json().catch(()=>({})); showToast(d.detail || 'Greška', 'error'); }
+  } catch(e) { showToast('Greška', 'error'); }
+}
 
 async function loadAudit() {
   if (!apiAvailable) return;
@@ -1970,7 +2066,7 @@ function renderQuoteBuilder(quote) {
   // Kontekstualni gumbi po statusu
   const show = (id, cond) => { const el = document.getElementById(id); if (el) el.style.display = cond ? 'inline-flex' : 'none'; };
   show('btn-approve', quote.status === 'draft');
-  show('btn-do-approve', quote.status === 'review');
+  show('btn-do-approve', quote.status === 'review' && currentUser && _ROLE_RANK[currentUser.role] >= 2);
   const canOutcome = ['sent', 'approved', 'review'].includes(quote.status);
   show('btn-won', canOutcome);
   show('btn-lost', canOutcome);
