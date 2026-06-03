@@ -128,3 +128,62 @@ async def update_current_org(
     await db.commit()
     await db.refresh(org)
     return _to_response(org)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Setovi stavki (quote item templates) — spremljeni česti setovi
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ItemTemplate(BaseModel):
+    name: str
+    items: list[dict]  # [{description, quantity, unit, unit_price, unit_cost?}]
+
+
+@router.get("/item-templates")
+async def list_item_templates(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> list[dict]:
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    return (org.settings or {}).get("item_templates", []) if org else []
+
+
+@router.post("/item-templates", status_code=201)
+async def save_item_template(
+    req: ItemTemplate,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    from sqlalchemy.orm.attributes import flag_modified
+
+    if not req.name.strip() or not req.items:
+        raise HTTPException(status_code=422, detail="Naziv i barem jedna stavka su obavezni.")
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organizacija nije pronađena.")
+    s = dict(org.settings or {})
+    templates = [t for t in s.get("item_templates", []) if t.get("name") != req.name.strip()]
+    templates.append({"name": req.name.strip(), "items": req.items})
+    s["item_templates"] = templates
+    org.settings = s
+    flag_modified(org, "settings")
+    await db.commit()
+    return {"message": f"Set '{req.name}' spremljen ({len(req.items)} stavki).", "count": len(templates)}
+
+
+@router.delete("/item-templates/{name}", status_code=204)
+async def delete_item_template(
+    name: str,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> None:
+    from sqlalchemy.orm.attributes import flag_modified
+
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organizacija nije pronađena.")
+    s = dict(org.settings or {})
+    s["item_templates"] = [t for t in s.get("item_templates", []) if t.get("name") != name]
+    org.settings = s
+    flag_modified(org, "settings")
+    await db.commit()

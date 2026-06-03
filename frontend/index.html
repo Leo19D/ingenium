@@ -617,7 +617,13 @@ textarea.form-input { resize: vertical; }
         <div class="quote-main">
           <div class="section-header">
             <div class="section-title">Stavke ponude</div>
-            <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="toggleAddItemForm()">+ Dodaj stavku</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="template-picker" onchange="applyItemTemplate(this.value)" style="font-size:12px;padding:5px 8px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text2)">
+                <option value="">📦 Učitaj set…</option>
+              </select>
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="saveItemTemplate()" title="Spremi trenutne stavke kao set">⊕ Spremi set</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="toggleAddItemForm()">+ Dodaj stavku</button>
+            </div>
           </div>
 
           <!-- Inline forma za dodavanje stavke -->
@@ -2640,6 +2646,7 @@ async function openQuote(quoteId) {
     setView('builder');
     loadQuoteIntelligence(quote.id);
     renderVersions(quote);
+    loadItemTemplates();
   } catch(e) { showToast('Greška pri učitavanju ponude: ' + e.message, 'error'); }
 }
 
@@ -2668,6 +2675,55 @@ async function newQuoteVersion() {
     showToast('Kreirana verzija V' + nv.version);
     await loadQuotes();
     await openQuote(nv.id);
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+// ========== SETOVI STAVKI (templates) ==========
+var _itemTemplates = [];
+
+async function loadItemTemplates() {
+  if (!apiAvailable) return;
+  try {
+    _itemTemplates = await apiGet('/organizations/item-templates');
+    const sel = document.getElementById('template-picker');
+    if (sel) {
+      sel.innerHTML = '<option value="">📦 Učitaj set…</option>' +
+        _itemTemplates.map((t,i) => `<option value="${i}">${escapeHtml(t.name)} (${t.items.length})</option>`).join('');
+    }
+  } catch(e) { console.error('loadItemTemplates', e); }
+}
+
+async function saveItemTemplate() {
+  if (!_currentQuote || !(_currentQuote.line_items||[]).length) { showToast('Ponuda nema stavki za spremiti', 'error'); return; }
+  const name = prompt('Naziv seta (npr. "Hotelska soba standard"):');
+  if (!name) return;
+  const items = _currentQuote.line_items.map(li => ({
+    description: li.description, quantity: parseFloat(li.quantity), unit: li.unit,
+    unit_price: parseFloat(li.unit_price), unit_cost: li.unit_cost ? parseFloat(li.unit_cost) : null,
+  }));
+  try {
+    await apiPost('/organizations/item-templates', { name, items });
+    showToast('Set spremljen: ' + name);
+    await loadItemTemplates();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function applyItemTemplate(idx) {
+  if (idx === '' || !_currentQuote) { return; }
+  const tmpl = _itemTemplates[parseInt(idx)];
+  if (!tmpl) return;
+  document.getElementById('template-picker').value = '';
+  if (!confirm(`Dodati ${tmpl.items.length} stavki iz seta "${tmpl.name}" u ponudu?`)) return;
+  try {
+    let updated = _currentQuote;
+    for (const it of tmpl.items) {
+      const body = { description: it.description, quantity: it.quantity, unit: it.unit || 'pcs', unit_price: it.unit_price };
+      if (it.unit_cost) body.unit_cost = it.unit_cost;
+      updated = await apiPost('/quotes/' + _currentQuote.id + '/line-items', body);
+    }
+    _currentQuote = updated;
+    renderQuoteBuilder(updated);
+    showToast(`Dodano ${tmpl.items.length} stavki iz seta`);
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
