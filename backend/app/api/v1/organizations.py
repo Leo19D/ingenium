@@ -25,6 +25,8 @@ DEFAULT_SETTINGS = {
     "approval_threshold": 5000,
     "dual_approval_threshold": 50000,
     "min_margin_pct": 0.05,
+    "brand_color": "#1a5699",        # boja zaglavlja PDF ponude
+    "pdf_footer": "",                # custom footer/uvjeti na PDF ponudi
 }
 
 
@@ -40,6 +42,8 @@ class OrgSettingsResponse(BaseModel):
     approval_threshold: float
     dual_approval_threshold: float
     min_margin_pct: float
+    brand_color: str
+    pdf_footer: str
 
 
 class OrgSettingsUpdate(BaseModel):
@@ -52,6 +56,8 @@ class OrgSettingsUpdate(BaseModel):
     approval_threshold: float | None = Field(default=None, ge=0)
     dual_approval_threshold: float | None = Field(default=None, ge=0)
     min_margin_pct: float | None = Field(default=None, ge=0, le=1)
+    brand_color: str | None = None
+    pdf_footer: str | None = None
 
 
 def _merged(org: Organization) -> dict:
@@ -71,6 +77,7 @@ def _to_response(org: Organization) -> OrgSettingsResponse:
         approval_threshold=s["approval_threshold"],
         dual_approval_threshold=s["dual_approval_threshold"],
         min_margin_pct=s["min_margin_pct"],
+        brand_color=s["brand_color"], pdf_footer=s["pdf_footer"],
     )
 
 
@@ -117,7 +124,8 @@ async def update_current_org(
 
     s = dict(org.settings or {})
     for field in ("vat_id", "category_margins", "default_margin_pct",
-                  "approval_threshold", "dual_approval_threshold", "min_margin_pct"):
+                  "approval_threshold", "dual_approval_threshold", "min_margin_pct",
+                  "brand_color", "pdf_footer"):
         val = getattr(req, field)
         if val is not None:
             s[field] = val

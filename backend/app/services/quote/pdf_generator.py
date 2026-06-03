@@ -18,14 +18,15 @@ _LINE = (212, 221, 233)
 
 
 class _QuotePDF(FPDF):
-    def __init__(self, org_name: str = "Ingenium"):
+    def __init__(self, org_name: str = "Ingenium", accent: tuple = _GREEN):
         super().__init__(orientation="P", unit="mm", format="A4")
         self.org_name = org_name
+        self.accent = accent
         self.set_auto_page_break(auto=True, margin=20)
 
     def header(self) -> None:
-        # Logo blok
-        self.set_fill_color(*_GREEN)
+        # Logo blok — koristi brand boju organizacije
+        self.set_fill_color(*self.accent)
         self.rect(10, 10, 8, 8, "F")
         self.set_xy(20, 10)
         self.set_font("Helvetica", "B", 16)
@@ -35,8 +36,7 @@ class _QuotePDF(FPDF):
         self.set_font("Helvetica", "", 8)
         self.set_text_color(*_GREY)
         self.cell(0, 4, "AI Quote & Procurement Platform", ln=True)
-        # Linija
-        self.set_draw_color(*_GREEN)
+        self.set_draw_color(*self.accent)
         self.set_line_width(0.8)
         self.line(10, 26, 200, 26)
         self.ln(10)
@@ -54,10 +54,24 @@ def _txt(s: object) -> str:
         return ""
     out = str(s)
     repl = {"–": "-", "—": "-", "•": "*", "→": "->", "€": "EUR ",
-            "“": '"', "”": '"', "‘": "'", "’": "'", "…": "...", "×": "x"}
+            "“": '"', "”": '"', "‘": "'", "’": "'", "…": "...", "×": "x",
+            # Hrvatski dijakritici → latin-1 (core fontovi nemaju č/ć/ž/š/đ)
+            "č": "c", "ć": "c", "ž": "z", "š": "s", "đ": "d",
+            "Č": "C", "Ć": "C", "Ž": "Z", "Š": "S", "Đ": "D"}
     for k, v in repl.items():
         out = out.replace(k, v)
     return out.encode("latin-1", "replace").decode("latin-1")
+
+
+def _hex_to_rgb(h: str, fallback: tuple = _GREEN) -> tuple:
+    """'#1a5699' → (26,86,153). Fallback na default ako neispravno."""
+    try:
+        h = (h or "").lstrip("#")
+        if len(h) == 6:
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except (ValueError, TypeError):
+        pass
+    return fallback
 
 
 def generate_quote_pdf(
@@ -66,13 +80,17 @@ def generate_quote_pdf(
     project_name: str,
     client_name: str,
     org_name: str = "Ingenium",
+    brand_color: str | None = None,
+    pdf_footer: str | None = None,
 ) -> bytes:
     """
     quote: dict with version, currency, status, subtotal, tax_total, total,
            payment_terms, valid_until, notes_external, line_items[]
+    brand_color: hex boja zaglavlja (org brand). pdf_footer: custom uvjeti.
     Returns PDF bytes.
     """
-    pdf = _QuotePDF(org_name=org_name)
+    accent = _hex_to_rgb(brand_color) if brand_color else _GREEN
+    pdf = _QuotePDF(org_name=org_name, accent=accent)
     pdf.add_page()
     cur = quote.get("currency", "EUR")
 
@@ -104,7 +122,7 @@ def generate_quote_pdf(
     # Kolone: # | Opis | Kol | Jed | Cijena | Ukupno
     col_w = [10, 86, 18, 16, 28, 32]
     headers = ["#", "Opis", "Kol.", "Jed.", "Cijena", "Ukupno"]
-    pdf.set_fill_color(*_GREEN)
+    pdf.set_fill_color(*accent)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 9)
     for w, h in zip(col_w, headers, strict=False):
@@ -144,11 +162,11 @@ def generate_quote_pdf(
     pdf.ln(4)
 
     # ── Totali ────────────────────────────────────────────────────────────────
-    def total_row(label: str, value: float, bold: bool = False, accent: bool = False):
+    def total_row(label: str, value: float, bold: bool = False, highlight: bool = False):
         pdf.cell(sum(col_w[:4]), 7, "", ln=False)  # razmak lijevo
         pdf.set_font("Helvetica", "B" if bold else "", 10 if bold else 9)
-        if accent:
-            pdf.set_fill_color(*_GREEN)
+        if highlight:
+            pdf.set_fill_color(*accent)  # brand boja
             pdf.set_text_color(255, 255, 255)
             pdf.cell(col_w[4], 8, _txt(label), align="R", fill=True)
             pdf.cell(col_w[5], 8, f"{value:,.2f} {cur}", align="R", fill=True)
@@ -157,12 +175,12 @@ def generate_quote_pdf(
             pdf.cell(col_w[4], 7, _txt(label), align="R")
             pdf.set_text_color(*_DARK)
             pdf.cell(col_w[5], 7, f"{value:,.2f}", align="R")
-        pdf.ln(8 if accent else 7)
+        pdf.ln(8 if highlight else 7)
 
     total_row("Meduzbroj", float(quote.get("subtotal") or 0))
     if quote.get("tax_total"):
         total_row("Porez", float(quote.get("tax_total") or 0))
-    total_row("UKUPNO", float(quote.get("total") or 0), bold=True, accent=True)
+    total_row("UKUPNO", float(quote.get("total") or 0), bold=True, highlight=True)
 
     # ── Napomena ────────────────────────────────────────────────────────────
     if quote.get("notes_external"):
@@ -173,6 +191,17 @@ def generate_quote_pdf(
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(*_GREY)
         pdf.multi_cell(0, 5, _txt(quote["notes_external"]))
+
+    # ── Custom footer / uvjeti iz org postavki ──────────────────────────────
+    if pdf_footer:
+        pdf.ln(6)
+        pdf.set_draw_color(*_LINE)
+        pdf.set_line_width(0.3)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(*_GREY)
+        pdf.multi_cell(0, 4, _txt(pdf_footer))
 
     out = pdf.output()
     return bytes(out)

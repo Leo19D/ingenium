@@ -811,6 +811,14 @@ textarea.form-input { resize: vertical; }
             <div class="form-group"><label class="form-label">Valuta (ISO-3)</label><input type="text" class="form-input" id="set-currency" placeholder="EUR" maxlength="3"></div>
           </div>
           <div style="font-size:11px;color:var(--text3);margin-top:4px">VAT ID se koristi za reverse charge (EU B2B) i ide na ponude.</div>
+          <div class="form-row" style="margin-top:14px">
+            <div class="form-group"><label class="form-label">Brand boja (PDF zaglavlje)</label>
+              <input type="color" class="form-input" id="set-brand-color" value="#1a5699" style="height:38px;padding:3px;cursor:pointer"></div>
+            <div class="form-group"><label class="form-label">&nbsp;</label>
+              <div style="font-size:11px;color:var(--text3);padding-top:10px">Boja zaglavlja i naglasaka na PDF ponudi.</div></div>
+          </div>
+          <div class="form-group" style="margin-top:6px"><label class="form-label">Footer ponude (uvjeti)</label>
+            <textarea class="form-input" id="set-pdf-footer" rows="2" placeholder="npr. Cijene ne uključuju dostavu. Vrijede 30 dana. IBAN: HR..." style="resize:vertical"></textarea></div>
         </div>
 
         <div class="card" style="padding:20px;margin-bottom:16px">
@@ -1734,6 +1742,8 @@ async function loadSettings() {
     set('set-vat', s.vat_id || '');
     set('set-country', s.country_code || '');
     set('set-currency', s.base_currency || '');
+    set('set-brand-color', s.brand_color || '#1a5699');
+    set('set-pdf-footer', s.pdf_footer || '');
     set('set-default-margin', Math.round((s.default_margin_pct || 0.25) * 100));
     set('set-appr', s.approval_threshold || 5000);
     set('set-dual', s.dual_approval_threshold || 50000);
@@ -1891,6 +1901,8 @@ async function saveSettings() {
     vat_id: document.getElementById('set-vat').value.trim(),
     country_code: document.getElementById('set-country').value.trim().toUpperCase(),
     base_currency: document.getElementById('set-currency').value.trim().toUpperCase(),
+    brand_color: document.getElementById('set-brand-color').value,
+    pdf_footer: document.getElementById('set-pdf-footer').value.trim(),
     default_margin_pct: num('set-default-margin') / 100,
     approval_threshold: num('set-appr'),
     dual_approval_threshold: num('set-dual'),

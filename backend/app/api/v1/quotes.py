@@ -510,14 +510,27 @@ async def export_quote_pdf(
             for li in quote.line_items
         ],
     }
+    brand = await _org_brand(db, org_id)
     pdf_bytes = generate_quote_pdf(
-        quote=quote_dict, project_name=project_name, client_name=client_name
+        quote=quote_dict, project_name=project_name, client_name=client_name,
+        org_name=brand["org_name"], brand_color=brand["brand_color"], pdf_footer=brand["pdf_footer"],
     )
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=ponuda-V{quote.version}.pdf"},
     )
+
+
+async def _org_brand(db: AsyncSession, org_id: UUID) -> dict:
+    """Org naziv + brand boja + PDF footer iz postavki (za PDF ponude)."""
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    s = (org.settings or {}) if org else {}
+    return {
+        "org_name": org.name if org else "Ingenium",
+        "brand_color": s.get("brand_color", "#1a5699"),
+        "pdf_footer": s.get("pdf_footer", ""),
+    }
 
 
 @router.post("/{quote_id}/apply-tax", response_model=QuoteResponse)
@@ -697,8 +710,10 @@ async def send_quote(
             for li in quote.line_items
         ],
     }
+    brand = await _org_brand(db, org_id)
     pdf_bytes = generate_quote_pdf(
-        quote=quote_dict, project_name=project_name, client_name=client_name
+        quote=quote_dict, project_name=project_name, client_name=client_name,
+        org_name=brand["org_name"], brand_color=brand["brand_color"], pdf_footer=brand["pdf_footer"],
     )
 
     total_str = f"{float(quote.total or 0):,.2f} {quote.currency}"
