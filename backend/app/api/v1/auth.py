@@ -250,7 +250,7 @@ async def login(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Nije moguće poslati kod. Pokušajte ponovo za koji trenutak.",
-            )
+            ) from exc
 
     if settings.ENV == "development":
         _log.warning(f"[DEV] OTP za {email}: {otp}")
@@ -366,7 +366,7 @@ async def refresh_token(
     try:
         payload = decode_token(req.refresh_token)
     except JWTError:
-        raise invalid
+        raise invalid from None
 
     if payload.get("type") != "refresh":
         raise invalid

@@ -14,8 +14,6 @@ from __future__ import annotations
 
 import io
 import re
-import statistics
-from decimal import Decimal, InvalidOperation
 
 from openpyxl import load_workbook
 
@@ -27,8 +25,8 @@ _DESC_KW  = {"opis", "naziv", "description", "bezeichnung", "article", "artikl",
               "artikal", "item", "roba", "produkt", "stavka", "position", "pos",
               "predmet", "materijal", "material", "roба"}
 _QTY_KW   = {"kol", "količina", "qty", "menge", "cantidad", "komada", "kolicina",
-              "kol.", "quantity", "amount", "kom", "menge", "stk", "anzahl",
-              "broj", "kolicina", "kolicine"}
+              "kol.", "quantity", "amount", "kom", "stk", "anzahl",
+              "broj", "kolicine"}
 _UNIT_KW  = {"jedinica", "unit", "einheit", "mjera", "mjere", "um", "u/m",
               "jm", "j.m.", "mj", "j.mj", "jed.mj", "jed.mjere"}
 _PRICE_KW = {"cijena", "cena", "price", "preis", "vp", "vpcj", "jedinična",

@@ -10,7 +10,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +65,7 @@ class DocumentResponse(BaseModel):
     created_at: str = ""
 
     @classmethod
-    def from_doc(cls, d: Document) -> "DocumentResponse":
+    def from_doc(cls, d: Document) -> DocumentResponse:
         return cls(
             id=d.id,
             filename=d.filename,
@@ -180,7 +179,7 @@ async def trigger_parse(
     except Exception as e:
         doc.status = "failed"
         await db.commit()
-        raise HTTPException(status_code=500, detail=f"Parsiranje nije uspjelo: {e}")
+        raise HTTPException(status_code=500, detail=f"Parsiranje nije uspjelo: {e}") from e
 
     return {
         "status": "parsed",

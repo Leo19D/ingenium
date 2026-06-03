@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+from datetime import UTC
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -432,7 +432,7 @@ async def trends(
 ) -> dict:
     """Mjesečni trend (zadnjih 6 mj) + pipeline funnel po statusu."""
     from collections import defaultdict
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # Sve ponude
     rows = (await db.execute(
@@ -442,7 +442,7 @@ async def trends(
 
     # Mjesečni: broj ponuda + vrijednost po YYYY-MM
     monthly: dict[str, dict] = defaultdict(lambda: {"count": 0, "value": 0.0})
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # zadnjih 6 mjeseci kao prazni bucketi
     buckets = []
     for i in range(5, -1, -1):
@@ -455,7 +455,7 @@ async def trends(
         buckets.append(key)
         monthly[key]  # init
 
-    for created, total, status in rows:
+    for created, total, _status in rows:
         if not created:
             continue
         key = created.strftime("%Y-%m")
@@ -494,12 +494,12 @@ async def notifications(
     org_id: UUID = Depends(get_current_org_id),
 ) -> list[dict]:
     """Stavke koje trebaju pažnju: isteci, čekaju odobrenje, ustajali nacrti."""
-    from datetime import date, datetime, timedelta, timezone
+    from datetime import date, datetime, timedelta
 
     items: list[dict] = []
     today = date.today()
     soon = today + timedelta(days=7)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stale_cutoff = now - timedelta(days=14)
 
     rows = (await db.execute(
@@ -524,7 +524,7 @@ async def notifications(
                 "message": f"Ponuda V{ver} (€{amount}) čeka odobrenje",
             })
         # Ustajali nacrti
-        if status == "draft" and created and created.replace(tzinfo=timezone.utc) < stale_cutoff:
+        if status == "draft" and created and created.replace(tzinfo=UTC) < stale_cutoff:
             items.append({
                 "type": "stale_draft", "severity": "muted", "quote_id": str(qid),
                 "message": f"Nacrt V{ver} (€{amount}) star > 14 dana",

@@ -6,8 +6,6 @@ Produces a clean, branded, client-ready PDF of a quote.
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 from fpdf import FPDF
 
 # Boje (RGB) — plavo-bijela paleta (smirenija plava)
@@ -109,7 +107,7 @@ def generate_quote_pdf(
     pdf.set_fill_color(*_GREEN)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 9)
-    for w, h in zip(col_w, headers):
+    for w, h in zip(col_w, headers, strict=False):
         align = "L" if h in ("Opis",) else "R" if h in ("Kol.", "Cijena", "Ukupno") else "C"
         pdf.cell(w, 8, _txt(h), border=0, align=align, fill=True)
     pdf.ln(8)
@@ -138,7 +136,7 @@ def generate_quote_pdf(
             f"{line_total:,.2f}",
         ]
         aligns = ["C", "L", "R", "C", "R", "R"]
-        for w, val, al in zip(col_w, row, aligns):
+        for w, val, al in zip(col_w, row, aligns, strict=False):
             pdf.cell(w, 7, val, border="B", align=al, fill=fill)
         pdf.ln(7)
         fill = not fill

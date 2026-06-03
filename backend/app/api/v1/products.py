@@ -97,7 +97,7 @@ async def create_product(
         await db.refresh(product)
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(status_code=409, detail=f"SKU '{req.sku}' već postoji.")
+        raise HTTPException(status_code=409, detail=f"SKU '{req.sku}' već postoji.") from None
     return product
 
 
@@ -200,7 +200,7 @@ async def bulk_import_products(
         except IntegrityError:
             await db.rollback()
             skipped += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             errors.append(f"Red {idx}: {type(e).__name__}")
             skipped += 1
 
@@ -234,7 +234,7 @@ async def import_products_from_file(
     try:
         parsed = await parser.parse(content, file.filename or "katalog")
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Greška pri čitanju fajla: {e}")
+        raise HTTPException(status_code=422, detail=f"Greška pri čitanju fajla: {e}") from e
 
     # Izvuci stavke iz tablica
     items: list[BulkProductItem] = []
@@ -243,7 +243,7 @@ async def import_products_from_file(
         desc_col = col_map.get("description", 0)
         sku_col = col_map.get("sku")
         for row in table.rows:
-            def get(c):
+            def get(c, row=row):  # row=row: bind po iteraciji (izbjegni closure loop var)
                 return (row[c].strip() if c is not None and c < len(row) and row[c] else "")
             name = get(desc_col)
             if not name or len(name) < 2:
@@ -341,7 +341,7 @@ async def add_supplier_to_product(
     from datetime import UTC, datetime
     from decimal import Decimal
 
-    from app.db.models.product import SupplierProduct, SupplierPriceHistory
+    from app.db.models.product import SupplierPriceHistory, SupplierProduct
     from app.db.models.supplier import Supplier
 
     prod = (await db.execute(select(Product).where(Product.id == product_id, Product.org_id == org_id))).scalar_one_or_none()
@@ -395,29 +395,44 @@ async def compare_suppliers(
     Usporedba dobavljača za artikl: zadnja cijena, lead time, MOQ.
     Cijene se konvertiraju u quote_currency za fer usporedbu; jeftiniji prvi.
     """
-    from app.db.models.product import SupplierProduct, SupplierPriceHistory
+    from app.db.models.product import SupplierPriceHistory, SupplierProduct
     from app.db.models.supplier import Supplier
     from app.services.fx.rates import convert
-    from decimal import Decimal
 
     prod = (await db.execute(select(Product).where(Product.id == product_id, Product.org_id == org_id))).scalar_one_or_none()
     if not prod:
         raise HTTPException(status_code=404, detail="Artikal nije pronađen.")
 
-    sps = (await db.execute(
+    sps = list((await db.execute(
         select(SupplierProduct).where(SupplierProduct.product_id == product_id, SupplierProduct.is_active == True)
+    )).scalars().all())
+    if not sps:
+        return []
+
+    sp_ids = [sp.id for sp in sps]
+    supplier_ids = list({sp.supplier_id for sp in sps})
+
+    # 1 query: svi dobavljači odjednom → dict lookup
+    sup_rows = (await db.execute(select(Supplier).where(Supplier.id.in_(supplier_ids)))).scalars().all()
+    suppliers = {s.id: s for s in sup_rows}
+
+    # 1 query: sve cijene za sve sp_ids, sortirano novije prvo → uzmi prvu po sp_id
+    price_rows = (await db.execute(
+        select(SupplierPriceHistory)
+        .where(SupplierPriceHistory.supplier_product_id.in_(sp_ids))
+        .order_by(SupplierPriceHistory.valid_from.desc())
     )).scalars().all()
+    latest_price: dict = {}
+    for pr in price_rows:
+        if pr.supplier_product_id not in latest_price:  # prvi = najnoviji (već sortirano)
+            latest_price[pr.supplier_product_id] = pr
 
     out = []
     for sp in sps:
-        sup = (await db.execute(select(Supplier).where(Supplier.id == sp.supplier_id))).scalar_one_or_none()
-        # zadnja cijena
-        last = (await db.execute(
-            select(SupplierPriceHistory).where(SupplierPriceHistory.supplier_product_id == sp.id)
-            .order_by(SupplierPriceHistory.valid_from.desc()).limit(1)
-        )).scalar_one_or_none()
+        last = latest_price.get(sp.id)
         if not last:
             continue
+        sup = suppliers.get(sp.supplier_id)
         conv = await convert(last.unit_price, last.currency, quote_currency)
         out.append({
             "supplier_id": str(sp.supplier_id),
@@ -432,7 +447,6 @@ async def compare_suppliers(
             "lead_time_days": sp.lead_time_days,
         })
 
-    # Jeftiniji (u quote valuti) prvi
     out.sort(key=lambda x: x["price_in_quote_ccy"])
     if out:
         out[0]["is_best"] = True

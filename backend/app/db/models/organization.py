@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from sqlalchemy import CHAR, JSON, String, Text
 from sqlalchemy.dialects.postgresql import JSONB as _JSONB
-
-# JSONB za Postgres; fallback na JSON za SQLite (testovi)
-JSONB = _JSONB().with_variant(JSON(), "sqlite")
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import TimestampedBase
+
+# JSONB za Postgres; fallback na JSON za SQLite (testovi)
+JSONB = _JSONB().with_variant(JSON(), "sqlite")
 
 
 class Organization(TimestampedBase):

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import io
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -182,7 +181,7 @@ async def bulk_import_suppliers(
         except IntegrityError:
             await db.rollback()
             skipped += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import io
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
-
-import io
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -258,7 +257,7 @@ async def bulk_import_stock_items(
         except IntegrityError:
             await db.rollback()
             skipped += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1

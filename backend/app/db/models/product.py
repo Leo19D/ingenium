@@ -26,11 +26,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.config import settings
+from app.db.base import Base, TimestampedBase
+
 # BIGINT autoincrement radi na Postgresu (BIGSERIAL); SQLite traži INTEGER PK.
 _AUTO_PK = BIGINT().with_variant(Integer, "sqlite")
-
-from app.config import settings
-from app.db.base import Base, TimestampedBase, UUIDPrimaryKey
 
 
 class Product(TimestampedBase):

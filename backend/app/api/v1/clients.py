@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 import io
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -257,7 +256,7 @@ async def bulk_import_clients(
         except IntegrityError:
             await db.rollback()
             skipped += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1

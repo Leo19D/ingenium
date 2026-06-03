@@ -9,7 +9,6 @@ Provides:
 
 from __future__ import annotations
 
-import re
 from difflib import SequenceMatcher
 from uuid import UUID
 

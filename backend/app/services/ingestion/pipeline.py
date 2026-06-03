@@ -60,7 +60,7 @@ def _extract_items_from_table(table, source_method: str) -> list[dict]:
 
     items = []
     for pos, row in enumerate(rows, 1):
-        def get(col):
+        def get(col, row=row):  # row=row: bind po iteraciji
             if col is None or col >= len(row):
                 return None
             v = row[col]

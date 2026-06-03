@@ -113,6 +113,7 @@ select = [
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # function call in default arg — FastAPI Depends() idiom (codebase-wide)
+    "E712",  # == True/False — ispravan SQLAlchemy ORM filter (is True ne radi u SQL-u)
 ]
 
 # -----------------------------------------------------------------------------

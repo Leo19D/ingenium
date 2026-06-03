@@ -9,7 +9,7 @@ from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, T
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampedBase, UUIDPrimaryKey
+from app.db.base import Base, TimestampedBase
 
 
 class User(TimestampedBase):

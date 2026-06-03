@@ -4,24 +4,24 @@ from __future__ import annotations
 
 import io
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_org_id, get_current_user, require_role
 from app.db.models.client import Client
+from app.db.models.organization import Organization
 from app.db.models.project import Project
 from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome
-from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.db.session import get_db
 from app.services.audit import log_action
@@ -592,7 +592,6 @@ async def draft_email(
 ) -> dict:
     """AI/template draft poruke uz ponudu. Ne šalje — samo predlaže."""
     from app.services.email_assistant import generate_email_draft
-    from app.api.v1.organizations import get_org_limits
 
     quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
     org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
@@ -688,7 +687,7 @@ async def send_quote(
             attachment_mime="application/pdf",
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Slanje emaila nije uspjelo: {e}")
+        raise HTTPException(status_code=502, detail=f"Slanje emaila nije uspjelo: {e}") from e
 
     quote.status = "sent"
     quote.sent_at = datetime.now(tz=__import__("datetime").timezone.utc)
@@ -738,12 +737,9 @@ async def export_quote_xlsx(
     dark_fill  = PatternFill("solid", fgColor="0C1410")
     green_fill = PatternFill("solid", fgColor="1E3A2A")
     head_font  = Font(bold=True, color="A8F4B8", name="Calibri", size=11)
-    title_font = Font(bold=True, color="DDEADF", name="Calibri", size=14)
     sub_font   = Font(color="7A9480", name="Calibri", size=9)
     body_font  = Font(color="DDEADF", name="Calibri", size=10)
     mono_font  = Font(color="A8F4B8", name="Courier New", size=10)
-    thin = Side(style="thin", color="1E3A2A")
-    border = Border(bottom=Side(style="thin", color="1E3A2A"))
 
     ws.sheet_view.showGridLines = False
     ws.sheet_properties.tabColor = "A8F4B8"
@@ -897,8 +893,8 @@ async def import_historical_quotes(
     try:
         wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         ws = wb.active
-    except Exception:
-        raise HTTPException(status_code=422, detail="Neispravan Excel fajl.")
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="Neispravan Excel fajl.") from exc
 
     rows = list(ws.iter_rows(min_row=2, values_only=True))
     imported = 0
