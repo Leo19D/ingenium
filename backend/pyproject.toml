@@ -110,7 +110,10 @@ select = [
     "SIM", # flake8-simplify
     "RUF", # ruff-specific
 ]
-ignore = ["E501"]  # line too long (handled by formatter)
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function call in default arg — FastAPI Depends() idiom (codebase-wide)
+]
 
 # -----------------------------------------------------------------------------
 # Mypy

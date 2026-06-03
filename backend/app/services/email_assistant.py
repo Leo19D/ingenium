@@ -86,8 +86,8 @@ async def generate_email_draft(
 
     # S ključem → Claude personalizira
     try:
-        from app.services.llm.provider import LLMMessage
         from app.services.llm.claude import ClaudeProvider
+        from app.services.llm.provider import LLMMessage
 
         type_hr = {
             "cover": "propratna poruka uz ponudu koju šaljemo",

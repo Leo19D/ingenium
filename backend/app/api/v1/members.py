@@ -116,8 +116,9 @@ async def invite_member(
             subject=f"Pozvani ste u {org_name} — Ingenium",
             html=_invite_html(req.full_name, org_name, req.role, current_user.full_name, temp_password),
         )
-    except Exception:
-        pass
+    except Exception as exc:  # invite email nije kritičan — član je već kreiran
+        import logging
+        logging.getLogger(__name__).warning("invite_email_failed: %s", exc)
 
     return {"message": f"Poziv poslan na {email} (rola: {req.role}).", "status": "invited"}
 

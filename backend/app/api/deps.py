@@ -37,7 +37,7 @@ async def get_current_user(
     try:
         payload = decode_token(token)
     except JWTError:
-        raise credentials_exc
+        raise credentials_exc from None
 
     if payload.get("type") != "access":
         raise credentials_exc
@@ -63,7 +63,7 @@ async def get_current_org_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Niste prijavljeni ili je sesija istekla.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     org_str = payload.get("org")
     if not org_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ne sadrži org.")
@@ -88,7 +88,7 @@ async def get_current_role(
     try:
         payload = decode_token(token)
     except JWTError:
-        raise HTTPException(status_code=401, detail="Sesija istekla.")
+        raise HTTPException(status_code=401, detail="Sesija istekla.") from None
     user_id = payload.get("sub")
     org_id = payload.get("org")
     if not user_id or not org_id:
