@@ -178,27 +178,31 @@ async def bulk_import_products(
             continue
         try:
             existing = by_sku.get(sku.lower())
+            p = None
+            # Savepoint po redu — greška u jednom redu ne ruši prethodne (data loss fix)
+            async with db.begin_nested():
+                if existing:
+                    existing.name = name
+                    existing.category = item.category or existing.category
+                    existing.brand = item.brand or existing.brand
+                    existing.unit = item.unit or existing.unit
+                    existing.description = item.description or existing.description
+                    existing.is_active = True
+                else:
+                    p = Product(
+                        org_id=org_id, sku=sku, name=name,
+                        category=item.category, brand=item.brand,
+                        unit=item.unit or "pcs", description=item.description,
+                        is_active=True,
+                    )
+                    db.add(p)
+            # Brojači tek nakon uspješnog savepointa
             if existing:
-                existing.name = name
-                existing.category = item.category or existing.category
-                existing.brand = item.brand or existing.brand
-                existing.unit = item.unit or existing.unit
-                existing.description = item.description or existing.description
-                existing.is_active = True
                 updated += 1
             else:
-                p = Product(
-                    org_id=org_id, sku=sku, name=name,
-                    category=item.category, brand=item.brand,
-                    unit=item.unit or "pcs", description=item.description,
-                    is_active=True,
-                )
-                db.add(p)
-                await db.flush()
                 by_sku[sku.lower()] = p
                 inserted += 1
         except IntegrityError:
-            await db.rollback()
             skipped += 1
         except Exception as e:
             errors.append(f"Red {idx}: {type(e).__name__}")

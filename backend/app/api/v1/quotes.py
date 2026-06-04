@@ -64,6 +64,18 @@ class LineItemCreate(BaseModel):
     notes: str | None = None
 
 
+class LineItemUpdate(BaseModel):
+    """Parcijalni update — sva polja opcionalna, primjenjuju se samo poslana."""
+    description: str | None = Field(default=None, min_length=1)
+    quantity: Decimal | None = Field(default=None, gt=0)
+    unit: str | None = None
+    unit_price: Decimal | None = Field(default=None, ge=0)
+    unit_cost: Decimal | None = Field(default=None, ge=0)
+    discount_pct: Decimal | None = Field(default=None, ge=0, le=1)
+    tax_rate: Decimal | None = Field(default=None, ge=0, le=1)
+    notes: str | None = None
+
+
 class LineItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -106,6 +118,7 @@ class QuoteResponse(BaseModel):
     notes_internal: str | None = None
     notes_external: str | None = None
     created_at: datetime
+    sent_at: datetime | None = None
     line_items: list[LineItemResponse] = []
 
 
@@ -333,7 +346,7 @@ async def add_line_item(
 async def update_line_item(
     quote_id: UUID,
     item_id: UUID,
-    req: LineItemCreate,
+    req: LineItemUpdate,
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
 ) -> QuoteResponse:
@@ -348,14 +361,9 @@ async def update_line_item(
     item = next((li for li in quote.line_items if li.id == item_id), None)
     if not item:
         raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
-    item.description = req.description
-    item.quantity = req.quantity
-    item.unit = req.unit
-    item.unit_price = req.unit_price
-    item.unit_cost = req.unit_cost
-    item.discount_pct = req.discount_pct
-    item.tax_rate = req.tax_rate
-    item.notes = req.notes
+    # Primijeni samo poslana polja — ostala (npr. discount/tax) ostaju netaknuta
+    for field, value in req.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
     _recalculate(quote)
     await db.commit()
     await db.refresh(quote)

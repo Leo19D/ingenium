@@ -167,22 +167,21 @@ async def bulk_import_suppliers(
             if not item.naziv or not item.naziv.strip():
                 skipped += 1
                 continue
-            supplier = Supplier(
-                org_id=org_id,
-                name=item.naziv.strip(),
-                country_code=_normalize_country_code(item.country),
-                currency=(item.currency or "EUR").upper().strip(),
-                incoterms_default=(item.incoterms or "EXW").upper().strip(),
-                lead_time_days_avg=_parse_int(item.lead, 0) or None,
-            )
-            db.add(supplier)
-            await db.flush()
+            # Savepoint po redu — greška u jednom redu ne ruši prethodne (data loss fix)
+            async with db.begin_nested():
+                supplier = Supplier(
+                    org_id=org_id,
+                    name=item.naziv.strip(),
+                    country_code=_normalize_country_code(item.country),
+                    currency=(item.currency or "EUR").upper().strip(),
+                    incoterms_default=(item.incoterms or "EXW").upper().strip(),
+                    lead_time_days_avg=_parse_int(item.lead, 0) or None,
+                )
+                db.add(supplier)
             inserted += 1
         except IntegrityError:
-            await db.rollback()
             skipped += 1
         except Exception as e:
-            await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1
 

@@ -242,22 +242,21 @@ async def bulk_import_clients(
                 continue
             country_code = _normalize_country_code(item.country)
             segment = (item.segment or "").lower().split("/")[0].strip() or None
-            client = Client(
-                org_id=org_id,
-                name=item.naziv.strip(),
-                tax_id=(item.vat or "").strip() or None,
-                country_code=country_code,
-                segment=segment,
-                payment_terms_days=_parse_int(item.payment, 30),
-            )
-            db.add(client)
-            await db.flush()
+            # Savepoint po redu — greška u jednom redu ne ruši prethodne (data loss fix)
+            async with db.begin_nested():
+                client = Client(
+                    org_id=org_id,
+                    name=item.naziv.strip(),
+                    tax_id=(item.vat or "").strip() or None,
+                    country_code=country_code,
+                    segment=segment,
+                    payment_terms_days=_parse_int(item.payment, 30),
+                )
+                db.add(client)
             inserted += 1
         except IntegrityError:
-            await db.rollback()
             skipped += 1
         except Exception as e:
-            await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1
 

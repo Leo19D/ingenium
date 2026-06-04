@@ -251,14 +251,13 @@ async def bulk_import_stock_items(
                 unit_cost=unit_cost if unit_cost > 0 else None,
                 currency="EUR",
             )
-            db.add(stock)
-            await db.flush()
+            # Savepoint po redu — greška u jednom redu ne ruši prethodne (data loss fix)
+            async with db.begin_nested():
+                db.add(stock)
             inserted += 1
         except IntegrityError:
-            await db.rollback()
             skipped += 1
         except Exception as e:
-            await db.rollback()
             errors.append(f"Red {idx + 1}: {type(e).__name__}: {e}")
             skipped += 1
 
