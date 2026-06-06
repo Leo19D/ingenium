@@ -242,6 +242,17 @@ async def test_me_without_token(client: AsyncClient):
     assert resp.status_code == 401
 
 
+@pytest.mark.unit
+async def test_logout_revokes_token(client: AsyncClient, db_session: AsyncSession):
+    """Nakon odjave token mora biti odbijen (DB blacklist)."""
+    await _make_verified_user(db_session, "leo@ingeniumtrade.hr", "lozinka123")
+    tokens = await _full_login(client, db_session, "leo@ingeniumtrade.hr", "lozinka123")
+    h = {"Authorization": f"Bearer {tokens['access_token']}"}
+    assert (await client.get("/api/v1/auth/me", headers=h)).status_code == 200
+    assert (await client.post("/api/v1/auth/logout", headers=h)).status_code == 204
+    assert (await client.get("/api/v1/auth/me", headers=h)).status_code == 401
+
+
 # --------------------------------------------------------------------------- #
 # Protected endpoints                                                          #
 # --------------------------------------------------------------------------- #

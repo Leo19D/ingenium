@@ -17,7 +17,7 @@ from app.config import settings
 from app.core.security import (
     OTP_EXPIRE_SECONDS,
     OTP_MAX_ATTEMPTS,
-    blacklist_token,
+    check_login_rate,
     create_access_token,
     create_refresh_token,
     decode_token,
@@ -25,7 +25,7 @@ from app.core.security import (
     generate_verification_token,
     hash_otp,
     hash_password,
-    login_rate_limiter,
+    revoke_token,
     validate_password_strength,
     verify_otp_hash,
     verify_password,
@@ -195,8 +195,8 @@ async def login(
     """Korak 1: validacija lozinke → šalje OTP kod na email."""
     client_ip = request.client.host if request.client else "unknown"
 
-    if not login_rate_limiter.is_allowed(client_ip):
-        wait = login_rate_limiter.seconds_until_reset(client_ip)
+    allowed, wait = await check_login_rate(db, client_ip)
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Previše neuspješnih pokušaja. Pokušaj ponovo za {wait} sekundi.",
@@ -273,8 +273,8 @@ async def verify_otp(
     """Korak 2: validacija OTP koda → vraća JWT tokene."""
     client_ip = request.client.host if request.client else "unknown"
 
-    if not login_rate_limiter.is_allowed(client_ip):
-        wait = login_rate_limiter.seconds_until_reset(client_ip)
+    allowed, wait = await check_login_rate(db, client_ip)
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Previše pokušaja. Pokušaj ponovo za {wait} sekundi.",
@@ -391,9 +391,12 @@ async def refresh_token(
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(token: str = Depends(oauth2_scheme)) -> None:
-    """Odjava — poništava access token na serveru (blacklist)."""
-    blacklist_token(token)
+async def logout(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Odjava — poništava access token na serveru (DB blacklist, preživi restart)."""
+    await revoke_token(db, token)
 
 
 @router.get("/me", response_model=UserResponse)

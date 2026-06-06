@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-import threading
-from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from time import monotonic
+from time import time
 from typing import Any
 
 import bcrypt
 from jose import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 
@@ -95,91 +94,77 @@ def verify_otp_hash(code: str, stored_hash: str) -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Token blacklist (in-memory, TTL = access token lifetime)                    #
+# Token blacklist — DB-backed (preživi restart i dijeli se među workerima)     #
 # --------------------------------------------------------------------------- #
 
-class _TokenBlacklist:
-    """Thread-safe in-memory set of revoked tokens with auto-expiry."""
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        # token → expiry monotonic timestamp
-        self._store: dict[str, float] = {}
-        self._last_cleanup = monotonic()
-
-    def add(self, token: str) -> None:
-        ttl = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        expiry = monotonic() + ttl
-        with self._lock:
-            self._store[token] = expiry
-            self._maybe_cleanup()
-
-    def contains(self, token: str) -> bool:
-        now = monotonic()
-        with self._lock:
-            expiry = self._store.get(token)
-            if expiry is None:
-                return False
-            if now > expiry:
-                del self._store[token]
-                return False
-            return True
-
-    def _maybe_cleanup(self) -> None:
-        now = monotonic()
-        if now - self._last_cleanup < 300:
-            return
-        self._last_cleanup = now
-        expired = [t for t, exp in self._store.items() if now > exp]
-        for t in expired:
-            del self._store[t]
+def hash_token(token: str) -> str:
+    """SHA-256 hex tokena — ne spremamo sirovi token u bazu."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
-_blacklist = _TokenBlacklist()
+async def revoke_token(db: AsyncSession, token: str) -> None:
+    """Poništi (blacklistaj) access token do njegovog isteka."""
+    from app.db.models.security import RevokedToken
+
+    ttl = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    # merge = idempotentno (dvostruka odjava ne ruši constraint)
+    await db.merge(RevokedToken(token_hash=hash_token(token), expires_epoch=time() + ttl))
+    await db.commit()
 
 
-def blacklist_token(token: str) -> None:
-    _blacklist.add(token)
+async def is_token_revoked(db: AsyncSession, token: str) -> bool:
+    from app.db.models.security import RevokedToken
+
+    row = await db.get(RevokedToken, hash_token(token))
+    return bool(row and row.expires_epoch > time())
 
 
-def is_token_blacklisted(token: str) -> bool:
-    return _blacklist.contains(token)
+async def purge_expired_security_rows(db: AsyncSession) -> None:
+    """Očisti istekle blacklist tokene i stare login pokušaje (zove scheduler)."""
+    from sqlalchemy import delete
+
+    from app.db.models.security import LoginAttempt, RevokedToken
+
+    now = time()
+    await db.execute(delete(RevokedToken).where(RevokedToken.expires_epoch <= now))
+    await db.execute(delete(LoginAttempt).where(LoginAttempt.created_epoch <= now - 3600))
+    await db.commit()
 
 
 # --------------------------------------------------------------------------- #
-# Login rate limiter (sliding window, per IP)                                 #
+# Login rate limiter — DB-backed sliding window, per IP                        #
 # --------------------------------------------------------------------------- #
 
-class _RateLimiter:
-    """Thread-safe sliding-window rate limiter."""
-
-    def __init__(self, max_attempts: int = 5, window_seconds: int = 60) -> None:
-        self._max = max_attempts
-        self._window = window_seconds
-        self._lock = threading.Lock()
-        self._attempts: dict[str, list[float]] = defaultdict(list)
-
-    def is_allowed(self, key: str) -> bool:
-        now = monotonic()
-        cutoff = now - self._window
-        with self._lock:
-            hits = self._attempts[key]
-            recent = [t for t in hits if t > cutoff]
-            self._attempts[key] = recent
-            if len(recent) >= self._max:
-                return False
-            recent.append(now)
-            return True
-
-    def seconds_until_reset(self, key: str) -> int:
-        now = monotonic()
-        cutoff = now - self._window
-        with self._lock:
-            hits = [t for t in self._attempts.get(key, []) if t > cutoff]
-            if not hits:
-                return 0
-            oldest = min(hits)
-            return max(0, int(self._window - (now - oldest))) + 1
+_RATE_MAX_ATTEMPTS = 5
+_RATE_WINDOW_SECONDS = 60
 
 
-login_rate_limiter = _RateLimiter(max_attempts=5, window_seconds=60)
+async def check_login_rate(
+    db: AsyncSession,
+    ip: str,
+    *,
+    max_attempts: int = _RATE_MAX_ATTEMPTS,
+    window: int = _RATE_WINDOW_SECONDS,
+) -> tuple[bool, int]:
+    """Vrati (dopušteno, sekundi_do_resetiranja). Bilježi pokušaj ako je dopušten."""
+    from sqlalchemy import select
+
+    from app.db.models.security import LoginAttempt
+
+    now = time()
+    cutoff = now - window
+    recent = (
+        await db.execute(
+            select(LoginAttempt.created_epoch)
+            .where(LoginAttempt.ip == ip, LoginAttempt.created_epoch > cutoff)
+            .order_by(LoginAttempt.created_epoch)
+        )
+    ).scalars().all()
+
+    if len(recent) >= max_attempts:
+        retry = max(0, int(window - (now - recent[0]))) + 1
+        return False, retry
+
+    db.add(LoginAttempt(ip=ip, created_epoch=now))
+    await db.commit()
+    return True, 0

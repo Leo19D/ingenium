@@ -15,6 +15,7 @@ from app.db.models.product import (  # noqa: F401
 )
 from app.db.models.project import Project  # noqa: F401
 from app.db.models.quote import Quote, QuoteLineItem, QuoteOutcome  # noqa: F401
+from app.db.models.security import LoginAttempt, RevokedToken  # noqa: F401
 from app.db.models.stock import StockItem, StockLocation  # noqa: F401
 from app.db.models.supplier import Supplier  # noqa: F401
 from app.db.models.tax import TaxRule  # noqa: F401

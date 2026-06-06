@@ -148,12 +148,20 @@ async def run_expiry_reminders() -> int:
     return sent_count
 
 
+async def _purge_security() -> None:
+    """Očisti istekle blacklist tokene i stare login pokušaje."""
+    from app.core.security import purge_expired_security_rows
+    async with AsyncSessionFactory() as db:
+        await purge_expired_security_rows(db)
+
+
 async def scheduler_loop() -> None:
     """Beskonačna petlja — pokreni periodičke zadatke. Pokreće se u lifespanu."""
     logger.info("scheduler_started interval=%ds", CHECK_INTERVAL_SECONDS)
     while True:
         try:
             await run_expiry_reminders()
+            await _purge_security()
         except asyncio.CancelledError:
             logger.info("scheduler_cancelled")
             raise

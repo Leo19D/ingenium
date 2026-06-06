@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import decode_token, is_token_blacklisted
+from app.core.security import decode_token, is_token_revoked
 from app.db.models.user import User
 from app.db.session import get_db
 
@@ -31,7 +31,7 @@ async def get_current_user(
         detail="Niste prijavljeni ili je sesija istekla.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if is_token_blacklisted(token):
+    if await is_token_revoked(db, token):
         raise credentials_exc
 
     try:

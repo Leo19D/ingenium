@@ -6,15 +6,14 @@ import pytest
 from jose import JWTError
 
 from app.core.security import (
-    _RateLimiter,
-    _TokenBlacklist,
-    blacklist_token,
+    check_login_rate,
     create_access_token,
     create_refresh_token,
     decode_token,
     generate_verification_token,
     hash_password,
-    is_token_blacklisted,
+    is_token_revoked,
+    revoke_token,
     validate_password_strength,
     verify_password,
 )
@@ -79,43 +78,46 @@ def test_password_strength_valid():
     assert validate_password_strength("Secur3Pass!") is None
 
 
-@pytest.mark.unit
-def test_token_blacklist_add_and_check():
-    bl = _TokenBlacklist()
-    bl.add("tok-abc")
-    assert bl.contains("tok-abc")
-    assert not bl.contains("tok-xyz")
-
-
-@pytest.mark.unit
-def test_token_blacklist_global():
+@pytest.mark.asyncio
+async def test_token_revoke_and_check(db_session):
     token = create_access_token("u1", "o1")
-    assert not is_token_blacklisted(token)
-    blacklist_token(token)
-    assert is_token_blacklisted(token)
+    assert not await is_token_revoked(db_session, token)
+    await revoke_token(db_session, token)
+    assert await is_token_revoked(db_session, token)
+    # Idempotentno — dvostruka odjava ne smije pući
+    await revoke_token(db_session, token)
+    assert await is_token_revoked(db_session, token)
 
 
-@pytest.mark.unit
-def test_rate_limiter_allows_under_limit():
-    rl = _RateLimiter(max_attempts=3, window_seconds=60)
-    assert rl.is_allowed("ip-test-a")
-    assert rl.is_allowed("ip-test-a")
-    assert rl.is_allowed("ip-test-a")
+@pytest.mark.asyncio
+async def test_other_token_not_revoked(db_session):
+    revoked = create_access_token("u1", "o1")
+    other = create_access_token("u2", "o1")
+    await revoke_token(db_session, revoked)
+    assert not await is_token_revoked(db_session, other)
 
 
-@pytest.mark.unit
-def test_rate_limiter_blocks_over_limit():
-    rl = _RateLimiter(max_attempts=3, window_seconds=60)
-    rl.is_allowed("ip-test-b")
-    rl.is_allowed("ip-test-b")
-    rl.is_allowed("ip-test-b")
-    assert not rl.is_allowed("ip-test-b")
+@pytest.mark.asyncio
+async def test_rate_limiter_allows_under_limit(db_session):
+    for _ in range(3):
+        allowed, _wait = await check_login_rate(db_session, "ip-a", max_attempts=3)
+        assert allowed
 
 
-@pytest.mark.unit
-def test_rate_limiter_independent_keys():
-    rl = _RateLimiter(max_attempts=2, window_seconds=60)
-    rl.is_allowed("ip-x")
-    rl.is_allowed("ip-x")
-    assert not rl.is_allowed("ip-x")
-    assert rl.is_allowed("ip-y")
+@pytest.mark.asyncio
+async def test_rate_limiter_blocks_over_limit(db_session):
+    for _ in range(3):
+        await check_login_rate(db_session, "ip-b", max_attempts=3)
+    allowed, wait = await check_login_rate(db_session, "ip-b", max_attempts=3)
+    assert not allowed
+    assert wait > 0
+
+
+@pytest.mark.asyncio
+async def test_rate_limiter_independent_keys(db_session):
+    for _ in range(2):
+        await check_login_rate(db_session, "ip-x", max_attempts=2)
+    blocked, _ = await check_login_rate(db_session, "ip-x", max_attempts=2)
+    assert not blocked
+    allowed, _ = await check_login_rate(db_session, "ip-y", max_attempts=2)
+    assert allowed
