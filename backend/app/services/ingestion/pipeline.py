@@ -31,7 +31,11 @@ from app.services.ingestion.llm_extractor import extract_with_llm, merge_llm_wit
 from app.services.ingestion.normalizer import normalize_unit
 from app.services.ingestion.parsers.pdf import PdfParser
 from app.services.ingestion.parsers.xlsx import XlsxParser
-from app.services.matching.catalog_matcher import MatchResult, match_item
+from app.services.matching.catalog_matcher import (
+    MatchResult,
+    build_catalog_index,
+    match_item,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -135,6 +139,9 @@ async def parse_document(
 
     log.info("heuristic_extraction_done", items=len(heuristic_items))
 
+    # Katalog se vektorizira JEDNOM, pa svaka stavka matcha protiv tog indeksa
+    catalog_index = await build_catalog_index(db, org_id)
+
     # Catalog matching for each heuristic item
     for item in heuristic_items:
         try:
@@ -143,6 +150,7 @@ async def parse_document(
                 org_id=org_id,
                 description=item["description"],
                 sku_hint=item.get("sku_hint"),
+                index=catalog_index,
             )
             item["match_candidates"] = [
                 {
