@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
@@ -10,12 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_org_id
+from app.api.deps import get_current_org_id, get_current_user, require_role
+from app.db.models.procurement import StockMovement
 from app.db.models.stock import StockItem, StockLocation
+from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.client import BulkImportResult
 from app.schemas.stock import (
@@ -25,6 +29,7 @@ from app.schemas.stock import (
     StockItemUpdate,
     StockLocationResponse,
 )
+from app.services.inventory import apply_movement
 
 router = APIRouter()
 
@@ -108,6 +113,65 @@ async def get_stock_item(
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artikl ne postoji")
+    return item
+
+
+# ── Kretanja zalihe + ručna korekcija ────────────────────────────────────────
+
+class MovementResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    delta: Decimal
+    reason: str
+    ref_type: str | None = None
+    ref_id: UUID | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class StockAdjustRequest(BaseModel):
+    delta: Decimal = Field(description="+ ulaz / − izlaz; ne smije biti 0")
+    note: str | None = None
+
+
+@router.get("/{item_id}/movements", response_model=list[MovementResponse])
+async def list_movements(
+    item_id: UUID,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> list[StockMovement]:
+    """Povijest kretanja zalihe za artikl (najnovije prvo)."""
+    rows = await db.execute(
+        select(StockMovement)
+        .where(StockMovement.stock_item_id == item_id, StockMovement.org_id == org_id)
+        .order_by(StockMovement.created_at.desc())
+        .limit(min(limit, 200))
+    )
+    return list(rows.scalars().all())
+
+
+@router.post("/{item_id}/adjust", response_model=StockItemResponse)
+async def adjust_stock(
+    item_id: UUID,
+    req: StockAdjustRequest,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+    current_user: User = Depends(get_current_user),
+    _: str = Depends(require_role("procurement")),
+) -> StockItem:
+    """Ručna korekcija zalihe (+/−) uz obavezni zapis kretanja."""
+    if req.delta == 0:
+        raise HTTPException(status_code=422, detail="Korekcija ne smije biti 0.")
+    item = await apply_movement(
+        db, org_id=org_id, stock_item_id=item_id, delta=req.delta,
+        reason="manual", ref_type="user", ref_id=current_user.id,
+        note=req.note or "Ručna korekcija",
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Artikl ne postoji")
+    await db.commit()
+    await db.refresh(item)
     return item
 
 

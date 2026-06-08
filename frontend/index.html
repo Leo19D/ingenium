@@ -589,7 +589,14 @@ textarea.form-input { resize: vertical; }
       <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
         <span style="font-size:13px;font-weight:600;color:var(--text)">Narudžbenice</span>
         <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="po-count"></span>
-        <div style="margin-left:auto;display:flex;gap:8px">
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <select id="po-filter" onchange="loadPurchaseOrders()" style="background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--text)">
+            <option value="">Svi statusi</option>
+            <option value="draft">Nacrt</option>
+            <option value="sent">Poslano</option>
+            <option value="received">Zaprimljeno</option>
+            <option value="cancelled">Otkazano</option>
+          </select>
           <button class="btn btn-ghost" style="font-size:12px" onclick="loadPurchaseOrders()">↻ Osvježi</button>
         </div>
       </div>
@@ -738,7 +745,7 @@ textarea.form-input { resize: vertical; }
 
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
         <div class="kpi-card"><div class="kpi-label">Ukupno artikala</div><div class="kpi-value" style="font-size:24px" id="kpi-total-items">5</div><div class="kpi-delta" style="color:var(--text3)">u skladištu</div></div>
-        <div class="kpi-card"><div class="kpi-label">Vrijednost zaliha</div><div class="kpi-value" style="font-size:24px">€48.2k</div><div class="kpi-delta delta-up">nabavna</div></div>
+        <div class="kpi-card"><div class="kpi-label">Vrijednost zaliha</div><div class="kpi-value" style="font-size:24px" id="kpi-stock-value">€0</div><div class="kpi-delta delta-up">nabavna</div></div>
         <div class="kpi-card"><div class="kpi-label">Nisko zaliha</div><div class="kpi-value" style="font-size:24px;color:var(--amber)" id="kpi-low-stock">2</div><div class="kpi-delta" style="color:var(--amber)">treba narudžba</div></div>
         <div class="kpi-card"><div class="kpi-label">Nema na stanju</div><div class="kpi-value" style="font-size:24px;color:var(--red)" id="kpi-no-stock">0</div><div class="kpi-delta" style="color:var(--text3)">stavki</div></div>
       </div>
@@ -2582,7 +2589,9 @@ const _PO_LABEL = { draft: 'nacrt', sent: 'poslano', received: 'zaprimljeno', ca
 async function loadPurchaseOrders() {
   if (!apiAvailable) return;
   try {
-    const pos = await apiGet('/purchase-orders/');
+    const f = document.getElementById('po-filter');
+    const qs = f && f.value ? '?status_filter=' + f.value : '';
+    const pos = await apiGet('/purchase-orders/' + qs);
     renderPOList(pos);
     const cnt = document.getElementById('po-count');
     if (cnt) cnt.textContent = pos.length + ' narudžbenica';
@@ -3282,18 +3291,131 @@ async function addStockItem() {
   closeModal();
   showToast('Artikl "' + naziv + '" dodan (demo)');
 }
+let _stockItems = [];
+const _STOCK_BADGE = { na_stanju: ['badge-won', 'na stanju'], nisko: ['badge-review', 'nisko'], nema: ['badge-lost', 'nema'] };
+
 async function loadStock() {
   if (!apiAvailable) return;
   try {
     const _r = await apiGet('/stock-items/?page_size=200');
-    const items = _r.items || _r;
-    const tbody = document.getElementById('stock-tbody'); tbody.innerHTML = '';
-    items.forEach(it => importStock({
-      sku: it.sku, naziv: it.name, cat: it.category,
-      qty: String(it.quantity_on_hand), unit: it.unit, loc: 'Skladiste',
-      min: String(it.min_stock_level), price: String(it.unit_cost || 0)
-    }));
+    _stockItems = _r.items || _r;
+    renderStockRows(_stockItems);
   } catch (e) { console.error('loadStock', e); }
+}
+
+function renderStockRows(items) {
+  const tbody = document.getElementById('stock-tbody');
+  if (!tbody) return;
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Nema artikala. Uvezi Excel ili dodaj novi.</td></tr>';
+    updateStockKPIsFrom([]); return;
+  }
+  tbody.innerHTML = items.map(it => {
+    const [bcls, blabel] = _STOCK_BADGE[it.status] || ['badge-draft', it.status || '—'];
+    const qtyColor = it.status === 'nema' ? 'var(--red)' : it.status === 'nisko' ? 'var(--amber)' : 'var(--accent)';
+    return `<tr class="stock-row" data-id="${it.id}">
+      <td><span class="quote-id">${escapeHtml(it.sku)}</span></td>
+      <td><span class="client-name">${escapeHtml(it.name)}</span></td>
+      <td style="color:var(--text2)">${escapeHtml(it.category || '—')}</td>
+      <td style="font-family:var(--font-mono);color:${qtyColor}">${Number(it.quantity_on_hand).toLocaleString('hr-HR')}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">${escapeHtml(it.unit || 'kom')}</td>
+      <td style="font-size:12px">Skladište</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">${Number(it.min_stock_level)}</td>
+      <td><span class="amount-cell">€${Number(it.unit_cost || 0).toFixed(2)}</span></td>
+      <td><span class="badge ${bcls}">● ${blabel}</span></td>
+      <td><button class="icon-btn" title="Kretanja i korekcija" onclick="openStockPanel('${it.id}')">→</button></td>
+    </tr>`;
+  }).join('');
+  updateStockKPIsFrom(items);
+}
+
+function updateStockKPIsFrom(items) {
+  const tot = document.getElementById('kpi-total-items'); if (tot) tot.textContent = items.length;
+  const cnt = document.getElementById('stock-count'); if (cnt) cnt.textContent = items.length + ' artikala';
+  const low = document.getElementById('kpi-low-stock'); if (low) low.textContent = items.filter(i => i.status === 'nisko').length;
+  const none = document.getElementById('kpi-no-stock'); if (none) none.textContent = items.filter(i => i.status === 'nema').length;
+  const val = items.reduce((s, i) => s + Number(i.quantity_on_hand) * Number(i.unit_cost || 0), 0);
+  const ve = document.getElementById('kpi-stock-value');
+  if (ve) ve.textContent = '€' + (val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0));
+}
+
+// ----- Panel: kretanja zalihe + ručna korekcija -----
+async function openStockPanel(itemId) {
+  const it = _stockItems.find(x => x.id === itemId);
+  if (!it) return;
+  let moves = [];
+  try { moves = await apiGet('/stock-items/' + itemId + '/movements'); } catch (e) {}
+  const reasonLabel = { po_receipt: 'Primka', quote_won: 'Ponuda dobivena', manual: 'Ručna korekcija' };
+  const rows = moves.length ? moves.map(m => {
+    const d = Number(m.delta);
+    const col = d >= 0 ? 'var(--green)' : 'var(--red)';
+    const when = m.created_at ? new Date(m.created_at).toLocaleString('hr-HR') : '';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-family:var(--font-mono);color:${col};text-align:right">${d > 0 ? '+' : ''}${d.toLocaleString('hr-HR')}</td>
+      <td style="padding:6px 10px">${reasonLabel[m.reason] || m.reason}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:12px">${escapeHtml(m.note || '')}</td>
+      <td style="padding:6px 10px;color:var(--text3);font-size:11px;white-space:nowrap">${when}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text3)">Još nema kretanja.</td></tr>';
+
+  const ov = document.createElement('div');
+  ov.id = 'stock-panel-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(16,24,40,0.45);display:flex;align-items:center;justify-content:center;z-index:200';
+  ov.onclick = (e) => { if (e.target === ov) closeStockPanel(); };
+  ov.innerHTML = `
+    <div style="background:var(--bg2);border-radius:var(--r);box-shadow:var(--shadow-lg);width:640px;max-width:92vw;max-height:86vh;overflow:auto">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+        <div>
+          <div style="font-size:11px;font-family:var(--font-mono);color:var(--text3)">${escapeHtml(it.sku)}</div>
+          <div style="font-size:16px;font-weight:700">${escapeHtml(it.name)}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:22px;font-weight:700;font-family:var(--font-mono)" id="sp-qty">${Number(it.quantity_on_hand).toLocaleString('hr-HR')}</div>
+          <div style="font-size:11px;color:var(--text3)">na stanju · min ${Number(it.min_stock_level)}</div>
+        </div>
+        <button class="icon-btn" style="margin-left:8px" onclick="closeStockPanel()">✕</button>
+      </div>
+      <div style="padding:16px 22px;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px">Ručna korekcija zalihe</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="sp-delta" type="number" step="0.01" placeholder="količina" style="width:110px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;font-size:13px">
+          <input id="sp-note" type="text" placeholder="razlog (npr. inventura, oštećenje)" style="flex:1;min-width:160px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;font-size:13px">
+          <button class="btn btn-ghost" style="color:var(--green)" onclick="doStockAdjust('${itemId}', 1)">＋ Ulaz</button>
+          <button class="btn btn-ghost" style="color:var(--red)" onclick="doStockAdjust('${itemId}', -1)">－ Izlaz</button>
+        </div>
+      </div>
+      <div style="padding:14px 22px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px">Povijest kretanja</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="color:var(--text3);text-align:left">
+            <th style="padding:6px 10px;text-align:right;font-weight:600">Δ</th>
+            <th style="padding:6px 10px;font-weight:600">Razlog</th>
+            <th style="padding:6px 10px;font-weight:600">Bilješka</th>
+            <th style="padding:6px 10px;font-weight:600">Kada</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function closeStockPanel() {
+  const ov = document.getElementById('stock-panel-overlay');
+  if (ov) ov.remove();
+}
+
+async function doStockAdjust(itemId, sign) {
+  const raw = parseFloat(document.getElementById('sp-delta').value);
+  if (isNaN(raw) || raw <= 0) { showToast('Unesi količinu > 0', 'error'); return; }
+  const note = document.getElementById('sp-note').value.trim();
+  try {
+    await apiPost('/stock-items/' + itemId + '/adjust', { delta: sign * raw, note: note || null });
+    showToast(sign > 0 ? `✓ Ulaz +${raw}` : `✓ Izlaz −${raw}`);
+    closeStockPanel();
+    await loadStock();
+    openStockPanel(itemId);
+  } catch (e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
 // ========== TEMPLATE DOWNLOAD ==========
