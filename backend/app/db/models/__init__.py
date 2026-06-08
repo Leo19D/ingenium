@@ -8,6 +8,11 @@ from app.db.models.client import Client, Contact  # noqa: F401
 from app.db.models.document import Document, DocumentExtraction  # noqa: F401
 from app.db.models.fx import FxRate  # noqa: F401
 from app.db.models.organization import Organization  # noqa: F401
+from app.db.models.procurement import (  # noqa: F401
+    PurchaseOrder,
+    PurchaseOrderLine,
+    StockMovement,
+)
 from app.db.models.product import (  # noqa: F401
     Product,
     SupplierPriceHistory,

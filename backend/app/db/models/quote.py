@@ -90,6 +90,10 @@ class QuoteLineItem(TimestampedBase):
     supplier_product_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("supplier_products.id")
     )
+    # Veza na skladišnu stavku (iz catalog matchinga) — za pouzdano skidanje zalihe
+    stock_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stock_items.id")
+    )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 4), nullable=False)
     unit: Mapped[str] = mapped_column(String(16), nullable=False)

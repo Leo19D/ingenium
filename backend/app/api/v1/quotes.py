@@ -61,6 +61,7 @@ class LineItemCreate(BaseModel):
     unit_cost: Decimal | None = Field(default=None, ge=0)
     discount_pct: Decimal = Field(default=Decimal("0"), ge=0, le=1, description="0..1 (npr. 0.1 = 10%)")
     tax_rate: Decimal | None = Field(default=None, ge=0, le=1)
+    stock_item_id: UUID | None = None  # veza na skladište za praćenje zalihe
     notes: str | None = None
 
 
@@ -73,6 +74,7 @@ class LineItemUpdate(BaseModel):
     unit_cost: Decimal | None = Field(default=None, ge=0)
     discount_pct: Decimal | None = Field(default=None, ge=0, le=1)
     tax_rate: Decimal | None = Field(default=None, ge=0, le=1)
+    stock_item_id: UUID | None = None
     notes: str | None = None
 
 
@@ -89,6 +91,7 @@ class LineItemResponse(BaseModel):
     tax_rate: Decimal | None = None
     line_total: Decimal | None = None
     margin_pct: Decimal | None = None
+    stock_item_id: UUID | None = None
     notes: str | None = None
 
 
@@ -332,6 +335,7 @@ async def add_line_item(
         unit_cost=req.unit_cost,
         discount_pct=req.discount_pct,
         tax_rate=req.tax_rate,
+        stock_item_id=req.stock_item_id,
         notes=req.notes,
     )
     db.add(item)
@@ -432,6 +436,7 @@ async def record_outcome(
 ) -> dict:
     result = await db.execute(
         select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
     )
     quote = result.scalar_one_or_none()
     if not quote:
@@ -456,10 +461,26 @@ async def record_outcome(
     )
     db.add(outcome)
     quote.status = "accepted" if req.outcome == "won" else "rejected" if req.outcome == "lost" else req.outcome
+
+    # Dobivena ponuda → skini zalihu za stavke vezane na skladište
+    deducted = 0
+    if req.outcome == "won":
+        from app.services.inventory import apply_movement
+        for li in quote.line_items:
+            if li.stock_item_id:
+                updated = await apply_movement(
+                    db, org_id=org_id, stock_item_id=li.stock_item_id,
+                    delta=-(li.quantity or Decimal("0")), reason="quote_won",
+                    ref_type="quote", ref_id=quote_id,
+                    note=f"Ponuda V{quote.version} dobivena",
+                )
+                if updated:
+                    deducted += 1
+
     await db.commit()
     await log_action(db, org_id=org_id, user_id=current_user.id, action="quote.outcome",
                      entity_type="quote", entity_id=quote_id, after_state={"outcome": req.outcome})
-    return {"message": "Ishod zabilježen.", "outcome": req.outcome}
+    return {"message": "Ishod zabilježen.", "outcome": req.outcome, "stock_deducted_lines": deducted}
 
 
 # ── Quote → Excel export ──────────────────────────────────────────────────────

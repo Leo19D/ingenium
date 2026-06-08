@@ -300,12 +300,22 @@ async def create_quote_from_document(
         line_total = (qty * unit_price).quantize(Decimal("0.01"))
         subtotal += line_total
 
+        # Veza na skladišnu stavku iz matchinga → omogućuje skidanje zalihe kad ponuda prođe
+        stock_item_id = None
+        raw_sid = match.get("stock_item_id")
+        if raw_sid:
+            try:
+                stock_item_id = UUID(str(raw_sid))
+            except (ValueError, TypeError):
+                stock_item_id = None
+
         li = QuoteLineItem(
             quote_id=quote.id,
             position=pos,
             description=desc,
             quantity=qty,
             unit=unit,
+            stock_item_id=stock_item_id,
             unit_cost=unit_cost if unit_cost > 0 else None,
             unit_price=unit_price,
             discount_pct=Decimal("0"),
