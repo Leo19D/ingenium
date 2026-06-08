@@ -484,65 +484,8 @@ textarea.form-input { resize: vertical; }
           </div>
         </div>
       </div>
-      <div id="documents-list"></div>
-
-      <div class="section-header" style="margin-top:24px"><div class="section-title">Procesiranje dokumenta</div></div>
-
-      <div class="processing-card" style="display:none" id="proc-demo">
-        <div class="proc-header">
-          <div class="proc-file-icon">📋</div>
-          <div><div class="proc-filename">RFQ-hotel-konavle.pdf</div><div class="proc-meta">2.4 MB · PDF · hr jezik · detektiran: troškovnik</div></div>
-          <div class="proc-status"><span class="status-dot"></span><span style="font-size:12px;color:var(--accent);font-family:var(--font-mono)">parsiranje...</span></div>
-        </div>
-        <div class="progress-bar"><div class="progress-fill animated" style="width:72%"></div></div>
-      </div>
-
-      <div class="processing-card">
-        <div class="proc-header">
-          <div class="proc-file-icon">📊</div>
-          <div><div class="proc-filename">troskovnik-splitska-ulica.xlsx</div><div class="proc-meta">184 KB · XLSX · hr jezik · 63 stavki</div></div>
-          <div class="proc-status"><span class="badge badge-review">● review potreban</span></div>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
-      </div>
-
-      <div class="section-header" style="margin-top:24px">
-        <div class="section-title">Ekstrahirane stavke — troskovnik-splitska-ulica.xlsx</div>
-        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px">✓ Potvrdi sve</button>
-      </div>
-
-      <div class="extraction-table">
-        <div class="et-header"><span>Opis</span><span>Kol.</span><span>Jed.</span><span>Jed. cijena</span><span>Confidence</span><span></span></div>
-        <div class="et-row">
-          <div><div class="et-desc">LED panel 60×60 36W 4000K UGR&lt;19</div></div>
-          <div class="et-qty">48</div><div class="et-qty">kom</div><div class="et-price">—</div>
-          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:94%"></div></div><span class="conf-val">94%</span></div>
-          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
-        </div>
-        <div class="et-row">
-          <div><div class="et-desc">Downlight LED 10W 3000K IP44 bijeli</div></div>
-          <div class="et-qty">124</div><div class="et-qty">kom</div><div class="et-price">—</div>
-          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:88%"></div></div><span class="conf-val">88%</span></div>
-          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
-        </div>
-        <div class="et-row" style="background:rgba(244,209,106,0.04);border-color:rgba(244,209,106,0.15)">
-          <div><div class="et-desc">Upravljačka jedinica DALI 2ch</div><div style="font-size:10px;color:var(--amber);margin-top:3px;font-family:var(--font-mono)">⚠ nejasan opis — preporučen ručni pregled</div></div>
-          <div class="et-qty">8</div><div class="et-qty">kom</div><div class="et-price">—</div>
-          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-mid" style="width:67%"></div></div><span class="conf-val" style="color:var(--amber)">67%</span></div>
-          <div class="et-actions"><button class="icon-btn" style="border-color:rgba(244,209,106,0.4);color:var(--amber)">✎</button><button class="icon-btn">✓</button></div>
-        </div>
-        <div class="et-row">
-          <div><div class="et-desc">Kabel NYY-J 3×2.5mm² crni</div></div>
-          <div class="et-qty">320</div><div class="et-qty">m</div><div class="et-price">—</div>
-          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-high" style="width:97%"></div></div><span class="conf-val">97%</span></div>
-          <div class="et-actions"><button class="icon-btn">✎</button><button class="icon-btn" style="color:var(--accent)">✓</button></div>
-        </div>
-        <div class="et-row" style="background:rgba(244,122,106,0.04);border-color:rgba(244,122,106,0.15)">
-          <div><div class="et-desc">Razvodna kutija 300×200×120</div><div style="font-size:10px;color:var(--red);margin-top:3px;font-family:var(--font-mono)">✗ nije pronađeno u katalogu — treba mapiranje</div></div>
-          <div class="et-qty">4</div><div class="et-qty">kom</div><div class="et-price">—</div>
-          <div class="confidence-bar"><div class="conf-pip"><div class="conf-fill conf-low" style="width:42%"></div></div><span class="conf-val" style="color:var(--red)">42%</span></div>
-          <div class="et-actions"><button class="icon-btn" style="border-color:rgba(244,122,106,0.4);color:var(--red)">✎</button><button class="icon-btn">+</button></div>
-        </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:16px;padding:14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
+        💡 Uvezi troškovnik/RFQ gore → pojavit će se u „Uploadani dokumenti" → klikni „Parsiraj" pa „Pregledaj stavke" da ispraviš i pretvoriš u ponudu.
       </div>
     </div>
 
