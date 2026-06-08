@@ -345,6 +345,7 @@ textarea.form-input { resize: vertical; }
     <div class="nav-item" onclick="setView('skladiste')"><span class="nav-icon">▣</span> Skladište</div>
     <div class="nav-item" onclick="setView('quotes')"><span class="nav-icon">◳</span> Ponude</div>
     <div class="nav-item" onclick="setView('builder')"><span class="nav-icon">✦</span> Quote Builder</div>
+    <div class="nav-item" onclick="setView('nabava')"><span class="nav-icon">▤</span> Nabava</div>
   </nav>
 
   <nav class="nav-section">
@@ -583,6 +584,28 @@ textarea.form-input { resize: vertical; }
       </div>
     </div>
 
+    <!-- NABAVA (PURCHASE ORDERS) -->
+    <div class="view" id="view-nabava">
+      <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">Narudžbenice</span>
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="po-count"></span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="loadPurchaseOrders()">↻ Osvježi</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
+        Narudžbenice nastaju iz dobivenih ponuda (Quote Builder → „⊕ Narudžbenica"). Zaprimanje vraća robu u skladište.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Broj</th><th>Status</th><th>Stavki</th><th>Iznos</th><th>Očekivano</th><th>Kreirano</th><th></th></tr></thead>
+          <tbody id="po-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Učitavam narudžbenice...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- QUOTE BUILDER -->
     <div class="view" id="view-builder">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -599,6 +622,7 @@ textarea.form-input { resize: vertical; }
           <button class="btn btn-ghost" id="btn-do-approve" onclick="approveQuote()" style="display:none;color:var(--accent)">✓ Odobri</button>
           <button class="btn btn-ghost" id="btn-won" onclick="markOutcome('won')" style="display:none;color:var(--accent)">✓ Dobiveno</button>
           <button class="btn btn-ghost" id="btn-lost" onclick="markOutcome('lost')" style="display:none;color:var(--red)">✗ Izgubljeno</button>
+          <button class="btn btn-ghost" id="btn-po" onclick="createPOFromQuote(_currentQuote?.id)" title="Kreiraj narudžbenicu dobavljaču iz ove ponude">⊕ Narudžbenica</button>
           <button class="btn btn-primary" id="btn-send-client" onclick="sendQuoteToClient()">✉ Pošalji klijentu</button>
         </div>
       </div>
@@ -1207,6 +1231,7 @@ const views = {
   skladiste: 'Skladište',
   quotes: 'Sve ponude',
   builder: 'Quote Builder',
+  nabava: 'Nabava',
   clients: 'Klijenti',
   suppliers: 'Dobavljači'
 };
@@ -2550,6 +2575,85 @@ async function loadQuotes() {
   } catch(e) { console.error('loadQuotes', e); }
 }
 
+// ========== NABAVA (PURCHASE ORDERS) ==========
+const _PO_BADGE = { draft: 'badge-draft', sent: 'badge-sent', received: 'badge-won', cancelled: 'badge-lost' };
+const _PO_LABEL = { draft: 'nacrt', sent: 'poslano', received: 'zaprimljeno', cancelled: 'otkazano' };
+
+async function loadPurchaseOrders() {
+  if (!apiAvailable) return;
+  try {
+    const pos = await apiGet('/purchase-orders/');
+    renderPOList(pos);
+    const cnt = document.getElementById('po-count');
+    if (cnt) cnt.textContent = pos.length + ' narudžbenica';
+  } catch(e) { console.error('loadPurchaseOrders', e); }
+}
+
+function renderPOList(pos) {
+  const tb = document.getElementById('po-tbody');
+  if (!tb) return;
+  if (!pos.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Još nema narudžbenica. Otvori dobivenu ponudu u Quote Builderu i klikni „⊕ Narudžbenica".</td></tr>';
+    return;
+  }
+  tb.innerHTML = pos.map(po => {
+    const badge = _PO_BADGE[po.status] || 'badge-draft';
+    const created = po.created_at ? new Date(po.created_at).toLocaleDateString('hr-HR') : '—';
+    const exp = po.expected_date ? new Date(po.expected_date).toLocaleDateString('hr-HR') : '—';
+    const actions = [];
+    if (po.status === 'draft') actions.push(`<button class="btn btn-ghost" style="font-size:11px;padding:3px 8px" onclick="sendPO('${po.id}')">Označi poslano</button>`);
+    if (po.status === 'draft' || po.status === 'sent') actions.push(`<button class="btn btn-primary" style="font-size:11px;padding:3px 8px" onclick="receivePO('${po.id}')">⤓ Zaprimi</button>`);
+    if (po.status !== 'received') actions.push(`<button class="icon-btn" title="Obriši" onclick="deletePO('${po.id}')">🗑</button>`);
+    return `<tr>
+      <td><span class="quote-id">${escapeHtml(po.po_number)}</span></td>
+      <td><span class="badge ${badge}">● ${_PO_LABEL[po.status] || po.status}</span></td>
+      <td style="font-family:var(--font-mono);color:var(--text2)">${(po.lines || []).length}</td>
+      <td><span class="amount-cell">€${Number(po.total || 0).toLocaleString('hr-HR', {minimumFractionDigits:2})}</span></td>
+      <td style="font-size:12px;color:var(--text3)">${exp}</td>
+      <td style="font-size:12px;color:var(--text3)">${created}</td>
+      <td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end">${actions.join('')}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function createPOFromQuote(quoteId) {
+  if (!quoteId) { showToast('Prvo otvori ponudu', 'error'); return; }
+  try {
+    const po = await apiPost('/purchase-orders/from-quote/' + quoteId, {});
+    showToast(`✓ Narudžbenica ${po.po_number} kreirana (${(po.lines||[]).length} stavki)`);
+    await loadPurchaseOrders();
+    setView('nabava');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function receivePO(poId) {
+  if (!confirm('Zaprimiti narudžbenicu? Roba će ući u skladište.')) return;
+  try {
+    const po = await apiPost('/purchase-orders/' + poId + '/receive', {});
+    showToast(`✓ ${po.po_number} zaprimljeno — zaliha ažurirana`);
+    await Promise.all([loadPurchaseOrders(), loadStock()]);
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function sendPO(poId) {
+  try {
+    await apiPatch('/purchase-orders/' + poId, { status: 'sent' });
+    showToast('Narudžbenica označena poslanom');
+    await loadPurchaseOrders();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function deletePO(poId) {
+  if (!confirm('Obrisati narudžbenicu?')) return;
+  try {
+    const r = await fetch(API_BASE + '/purchase-orders/' + poId, { method: 'DELETE', headers: _authHeaders() });
+    if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; return; }
+    if (!r.ok && r.status !== 204) { let d=r.status; try{d=(await r.json()).detail}catch(e){} throw new Error(String(d)); }
+    showToast('Narudžbenica obrisana');
+    await loadPurchaseOrders();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
 // ========== PIPELINE KANBAN ==========
 const _PIPELINE_STAGES = [
   { key: 'draft',    label: 'Nacrt',     statuses: ['draft'] },
@@ -3488,7 +3592,7 @@ async function apiPut(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications(), loadSettings()]);
+  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications(), loadSettings(), loadPurchaseOrders()]);
 })();
 </script>
 
