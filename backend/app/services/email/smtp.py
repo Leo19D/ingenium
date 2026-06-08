@@ -25,15 +25,49 @@ async def send_email(
 ) -> None:
     """Send an HTML email, optionally with one binary attachment.
 
-    Raises if SMTP is configured but sending fails; silently skips if SMTP
-    is not configured (dev without credentials).
+    Preferira Resend (HTTP) ako je RESEND_API_KEY postavljen — cloud hostovi
+    blokiraju SMTP. Inače SMTP. Tiho preskače ako ništa nije konfigurirano.
     """
+    if settings.RESEND_API_KEY:
+        await _send_resend(to, subject, html, attachment, attachment_name, attachment_mime)
+        return
     if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning("smtp_not_configured — email not sent", extra={"to": to})
+        logger.warning("email_not_configured — nije poslano", extra={"to": to})
         return
     await asyncio.to_thread(
         _send_sync, to, subject, html, attachment, attachment_name, attachment_mime
     )
+
+
+async def _send_resend(
+    to: str, subject: str, html: str,
+    attachment: bytes | None, attachment_name: str | None, attachment_mime: str,
+) -> None:
+    """Pošalji preko Resend HTTP API-ja (port 443, ne blokira ga cloud host)."""
+    import base64
+
+    import httpx
+
+    payload: dict = {
+        "from": settings.RESEND_FROM,
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }
+    if attachment is not None:
+        payload["attachments"] = [{
+            "filename": attachment_name or "prilog.pdf",
+            "content": base64.b64encode(attachment).decode(),
+        }]
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+            json=payload,
+        )
+    if r.status_code >= 300:
+        logger.error("resend_send_failed status=%s body=%s", r.status_code, r.text[:300])
+        raise RuntimeError(f"Resend greška {r.status_code}: {r.text[:200]}")
 
 
 def _send_sync(

@@ -119,6 +119,10 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "no-reply@example.com"
+    # Resend (HTTP email API) — cloud hostovi (Railway) blokiraju SMTP, pa ovo
+    # ide preko HTTPS. Ako je RESEND_API_KEY postavljen, koristi se umjesto SMTP-a.
+    RESEND_API_KEY: str = ""
+    RESEND_FROM: str = "Ingenium <onboarding@resend.dev>"
 
     # In-process scheduler (automatske notifikacije bez Celery brokera)
     ENABLE_SCHEDULER: bool = True
