@@ -1050,6 +1050,13 @@ textarea.form-input { resize: vertical; }
       </div>
       <div class="form-group"><label class="form-label">Email za narudžbe</label><input type="email" class="form-input" placeholder="orders@supplier.com"></div>
       <div class="form-group"><label class="form-label">Napomena</label><textarea class="form-input" rows="2" placeholder="Posebni uvjeti, kontakt osoba, certifikati..."></textarea></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Odustani</button>
+        <button class="btn btn-primary" onclick="addSupplier()">Spremi dobavljača</button>
+      </div>
+    </div>
+  </div>
+
   <!-- IMPORT MODAL (generic za klijenti / dobavljaci / skladiste) -->
   <div class="modal-box" id="modal-import" style="display:none;width:720px">
     <div class="modal-header">
