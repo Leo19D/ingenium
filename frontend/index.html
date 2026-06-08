@@ -730,20 +730,15 @@ textarea.form-input { resize: vertical; }
         <div class="quote-sidebar">
           <div class="quote-summary-card">
             <div class="qs-title">Sažetak ponude</div>
-            <div class="qs-row"><span class="qs-label">Podukupno</span><span class="qs-value">€80,200</span></div>
-            <div class="qs-row"><span class="qs-label">Popust</span><span class="qs-value">—</span></div>
-            <div class="qs-row"><span class="qs-label">PDV 25%</span><span class="qs-value">€20,050</span></div>
+            <div class="qs-row"><span class="qs-label">Podukupno</span><span class="qs-value" id="qs-side-subtotal">—</span></div>
+            <div class="qs-row"><span class="qs-label">Popust</span><span class="qs-value" id="qs-side-discount">—</span></div>
+            <div class="qs-row"><span class="qs-label">PDV</span><span class="qs-value" id="qs-side-tax">—</span></div>
             <div class="qs-divider"></div>
-            <div class="qs-total"><span class="qs-total-label">Ukupno</span><span class="qs-total-value">€84,200</span></div>
-            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">Ukupna marža</div>
-            <div class="margin-gauge"><div class="margin-gauge-fill"></div></div>
-            <div class="margin-info"><span>0%</span><span style="color:var(--accent)">22.4%</span><span>35%</span></div>
-            <div class="ai-insight">
-              <div class="ai-insight-label">✦ AI</div>
-              <div class="ai-insight-text">Slični hoteli, historija: avg. marža 18.2%. Vaša marža (22.4%) je iznad prosjeka. Win rate za ovaj segment: 41% — preporuka: ne snižavaj bez pritiska klijenta.</div>
-            </div>
-            <button class="btn btn-primary" style="width:100%;justify-content:center">Pošalji na odobrenje →</button>
-            <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px">↓ Preuzmi PDF</button>
+            <div class="qs-total"><span class="qs-total-label">Ukupno</span><span class="qs-total-value" id="qs-side-total">—</span></div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin:12px 0 6px">Ukupna marža: <span id="qs-side-margin-label" style="color:var(--accent);font-weight:600">—</span></div>
+            <div class="margin-gauge"><div class="margin-gauge-fill" id="qs-side-gauge" style="width:0%"></div></div>
+            <div class="margin-info"><span>0%</span><span>35%+</span></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px" onclick="exportQuotePdf(_currentQuote?.id)">↓ Preuzmi PDF</button>
           </div>
         </div>
       </div>
@@ -2262,6 +2257,24 @@ function renderQuoteBuilder(quote) {
   set('qs-currency', quote.currency || '—');
   set('qs-payment', quote.payment_terms || '—');
   set('qs-status', quote.status || '—');
+
+  // Sažetak ponude (sidebar) — pravi podaci iz ponude
+  const disc = parseFloat(quote.discount_total || 0);
+  set('qs-side-subtotal', fmt(quote.subtotal));
+  set('qs-side-discount', disc > 0 ? fmt(disc) : '—');
+  set('qs-side-tax', fmt(quote.tax_total));
+  set('qs-side-total', fmt(quote.total));
+  // Ukupna marža = (prihod − trošak) / prihod, iz stavki
+  let rev = 0, cost = 0;
+  items.forEach(li => {
+    const q = parseFloat(li.quantity) || 0;
+    rev  += q * (parseFloat(li.unit_price) || 0);
+    cost += q * (parseFloat(li.unit_cost) || 0);
+  });
+  const marginPct = rev > 0 ? (rev - cost) / rev * 100 : 0;
+  set('qs-side-margin-label', rev > 0 ? marginPct.toFixed(1) + '%' : '—');
+  const gauge = document.getElementById('qs-side-gauge');
+  if (gauge) gauge.style.width = Math.max(0, Math.min(100, marginPct / 35 * 100)) + '%';
 
   // Osvježi AI win-prob/optimizer ako ima stavki
   if ((quote.line_items || []).length && quote.id) loadQuoteIntelligence(quote.id);
