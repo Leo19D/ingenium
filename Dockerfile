@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY backend/pyproject.toml /app/
+COPY backend/pyproject.toml backend/README.md /app/
 RUN pip install .
 
 COPY backend/app /app/app

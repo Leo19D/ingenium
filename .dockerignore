@@ -12,6 +12,5 @@ backend/ingenium_dev.backup-*.db
 **/.env
 **/.env.*
 !**/.env.example
-*.md
 .claude
 db/seed.sql
