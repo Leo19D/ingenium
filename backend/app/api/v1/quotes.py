@@ -269,6 +269,71 @@ async def new_version(
     return QuoteResponse.model_validate(new_q)
 
 
+@router.get("/item-price-history")
+async def item_price_history(
+    description: str | None = None,
+    stock_item_id: UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Povijest cijene po artiklu iz PROŠLIH ponuda — uči iz konkretnih cijena.
+
+    Match: po stock_item_id (točno) ili semantičkoj sličnosti opisa. Vraća zadnju
+    cijenu, prosjek dobivenih, prosj. maržu i kratku povijest s ishodima.
+    """
+    if not description and not stock_item_id:
+        return {"matches": 0, "history": []}
+
+    base = (
+        select(
+            QuoteLineItem.description, QuoteLineItem.unit_price, QuoteLineItem.margin_pct,
+            Quote.version, Quote.created_at, QuoteOutcome.outcome,
+        )
+        .join(Quote, Quote.id == QuoteLineItem.quote_id)
+        .outerjoin(QuoteOutcome, QuoteOutcome.quote_id == Quote.id)
+        .where(Quote.org_id == org_id, QuoteLineItem.unit_price > 0)
+    )
+    if stock_item_id:
+        base = base.where(QuoteLineItem.stock_item_id == stock_item_id)
+    rows = (await db.execute(base)).all()
+
+    # Bez stock_item_id → filtriraj po sličnosti opisa (semantička normalizacija)
+    if not stock_item_id and description:
+        from app.services.matching.catalog_matcher import _normalize
+        qn = set(_normalize(description).split())
+
+        def _sim(d: str) -> float:
+            dn = set(_normalize(d or "").split())
+            return len(qn & dn) / max(len(qn), len(dn)) if qn and dn else 0.0
+
+        rows = [r for r in rows if _sim(r.description) >= 0.6]
+
+    history = sorted(rows, key=lambda r: r.created_at or datetime.min, reverse=True)
+    if not history:
+        return {"matches": 0, "history": []}
+
+    won = [r for r in history if r.outcome == "won"]
+    won_prices = [float(r.unit_price) for r in won]
+    margins = [float(r.margin_pct) * 100 for r in history if r.margin_pct is not None]
+    return {
+        "matches": len(history),
+        "last_price": float(history[0].unit_price),
+        "last_outcome": history[0].outcome,
+        "won_count": len(won),
+        "avg_won_price": round(sum(won_prices) / len(won_prices), 2) if won_prices else None,
+        "avg_margin_pct": round(sum(margins) / len(margins), 1) if margins else None,
+        "history": [
+            {
+                "price": float(r.unit_price),
+                "margin_pct": round(float(r.margin_pct) * 100, 1) if r.margin_pct is not None else None,
+                "outcome": r.outcome,
+                "date": r.created_at.date().isoformat() if r.created_at else None,
+            }
+            for r in history[:8]
+        ],
+    }
+
+
 @router.get("/{quote_id}", response_model=QuoteResponse)
 async def get_quote(
     quote_id: UUID,

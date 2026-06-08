@@ -684,7 +684,7 @@ textarea.form-input { resize: vertical; }
           <!-- Inline forma za dodavanje stavke -->
           <div id="add-item-form" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px">
             <div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-              <input type="text" class="form-input" id="li-desc" placeholder="Opis artikla *" style="font-size:13px">
+              <input type="text" class="form-input" id="li-desc" placeholder="Opis artikla *" style="font-size:13px" oninput="onItemDescInput()">
               <input type="number" class="form-input" id="li-qty" placeholder="Količina *" step="0.01" min="0" style="font-size:13px">
               <select class="form-input" id="li-unit" style="font-size:13px">
                 <option>pcs</option><option>m</option><option>m2</option><option>kg</option><option>set</option><option>lot</option>
@@ -698,6 +698,7 @@ textarea.form-input { resize: vertical; }
                      oninput="calcPriceFromMargin()" style="font-size:13px">
               <button class="btn btn-primary" id="btn-add-item" style="font-size:12px;white-space:nowrap" onclick="addQuoteLineItem()">+ Dodaj</button>
             </div>
+            <div id="li-price-hint" style="display:none;margin-top:10px;padding:8px 12px;border-radius:var(--r-sm);background:var(--accent-dim);font-size:12px;color:var(--text2)"></div>
           </div>
 
           <div class="line-items-table" id="builder-items">
@@ -2298,6 +2299,45 @@ function _resetItemForm() {
   });
   const btn = document.getElementById('btn-add-item');
   if (btn) btn.textContent = '+ Dodaj';
+  const hint = document.getElementById('li-price-hint');
+  if (hint) hint.style.display = 'none';
+}
+
+// ===== Memorija cijene po artiklu (uči iz prošlih ponuda) =====
+let _priceHintTimer = null;
+function onItemDescInput() {
+  clearTimeout(_priceHintTimer);
+  const desc = document.getElementById('li-desc').value.trim();
+  if (desc.length < 4) { const h=document.getElementById('li-price-hint'); if(h) h.style.display='none'; return; }
+  _priceHintTimer = setTimeout(() => fetchPriceHint(desc), 450);  // debounce
+}
+
+async function fetchPriceHint(desc) {
+  if (!apiAvailable) return;
+  const hint = document.getElementById('li-price-hint');
+  if (!hint) return;
+  try {
+    const h = await apiGet('/quotes/item-price-history?description=' + encodeURIComponent(desc));
+    if (!h.matches) { hint.style.display = 'none'; return; }
+    const eur = n => '€' + Number(n).toLocaleString('hr-HR', {minimumFractionDigits:2});
+    const outIcon = { won: '✓ dobiveno', lost: '✗ izgubljeno', accepted: '✓', rejected: '✗' };
+    const last = `Zadnji put: <strong>${eur(h.last_price)}</strong>${h.last_outcome ? ' (' + (outIcon[h.last_outcome] || h.last_outcome) + ')' : ''}`;
+    const avg = h.avg_won_price ? ` · prosjek dobivenih <strong>${eur(h.avg_won_price)}</strong>` : '';
+    const marg = h.avg_margin_pct != null ? ` · prosj. marža ${h.avg_margin_pct}%` : '';
+    hint.innerHTML =
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+         <span>💡 Nuđen ${h.matches}× &nbsp; ${last}${avg}${marg}</span>
+         <button class="btn btn-ghost" style="font-size:11px;padding:2px 8px;white-space:nowrap"
+                 onclick="applyHistoricPrice(${h.last_price})">Primijeni ${eur(h.last_price)}</button>
+       </div>`;
+    hint.style.display = 'block';
+  } catch(e) { hint.style.display = 'none'; }
+}
+
+function applyHistoricPrice(price) {
+  const el = document.getElementById('li-price');
+  if (el) { el.value = price; el.focus(); }
+  showToast('Primijenjena prošla cijena €' + Number(price).toFixed(2));
 }
 
 function editLineItem(li) {
