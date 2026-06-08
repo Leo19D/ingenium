@@ -3722,7 +3722,12 @@ async function logout() {
 
 // ========== API SLOJ (s auth) ==========
 // Ako je backend dostupan (make up), koristi ga. Inače in-memory (make demo).
-const API_BASE = (location.protocol === 'file:' ? 'http://localhost:8000' : '') + '/api/v1';
+// API_BASE: window.INGENIUM_API_BASE (postavi u config.js na Vercelu → Railway URL),
+// inače localhost za file://, inače isti origin (kad backend servira frontend).
+const API_BASE = (
+  (typeof window !== 'undefined' && window.INGENIUM_API_BASE) ||
+  (location.protocol === 'file:' ? 'http://localhost:8000' : '')
+) + '/api/v1';
 var apiAvailable = false;
 
 function _authHeaders(extra) {

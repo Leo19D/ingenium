@@ -75,6 +75,9 @@ if "sqlite" not in settings.DATABASE_URL:
         max_overflow=settings.DB_MAX_OVERFLOW,
         pool_timeout=settings.DB_POOL_TIMEOUT,
     )
+    # Supabase/managed Postgres traži SSL (asyncpg)
+    if settings.DB_SSL or "supabase." in settings.DATABASE_URL:
+        _engine_kwargs["connect_args"] = {"ssl": "require"}
 else:
     # SQLite — bez pool overheada (patch se zove iz main.lifespan)
     _engine_kwargs.pop("pool_pre_ping", None)

@@ -53,22 +53,23 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30
     DB_ECHO: bool = False
+    DB_SSL: bool = False  # postavi true za Supabase/managed Postgres (asyncpg ssl=require)
 
     # ---------------------------------------------------------------------
-    # Redis & Celery
+    # Redis & Celery — opcionalno (app koristi in-process scheduler, ne Celery)
     # ---------------------------------------------------------------------
-    REDIS_URL: RedisDsn
-    CELERY_BROKER_URL: str
-    CELERY_RESULT_BACKEND: str
+    REDIS_URL: RedisDsn | None = None
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
 
     # ---------------------------------------------------------------------
-    # S3 / object storage
+    # S3 / object storage — opcionalno (uploadi idu na lokalni disk osim ako se postavi)
     # ---------------------------------------------------------------------
     S3_ENDPOINT: str | None = None
-    S3_BUCKET: str
+    S3_BUCKET: str = ""
     S3_REGION: str = "us-east-1"
-    S3_ACCESS_KEY: str
-    S3_SECRET_KEY: str
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
     S3_USE_SSL: bool = False
 
     # ---------------------------------------------------------------------

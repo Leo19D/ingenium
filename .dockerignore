@@ -1,0 +1,17 @@
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+.gitignore
+**/node_modules
+tests-ui
+backend/tests
+backend/ingenium_dev.db
+backend/ingenium_dev.backup-*.db
+**/*.db
+**/.env
+**/.env.*
+!**/.env.example
+*.md
+.claude
+db/seed.sql
