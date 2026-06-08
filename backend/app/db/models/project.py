@@ -42,5 +42,5 @@ class Project(TimestampedBase):
     site_region: Mapped[str | None] = mapped_column(String(64))
     urgency: Mapped[str | None] = mapped_column(String(16))  # normal, urgent, critical
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )

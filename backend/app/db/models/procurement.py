@@ -26,10 +26,10 @@ class PurchaseOrder(TimestampedBase):
 
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("suppliers.id")
+        UUID(as_uuid=True), ForeignKey("suppliers.id"), index=True
     )
     quote_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("quotes.id")
+        UUID(as_uuid=True), ForeignKey("quotes.id"), index=True
     )
     po_number: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="draft", nullable=False)
@@ -57,7 +57,7 @@ class PurchaseOrderLine(TimestampedBase):
         index=True,
     )
     stock_item_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("stock_items.id")
+        UUID(as_uuid=True), ForeignKey("stock_items.id"), index=True
     )
     sku: Mapped[str | None] = mapped_column(String(128))
     description: Mapped[str] = mapped_column(Text, nullable=False)

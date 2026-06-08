@@ -61,10 +61,10 @@ class Quote(TimestampedBase):
     notes_internal: Mapped[str | None] = mapped_column(Text)
     notes_external: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
     approved_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
     sent_at: Mapped[datetime | None] = mapped_column()
 
@@ -85,14 +85,14 @@ class QuoteLineItem(TimestampedBase):
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     product_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("products.id")
+        UUID(as_uuid=True), ForeignKey("products.id"), index=True
     )
     supplier_product_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("supplier_products.id")
+        UUID(as_uuid=True), ForeignKey("supplier_products.id"), index=True
     )
     # Veza na skladišnu stavku (iz catalog matchinga) — za pouzdano skidanje zalihe
     stock_item_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("stock_items.id")
+        UUID(as_uuid=True), ForeignKey("stock_items.id"), index=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 4), nullable=False)
@@ -131,7 +131,7 @@ class QuoteOutcome(TimestampedBase):
     competitor_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     lessons: Mapped[str | None] = mapped_column(Text)
     recorded_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
 
     quote = relationship("Quote", back_populates="outcome")

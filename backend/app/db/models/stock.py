@@ -50,6 +50,7 @@ class StockItem(TimestampedBase):
     product_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("products.id", ondelete="SET NULL"),
+        index=True,
     )
     location_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),

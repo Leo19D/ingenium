@@ -32,7 +32,7 @@ class Document(TimestampedBase):
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), index=True
     )
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
     storage_key: Mapped[str] = mapped_column(Text, nullable=False)
     filename: Mapped[str] = mapped_column(Text, nullable=False)
@@ -64,7 +64,7 @@ class DocumentExtraction(TimestampedBase):
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
     needs_review: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id")
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True
     )
     reviewed_at: Mapped[datetime | None] = mapped_column()
 
