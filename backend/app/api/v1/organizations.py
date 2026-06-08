@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -192,6 +192,77 @@ async def delete_item_template(
         raise HTTPException(status_code=404, detail="Organizacija nije pronađena.")
     s = dict(org.settings or {})
     s["item_templates"] = [t for t in s.get("item_templates", []) if t.get("name") != name]
+    org.settings = s
+    flag_modified(org, "settings")
+    await db.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Predložak ponude (KORISNIKOV Excel) — vrijednosti se upisuju u njega
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/quote-template")
+async def get_quote_template_info(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    s = (org.settings or {}) if org else {}
+    return {
+        "has_template": bool(s.get("quote_template_xlsx")),
+        "name": s.get("quote_template_name"),
+    }
+
+
+@router.post("/quote-template", status_code=201)
+async def upload_quote_template(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Spremi korisnikov Excel predložak ponude (base64 u settings)."""
+    import base64
+
+    from sqlalchemy.orm.attributes import flag_modified
+
+    name = file.filename or "predlozak.xlsx"
+    if not name.lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(status_code=422, detail="Predložak mora biti .xlsx.")
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="Predložak je prevelik (max 2 MB).")
+    # Validacija da je ispravan Excel
+    try:
+        from openpyxl import load_workbook
+        load_workbook(__import__("io").BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Nije ispravan Excel: {e}") from e
+
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organizacija nije pronađena.")
+    s = dict(org.settings or {})
+    s["quote_template_xlsx"] = base64.b64encode(content).decode()
+    s["quote_template_name"] = name
+    org.settings = s
+    flag_modified(org, "settings")
+    await db.commit()
+    return {"message": f"Predložak '{name}' spremljen.", "name": name}
+
+
+@router.delete("/quote-template", status_code=204)
+async def delete_quote_template(
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> None:
+    from sqlalchemy.orm.attributes import flag_modified
+
+    org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organizacija nije pronađena.")
+    s = dict(org.settings or {})
+    s.pop("quote_template_xlsx", None)
+    s.pop("quote_template_name", None)
     org.settings = s
     flag_modified(org, "settings")
     await db.commit()

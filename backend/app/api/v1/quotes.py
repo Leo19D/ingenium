@@ -616,6 +616,47 @@ async def export_quote_pdf(
     )
 
 
+@router.get("/{quote_id}/export/template")
+async def export_quote_template(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> StreamingResponse:
+    """Popuni KORISNIKOV Excel predložak vrijednostima ove ponude."""
+    import base64
+
+    from app.services.quote.template_fill import fill_quote_template
+
+    org = await db.get(Organization, org_id)
+    s = (org.settings or {}) if org else {}
+    tpl_b64 = s.get("quote_template_xlsx")
+    if not tpl_b64:
+        raise HTTPException(status_code=404, detail="Nema spremljenog predloška ponude. Uvezi ga u Postavkama.")
+
+    quote, project_name, client_name = await _quote_with_context(quote_id, db, org_id)
+    quote_dict = {
+        "version": quote.version, "currency": quote.currency,
+        "subtotal": quote.subtotal, "tax_total": quote.tax_total, "total": quote.total,
+        "payment_terms": quote.payment_terms, "notes_external": quote.notes_external,
+        "line_items": [
+            {"position": li.position, "description": li.description, "quantity": li.quantity,
+             "unit": li.unit, "unit_price": li.unit_price, "line_total": li.line_total}
+            for li in quote.line_items
+        ],
+    }
+    filled = fill_quote_template(
+        template_bytes=base64.b64decode(tpl_b64), quote=quote_dict,
+        project_name=project_name, client_name=client_name,
+        org_name=(org.name if org else "Ingenium"),
+    )
+    fname = (s.get("quote_template_name") or "ponuda.xlsx").rsplit(".", 1)[0]
+    return StreamingResponse(
+        io.BytesIO(filled),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}-V{quote.version}.xlsx"'},
+    )
+
+
 async def _org_brand(db: AsyncSession, org_id: UUID) -> dict:
     """Org naziv + brand boja + PDF footer iz postavki (za PDF ponude)."""
     org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()

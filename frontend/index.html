@@ -590,6 +590,7 @@ textarea.form-input { resize: vertical; }
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="exportQuoteXlsx(_currentQuote?.id)" id="btn-export-excel">↓ Excel</button>
+          <button class="btn btn-ghost" onclick="exportQuoteTemplate(_currentQuote?.id)" id="btn-export-template" style="display:none;color:var(--accent)" title="Preuzmi u tvom Excel predlošku">↓ Moj predložak</button>
           <button class="btn btn-ghost" onclick="exportQuotePdf(_currentQuote?.id)" id="btn-export-pdf">↓ PDF</button>
           <button class="btn btn-ghost" id="btn-new-version" onclick="newQuoteVersion()" title="Kopiraj u novu verziju za pregovaranje">⎘ Nova verzija</button>
           <button class="btn btn-ghost" id="btn-approve" onclick="sendForApproval()" style="display:none">Na odobrenje →</button>
@@ -813,6 +814,21 @@ textarea.form-input { resize: vertical; }
           </div>
           <div class="form-group" style="margin-top:6px"><label class="form-label">Footer ponude (uvjeti)</label>
             <textarea class="form-input" id="set-pdf-footer" rows="2" placeholder="npr. Cijene ne uključuju dostavu. Vrijede 30 dana. IBAN: HR..." style="resize:vertical"></textarea></div>
+        </div>
+
+        <div class="card" style="padding:20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text)">Predložak ponude (tvoj Excel)</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
+            Uvezi SVOJ Excel format ponude — sustav upisuje stavke i cijene u njega. Treba imati redak zaglavlja (Opis / Količina / Cijena / Ukupno). Za pojedinačne vrijednosti koristi placeholdere bilo gdje: <code>{{klijent}}</code>, <code>{{projekt}}</code>, <code>{{datum}}</code>, <code>{{podukupno}}</code>, <code>{{pdv}}</code>, <code>{{ukupno}}</code>, <code>{{firma}}</code>.
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span id="qt-status" style="font-size:13px;color:var(--text2)">Nema predloška</span>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <label class="btn btn-ghost" style="font-size:12px;cursor:pointer">⬆ Uvezi predložak
+                <input type="file" accept=".xlsx,.xlsm" style="display:none" onchange="uploadQuoteTemplate(this.files[0]);this.value=''"></label>
+              <button class="btn btn-ghost" style="font-size:12px;color:var(--red)" id="qt-delete" onclick="deleteQuoteTemplate()" style="display:none">Ukloni</button>
+            </div>
+          </div>
         </div>
 
         <div class="card" style="padding:20px;margin-bottom:16px">
@@ -1776,7 +1792,60 @@ async function loadSettings() {
     renderCategoryMargins();
     loadAudit();
     loadMembers();
+    loadQuoteTemplateStatus();
   } catch(e) { console.error('loadSettings', e); }
+}
+
+// ===== Predložak ponude (korisnikov Excel) =====
+let _hasQuoteTemplate = false;
+async function loadQuoteTemplateStatus() {
+  if (!apiAvailable) return;
+  try {
+    const t = await apiGet('/organizations/quote-template');
+    _hasQuoteTemplate = !!t.has_template;
+    const st = document.getElementById('qt-status');
+    if (st) st.textContent = t.has_template ? ('✓ Predložak: ' + (t.name || 'predlozak.xlsx')) : 'Nema predloška';
+    const del = document.getElementById('qt-delete');
+    if (del) del.style.display = t.has_template ? 'inline-flex' : 'none';
+    // gumb u builderu
+    const btn = document.getElementById('btn-export-template');
+    if (btn) btn.style.display = t.has_template ? 'inline-flex' : 'none';
+  } catch(e) { console.error('loadQuoteTemplateStatus', e); }
+}
+
+async function uploadQuoteTemplate(file) {
+  if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch(API_BASE + '/organizations/quote-template', { method: 'POST', headers: _authHeaders(), body: fd });
+    if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; return; }
+    if (!r.ok) { let d=r.status; try{d=(await r.json()).detail}catch(e){} throw new Error(String(d)); }
+    showToast('Predložak ponude spremljen');
+    await loadQuoteTemplateStatus();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function deleteQuoteTemplate() {
+  if (!confirm('Ukloniti predložak ponude?')) return;
+  try {
+    const r = await fetch(API_BASE + '/organizations/quote-template', { method: 'DELETE', headers: _authHeaders() });
+    if (!r.ok && r.status !== 204) throw new Error(String(r.status));
+    showToast('Predložak uklonjen');
+    await loadQuoteTemplateStatus();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function exportQuoteTemplate(quoteId) {
+  if (!apiAvailable || !quoteId) { showToast('Nema aktivne ponude', 'error'); return; }
+  try {
+    const r = await fetch(API_BASE + '/quotes/' + quoteId + '/export/template', { headers: _authHeaders() });
+    if (!r.ok) { let d='export nije uspio'; try{d=(await r.json()).detail}catch(e){} throw new Error(String(d)); }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'ponuda.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('Ponuda preuzeta u tvom predlošku');
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
 const _AUDIT_LABELS = {
