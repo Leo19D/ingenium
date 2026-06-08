@@ -1,0 +1,7 @@
+{
+  "name": "ingenium-ui-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": { "smoke": "node smoke.mjs" },
+  "dependencies": { "playwright": "^1.40.0" }
+}
