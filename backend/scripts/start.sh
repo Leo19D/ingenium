@@ -8,7 +8,11 @@ echo "→ Bootstrap baze..."
 python -m scripts.init_db
 
 echo "→ Pokrećem uvicorn (workers=${WEB_CONCURRENCY:-1})..."
+# --proxy-headers: čitaj X-Forwarded-For (pravi IP korisnika iza Railway LB-a /
+# Vercel proxyja) za rate limiter + login security alert.
 exec uvicorn app.main:app \
   --host 0.0.0.0 \
   --port "${PORT:-8000}" \
-  --workers "${WEB_CONCURRENCY:-1}"
+  --workers "${WEB_CONCURRENCY:-1}" \
+  --proxy-headers \
+  --forwarded-allow-ips '*'
