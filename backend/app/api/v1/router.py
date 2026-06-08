@@ -15,6 +15,7 @@ from app.api.v1 import (
     projects,
     purchase_orders,
     quotes,
+    reports,
     stock,
     suppliers,
 )
@@ -35,6 +36,7 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(quotes.router, prefix="/quotes", tags=["quotes"])
 api_router.include_router(purchase_orders.router, prefix="/purchase-orders", tags=["procurement"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(members.router, prefix="/members", tags=["members"])
 api_router.include_router(fx.router, prefix="/fx", tags=["fx"])
