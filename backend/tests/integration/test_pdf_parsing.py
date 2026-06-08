@@ -1,0 +1,52 @@
+"""Integration: PDF troškovnik parsing — pdfplumber tablica → stavke s col_map.
+
+Regresija za bug gdje PDF parser nije postavljao col_map (kao XLSX) → heuristika
+nije znala koji stupac je opis/količina/cijena → 0 ekstrahiranih stavki.
+"""
+
+from __future__ import annotations
+
+import pytest
+from fpdf import FPDF
+
+from app.services.ingestion.parsers.pdf import PdfParser
+from app.services.ingestion.pipeline import _extract_items_from_table
+
+
+def _make_pdf() -> bytes:
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 10)
+    cols = [("Opis", 90), ("Kolicina", 30), ("Jed.", 20), ("Cijena", 30)]
+    for n, w in cols:
+        pdf.cell(w, 8, n, border=1)
+    pdf.ln()
+    pdf.set_font("Helvetica", size=10)
+    rows = [
+        ("LED panel 60x60 40W 4000K", "25", "kom", "32.50"),
+        ("LED reflektor 50W IP65", "10", "kom", "45.00"),
+        ("Kabel NYM-J 3x1.5mm2", "500", "m", "1.20"),
+    ]
+    for r in rows:
+        for (_n, w), v in zip(cols, r, strict=False):
+            pdf.cell(w, 8, v, border=1)
+        pdf.ln()
+    return bytes(pdf.output())
+
+
+@pytest.mark.asyncio
+async def test_pdf_table_extracts_items_with_colmap():
+    parsed = await PdfParser().parse(_make_pdf(), "troskovnik.pdf")
+    assert len(parsed.tables) == 1
+    table = parsed.tables[0]
+    col_map = getattr(table, "col_map", None)
+    assert col_map is not None, "PDF tablica mora imati col_map (kao XLSX)"
+    assert col_map.get("description") is not None
+    assert col_map.get("quantity") is not None
+
+    items = _extract_items_from_table(table, "pdfplumber")
+    assert len(items) == 3, f"očekivano 3 stavke, dobiveno {len(items)}"
+    descs = [i["description"] for i in items]
+    assert any("LED panel" in d for d in descs)
+    assert items[0]["quantity"] == 25.0
+    assert items[0]["unit_price"] == 32.5

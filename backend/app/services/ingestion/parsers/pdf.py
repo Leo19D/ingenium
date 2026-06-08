@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 
 from app.services.ingestion.parsers.base import DocumentParser, ParsedDocument, ParsedTable
+from app.services.ingestion.parsers.xlsx import _detect_columns
 
 
 class PdfParser(DocumentParser):
@@ -32,7 +33,16 @@ class PdfParser(DocumentParser):
                         if any(cell is not None and str(cell).strip() for cell in row)
                     ]
                     if len(rows) >= 2:
-                        tables.append(ParsedTable(rows=rows, page=page_num))
+                        # Prvi red = header, ostali = podaci. Ista detekcija stupaca
+                        # kao XLSX (keywords + number distribution) → col_map, da
+                        # heuristika zna koji stupac je opis/količina/cijena.
+                        headers = rows[0]
+                        data_rows = rows[1:]
+                        col_map = _detect_columns(headers, data_rows)
+                        table = ParsedTable(rows=data_rows, page=page_num)
+                        object.__setattr__(table, "col_map", col_map)
+                        object.__setattr__(table, "headers", headers)
+                        tables.append(table)
 
         return ParsedDocument(
             raw_text="\n\n".join(raw_text_parts),
