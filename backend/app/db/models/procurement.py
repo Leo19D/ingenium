@@ -11,7 +11,16 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CHAR, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import (
+    CHAR,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +32,12 @@ PO_STATUSES = ("draft", "sent", "received", "cancelled")
 
 class PurchaseOrder(TimestampedBase):
     __tablename__ = "purchase_orders"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft','sent','received','cancelled')",
+            name="ck_purchase_orders_status",
+        ),
+    )
 
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -49,6 +64,10 @@ class PurchaseOrder(TimestampedBase):
 
 class PurchaseOrderLine(TimestampedBase):
     __tablename__ = "purchase_order_lines"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_purchase_order_lines_quantity_pos"),
+        CheckConstraint("unit_cost >= 0", name="ck_purchase_order_lines_cost_nonneg"),
+    )
 
     po_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

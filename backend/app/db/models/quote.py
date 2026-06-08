@@ -76,6 +76,12 @@ class Quote(TimestampedBase):
 
 class QuoteLineItem(TimestampedBase):
     __tablename__ = "quote_line_items"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_quote_line_items_quantity_pos"),
+        CheckConstraint("unit_price >= 0", name="ck_quote_line_items_price_nonneg"),
+        CheckConstraint("discount_pct >= 0 AND discount_pct <= 1",
+                        name="ck_quote_line_items_discount_range"),
+    )
 
     quote_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

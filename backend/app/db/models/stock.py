@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     CHAR,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Numeric,
@@ -39,6 +40,7 @@ class StockItem(TimestampedBase):
     __tablename__ = "stock_items"
     __table_args__ = (
         UniqueConstraint("org_id", "sku", "location_id"),
+        CheckConstraint("quantity_on_hand >= 0", name="ck_stock_items_qoh_nonneg"),
     )
 
     org_id: Mapped[uuid.UUID] = mapped_column(
