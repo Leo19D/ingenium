@@ -97,3 +97,4 @@ coverage/
 postgres-data/
 redis-data/
 minio-data/
+backend/ingenium_dev.backup-*.db
