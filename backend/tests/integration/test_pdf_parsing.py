@@ -50,3 +50,32 @@ async def test_pdf_table_extracts_items_with_colmap():
     assert any("LED panel" in d for d in descs)
     assert items[0]["quantity"] == 25.0
     assert items[0]["unit_price"] == 32.5
+
+
+def _make_text_pdf() -> bytes:
+    """PDF s tekstom ali BEZ okvira tablice (razina 2)."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+    pdf.cell(0, 8, "TROSKOVNIK rasvjeta", new_x="LMARGIN", new_y="NEXT")
+    for line in [
+        "LED panel 60x60 40W 4000K   25 kom   32.50",
+        "Kabel NYM-J 3x1.5mm2   500 m   1.20",
+    ]:
+        pdf.cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+    return bytes(pdf.output())
+
+
+@pytest.mark.asyncio
+async def test_pdf_text_lines_keeps_description_with_numbers():
+    """Razina 2: opis s brojevima (60x60, 40W) ostaje cijel; qty/cijena iz kraja."""
+    parsed = await PdfParser().parse(_make_text_pdf(), "troskovnik.pdf")
+    assert parsed.metadata.get("extraction_method") == "pdf_text_lines"
+    items = []
+    for t in parsed.tables:
+        items += _extract_items_from_table(t, "pdf")
+    assert len(items) == 2
+    led = next(i for i in items if "LED panel" in i["description"])
+    assert led["description"] == "LED panel 60x60 40W 4000K"  # cijel opis
+    assert led["quantity"] == 25.0
+    assert led["unit_price"] == 32.5
