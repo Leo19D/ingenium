@@ -77,7 +77,11 @@ if "sqlite" not in settings.DATABASE_URL:
     )
     # Supabase/managed Postgres traži SSL (asyncpg)
     if settings.DB_SSL or "supabase." in settings.DATABASE_URL:
-        _engine_kwargs["connect_args"] = {"ssl": "require"}
+        _connect: dict = {"ssl": "require"}
+        # pgbouncer (Supabase pooler) ne podnosi prepared statement cache
+        if "pooler.supabase" in settings.DATABASE_URL:
+            _connect["statement_cache_size"] = 0
+        _engine_kwargs["connect_args"] = _connect
 else:
     # SQLite — bez pool overheada (patch se zove iz main.lifespan)
     _engine_kwargs.pop("pool_pre_ping", None)

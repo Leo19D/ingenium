@@ -76,7 +76,16 @@ def _stamp_head() -> None:
 
 
 async def main() -> None:
+    from sqlalchemy import text
     async with engine.begin() as conn:
+        # Potrebne ekstenzije (Postgres): pgvector za embedding kolonu, pg_trgm za pretragu
+        if "sqlite" not in str(engine.url):
+            for ext in ("vector", "pg_trgm"):
+                try:
+                    await conn.execute(text(f"CREATE EXTENSION IF NOT EXISTS {ext}"))
+                except Exception as e:
+                    print(f"⚠ ekstenzija {ext} preskočena: {e}")
+            print("✓ ekstenzije (vector, pg_trgm)")
         await conn.run_sync(Base.metadata.create_all)
     print("✓ create_all (sve tablice)")
     async with AsyncSessionFactory() as db:
