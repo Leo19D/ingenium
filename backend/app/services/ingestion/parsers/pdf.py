@@ -29,6 +29,17 @@ def _is_num(tok: str) -> bool:
     return bool(re.fullmatch(r"\d+(?:[.,]\d+)?", tok))
 
 
+# OCR zna spojiti broj i jedinicu ("25kom", "500m") — razdvoji ih
+_GLUED = re.compile(
+    r"(\d)(" + "|".join(sorted(_UNITS, key=len, reverse=True)) + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _split_glued(line: str) -> str:
+    return _GLUED.sub(r"\1 \2", line)
+
+
 def _parse_line(line: str) -> list[str] | None:
     """Razbij redak troškovnika u [opis, količina, jed., cijena].
 
@@ -36,7 +47,7 @@ def _parse_line(line: str) -> list[str] | None:
     zadnji broj iza. Opis ostaje cijel (uklj. brojeve u nazivu: 60x60, 40W).
     Fallback bez jedinice: zadnji broj = cijena, pretposljednji = količina.
     """
-    line = line.strip()
+    line = _split_glued(line.strip())
     tokens = line.split()
     if len(tokens) < 2:
         return None
@@ -93,21 +104,38 @@ def _make_table(rows: list[list[str]], page: int | None,
 
 
 def _ocr_pages(file_bytes: bytes) -> str:
-    """Skenirani PDF → render stranica (pymupdf) → OCR (tesseract). Vrati tekst."""
+    """Skenirani PDF → render stranica (pymupdf) → OCR (tesseract binary preko
+    subprocessa; pytesseract wrapper je nepouzdan). Vrati prepoznati tekst."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
     try:
         import fitz  # pymupdf
-        import pytesseract
-        from PIL import Image
     except ImportError as e:
-        logger.warning("ocr_deps_missing: %s", e)
+        logger.warning("ocr_render_dep_missing: %s", e)
         return ""
+    if not shutil.which("tesseract"):
+        logger.warning("tesseract_binary_missing")
+        return ""
+
     out: list[str] = []
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
         for page in doc:
             pix = page.get_pixmap(dpi=200)
-            img = Image.open(io.BytesIO(pix.tobytes("png")))
-            out.append(pytesseract.image_to_string(img, lang="hrv+eng"))
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+                f.write(pix.tobytes("png"))
+                path = f.name
+            try:
+                r = subprocess.run(
+                    ["tesseract", path, "stdout", "-l", "hrv+eng"],
+                    capture_output=True, timeout=120, check=False,
+                )
+                out.append(r.stdout.decode("utf-8", "replace"))
+            finally:
+                os.unlink(path)
     except Exception as e:
         logger.exception("ocr_failed: %s", e)
         return ""

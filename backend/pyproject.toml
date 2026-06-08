@@ -43,9 +43,8 @@ dependencies = [
     "pandas>=2.2.3",
     "chardet>=5.2.0",
     "Pillow>=11.0.0",
-    # OCR za skenirane PDF-ove (tesseract binary je u Dockerfileu)
+    # OCR za skenirane PDF-ove: pymupdf render + tesseract binary (u Dockerfileu)
     "pymupdf>=1.24.0",
-    "pytesseract>=0.3.13",
 
     # OCR (cloud APIs)
     "azure-ai-documentintelligence>=1.0.0",
