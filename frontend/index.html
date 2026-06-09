@@ -484,6 +484,7 @@ textarea.form-input { resize: vertical; }
           </div>
         </div>
       </div>
+      <div id="documents-list"></div>
       <div style="font-size:12px;color:var(--text3);margin-top:16px;padding:14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
         💡 Uvezi troškovnik/RFQ gore → pojavit će se u „Uploadani dokumenti" → klikni „Parsiraj" pa „Pregledaj stavke" da ispraviš i pretvoriš u ponudu.
       </div>
@@ -1515,6 +1516,7 @@ async function loadDocuments() {
   try {
     const docs = await apiGet('/documents/');
     const container = document.getElementById('documents-list');
+    if (!container) return;
     if (!docs.length) {
       container.innerHTML = '<p style="color:var(--text3);font-size:13px;padding:16px 0">Nema uploadanih dokumenata. Uploadaj RFQ troškovnik od klijenta.</p>';
       return;
@@ -3884,7 +3886,8 @@ async function apiPut(path, body) {
   }
 
   hideLoginScreen();
-  await Promise.all([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications(), loadSettings(), loadPurchaseOrders()]);
+  // allSettled — jedan loader koji padne ne smije srušiti cijeli init
+  await Promise.allSettled([loadClients(), loadSuppliers(), loadStock(), loadDocuments(), loadProjects(), loadDashboardStats(), loadQuotes(), loadProducts(), loadTrends(), loadNotifications(), loadSettings(), loadPurchaseOrders()]);
 })();
 </script>
 
