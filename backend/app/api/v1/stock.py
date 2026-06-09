@@ -5,9 +5,10 @@ from __future__ import annotations
 import io
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -23,6 +24,7 @@ from app.db.models.user import User
 from app.db.session import get_db
 from app.schemas.client import BulkImportResult
 from app.schemas.stock import (
+    StockBulkImportItem,
     StockBulkImportRequest,
     StockItemCreate,
     StockItemResponse,
@@ -99,6 +101,59 @@ async def list_stock_items(
     )
     result["items"] = [StockItemResponse.model_validate(s) for s in result["items"]]
     return result
+
+
+@router.post("/import-file", response_model=BulkImportResult, status_code=status.HTTP_201_CREATED)
+async def import_stock_from_file(
+    file: Annotated[UploadFile, File()],
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> BulkImportResult:
+    """Uvoz skladišta iz Excel ILI PDF (uklj. skenirani — OCR). Isti pipeline kao RFQ."""
+    from app.services.ingestion.parsers.pdf import PdfParser
+    from app.services.ingestion.parsers.xlsx import XlsxParser
+
+    content = await file.read()
+    fname = (file.filename or "").lower()
+    if fname.endswith((".xlsx", ".xls")):
+        parser = XlsxParser()
+    elif fname.endswith(".pdf"):
+        parser = PdfParser()
+    else:
+        raise HTTPException(status_code=415, detail="Podržani formati: XLSX, XLS, PDF.")
+    try:
+        parsed = await parser.parse(content, file.filename or "skladiste")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Greška pri čitanju fajla: {e}") from e
+
+    items: list[StockBulkImportItem] = []
+    for table in parsed.tables:
+        col_map = getattr(table, "col_map", None) or {}
+        desc_col = col_map.get("description", 0)
+        sku_col = col_map.get("sku")
+        qty_col = col_map.get("quantity")
+        unit_col = col_map.get("unit")
+        price_col = col_map.get("unit_price")
+        for row in table.rows:
+            def get(c, row=row):
+                return (row[c].strip() if c is not None and c < len(row) and row[c] else "")
+            name = get(desc_col)
+            if not name or len(name) < 2:
+                continue
+            sku = get(sku_col) or _gen_stock_sku(name)
+            items.append(StockBulkImportItem(
+                sku=sku, naziv=name, qty=get(qty_col) or None,
+                unit=get(unit_col) or None, price=get(price_col) or None,
+            ))
+    if not items:
+        raise HTTPException(status_code=422, detail="Nije pronađena nijedna stavka u fajlu.")
+    return await bulk_import_stock_items(StockBulkImportRequest(items=items), db, org_id)
+
+
+def _gen_stock_sku(name: str) -> str:
+    import re
+    base = re.sub(r"[^A-Za-z0-9]+", "-", name.upper())[:24].strip("-")
+    return base or "ART"
 
 
 @router.get("/{item_id}", response_model=StockItemResponse)

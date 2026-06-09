@@ -70,7 +70,7 @@ await page.fill('#na-qty', '7');
 await page.fill('#na-min', '3');
 await page.fill('#na-price', '9.99');
 await page.click("button:has-text('Spremi artikl')");
-await page.waitForTimeout(1200);
+await page.waitForTimeout(3500);
 const afterSave = await page.locator('#stock-tbody .stock-row').count();
 log(afterSave === stockRows + 1, `Artikl spremljen — redova ${stockRows} → ${afterSave}`);
 

@@ -704,6 +704,8 @@ textarea.form-input { resize: vertical; }
           <button class="btn btn-ghost" onclick="exportXlsx('stock-items')">↓ Export Excel</button>
           <button class="btn btn-ghost" onclick="downloadTemplate('skladiste')">↓ Template</button>
           <button class="btn btn-ghost" onclick="openImport('skladiste')">⬆ Uvezi Excel</button>
+          <input type="file" id="stock-file-input" accept=".xlsx,.xls,.pdf" style="display:none" onchange="importStockFile(this.files[0]);this.value=''">
+          <button class="btn btn-ghost" onclick="document.getElementById('stock-file-input').click()" title="Excel ili PDF (uklj. skenirani — OCR)">⬆ Uvezi PDF</button>
           <button class="btn btn-primary" onclick="openModal('novi-artikl')">+ Novi artikl</button>
         </div>
       </div>
@@ -2171,6 +2173,20 @@ async function importCatalogFile(file) {
     if (!r.ok) throw new Error(d.detail || 'Import greška');
     showToast(`✓ Katalog: ${d.inserted} novih, ${d.updated} ažurirano${d.skipped ? ', '+d.skipped+' preskočeno' : ''}`);
     await loadProducts();
+  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+async function importStockFile(file) {
+  if (!file || !apiAvailable) return;
+  const fd = new FormData(); fd.append('file', file);
+  showToast('Učitavam ' + file.name + (file.name.toLowerCase().endsWith('.pdf') ? ' (PDF — može potrajati)...' : '...'));
+  try {
+    const r = await fetch(API_BASE + '/stock-items/import-file', { method: 'POST', headers: _authHeaders(), body: fd });
+    if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; return; }
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Import greška');
+    showToast(`✓ Skladište: ${d.inserted} uvezeno${d.skipped ? ', '+d.skipped+' preskočeno' : ''}`);
+    await loadStock();
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
 }
 
