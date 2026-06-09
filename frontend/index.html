@@ -336,13 +336,13 @@ textarea.form-input { resize: vertical; }
   <nav class="nav-section">
     <div class="nav-label">Pregled</div>
     <div class="nav-item active" onclick="setView('dashboard')"><span class="nav-icon">▦</span> Dashboard</div>
-    <div class="nav-item" onclick="setView('pipeline')"><span class="nav-icon">◈</span> Pipeline <span class="nav-badge">7</span></div>
+    <div class="nav-item" onclick="setView('pipeline')"><span class="nav-icon">◈</span> Pipeline <span class="nav-badge" id="badge-pipeline" style="display:none">0</span></div>
     <div class="nav-item" onclick="setView('izvjestaji')"><span class="nav-icon">▥</span> Izvještaji</div>
   </nav>
 
   <nav class="nav-section">
     <div class="nav-label">Rad</div>
-    <div class="nav-item" onclick="setView('documents')"><span class="nav-icon">◉</span> Dokumenti <span class="nav-badge">2</span></div>
+    <div class="nav-item" onclick="setView('documents')"><span class="nav-icon">◉</span> Dokumenti <span class="nav-badge" id="badge-documents" style="display:none">0</span></div>
     <div class="nav-item" onclick="setView('catalog')"><span class="nav-icon">◫</span> Katalog</div>
     <div class="nav-item" onclick="setView('skladiste')"><span class="nav-icon">▣</span> Skladište</div>
     <div class="nav-item" onclick="setView('quotes')"><span class="nav-icon">◳</span> Ponude</div>
@@ -380,7 +380,7 @@ textarea.form-input { resize: vertical; }
     <div class="topbar-right">
       <div class="search-box">
         <span style="font-size:14px;opacity:0.5">⌕</span>
-        <input type="text" placeholder="Pretraži ponude, klijente...">
+        <input type="text" placeholder="Pretraži u trenutnom pregledu..." oninput="globalSearch(this.value)">
       </div>
       <button class="btn btn-primary" onclick="openModal('nova-ponuda')">✦ Nova ponuda</button>
     </div>
@@ -697,8 +697,8 @@ textarea.form-input { resize: vertical; }
           <span style="font-size:14px;opacity:0.5">⌕</span>
           <input type="text" placeholder="Pretraži po SKU, nazivu..." oninput="filterList(this,'stock-row')">
         </div>
-        <button class="btn btn-ghost" style="font-size:12px">Sve kategorije ▾</button>
-        <button class="btn btn-ghost" style="font-size:12px">Sve lokacije ▾</button>
+        <select id="stock-cat-filter" class="btn btn-ghost" style="font-size:12px" onchange="applyStockFilters()"><option value="">Sve kategorije</option></select>
+        <select id="stock-loc-filter" class="btn btn-ghost" style="font-size:12px" onchange="applyStockFilters()"><option value="">Sve lokacije</option></select>
         <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono)" id="stock-count">5 artikala</span>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="exportXlsx('stock-items')">↓ Export Excel</button>
@@ -738,7 +738,7 @@ textarea.form-input { resize: vertical; }
           <span style="font-size:14px;opacity:0.5">⌕</span>
           <input type="text" placeholder="Pretraži klijente..." oninput="filterList(this,'client-row')">
         </div>
-        <button class="btn btn-ghost" style="font-size:12px">Sve države ▾</button>
+        <select id="sup-country-filter" class="btn btn-ghost" style="font-size:12px" onchange="filterSuppliersByCountry()"><option value="">Sve države</option></select>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="exportXlsx('clients')">↓ Export Excel</button>
           <button class="btn btn-ghost" onclick="downloadTemplate('klijenti')">↓ Template</button>
@@ -1245,30 +1245,6 @@ function setView(id) {
   if (id === 'izvjestaji' && typeof apiAvailable !== 'undefined' && apiAvailable) loadReport();
 }
 
-function simulateUpload() {
-  const zone = document.querySelector('#view-documents .upload-zone');
-  if (!zone) return;
-  zone.style.borderColor = 'var(--accent)';
-  zone.style.background = 'var(--accent-dim2)';
-  zone.querySelector('.upload-title').textContent = 'Obrađujem...';
-  setTimeout(() => {
-    zone.style.borderColor = '';
-    zone.style.background = '';
-    zone.querySelector('.upload-title').textContent = 'Uvezi RFQ ili troškovnik';
-    showToast('Dokument uploadan — pokrenuto parsiranje');
-  }, 1500);
-}
-
-// Progress bar animacija
-let progress = 72;
-setInterval(() => {
-  const fill = document.querySelector('.progress-fill.animated');
-  if (fill && progress < 98) {
-    progress += Math.random() * 0.3;
-    fill.style.width = Math.min(progress, 98) + '%';
-  }
-}, 800);
-
 // ========== MODAL KONTROLE ==========
 function openModal(name) {
   document.getElementById('modal-overlay').style.display = 'flex';
@@ -1382,6 +1358,7 @@ async function loadClients() {
       renderClientRow({ id: c.id, name: c.name, vat: c.tax_id, cc: c.country_code, segLower: c.segment, payment: String(c.payment_terms_days) });
       if (npSelect) { const o = document.createElement('option'); o.textContent = c.name; npSelect.appendChild(o); }
     });
+    if (!clients.length) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Nema klijenata. Uvezi Excel ili dodaj novog.</td></tr>';
   } catch (e) { console.error('loadClients', e); }
 }
 
@@ -1412,6 +1389,7 @@ async function addSupplier() {
 function renderSupplierRow(d) {
   const tbody = document.getElementById('suppliers-tbody');
   const tr = document.createElement('tr'); tr.className = 'supplier-row';
+  tr.dataset.cc = d.cc || '';
   tr.innerHTML =
     '<td><span class="client-name">' + escapeHtml(d.name) + '</span></td>' +
     '<td>' + countryFlag(d.cc) + ' ' + d.cc + '</td>' +
@@ -1432,6 +1410,15 @@ async function loadSuppliers() {
     window._suppliersCache = sups;  // za supplier-product dropdown
     const tbody = document.getElementById('suppliers-tbody'); tbody.innerHTML = '';
     sups.forEach(s => renderSupplierRow({ name: s.name, cc: s.country_code, currency: s.currency, incoterms: s.incoterms_default, lead: s.lead_time_days_avg }));
+    if (!sups.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Nema dobavljača. Uvezi Excel ili dodaj novog.</td></tr>';
+    // Popuni filter država (distinct)
+    const sel = document.getElementById('sup-country-filter');
+    if (sel) {
+      const ccs = [...new Set(sups.map(s => s.country_code).filter(Boolean))].sort();
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Sve države</option>' + ccs.map(c => `<option value="${c}">${c}</option>`).join('');
+      sel.value = cur;
+    }
   } catch (e) { console.error('loadSuppliers', e); }
 }
 
@@ -1517,6 +1504,7 @@ async function loadDocuments() {
   if (!apiAvailable) return;
   try {
     const docs = await apiGet('/documents/');
+    _setBadge('badge-documents', docs.length);
     const container = document.getElementById('documents-list');
     if (!container) return;
     if (!docs.length) {
@@ -2695,6 +2683,7 @@ async function loadQuotes() {
     renderPipeline(_allQuotes);
     const countEl = document.getElementById('quotes-count');
     if (countEl) countEl.textContent = _allQuotes.length + ' ponuda';
+    _setBadge('badge-pipeline', _allQuotes.filter(q => !['accepted','rejected','expired','withdrawn','no_response'].includes(q.status)).length);
   } catch(e) { console.error('loadQuotes', e); }
 }
 
@@ -3496,7 +3485,7 @@ function renderStockRows(items) {
   tbody.innerHTML = items.map(it => {
     const [bcls, blabel] = _STOCK_BADGE[it.status] || ['badge-draft', it.status || '—'];
     const qtyColor = it.status === 'nema' ? 'var(--red)' : it.status === 'nisko' ? 'var(--amber)' : 'var(--accent)';
-    return `<tr class="stock-row" data-id="${it.id}">
+    return `<tr class="stock-row" data-id="${it.id}" data-cat="${escapeHtml(it.category || '')}">
       <td><span class="quote-id">${escapeHtml(it.sku)}</span></td>
       <td><span class="client-name">${escapeHtml(it.name)}</span></td>
       <td style="color:var(--text2)">${escapeHtml(it.category || '—')}</td>
@@ -3509,6 +3498,14 @@ function renderStockRows(items) {
       <td><button class="icon-btn" title="Kretanja i korekcija" onclick="openStockPanel('${it.id}')">→</button></td>
     </tr>`;
   }).join('');
+  // Popuni filter kategorija (distinct)
+  const sel = document.getElementById('stock-cat-filter');
+  if (sel) {
+    const cur = sel.value;
+    const cats = [...new Set(items.map(i => i.category).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">Sve kategorije</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    sel.value = cur;
+  }
   updateStockKPIsFrom(items);
 }
 
@@ -3647,6 +3644,44 @@ function filterList(input, className) {
   const term = input.value.toLowerCase().trim();
   document.querySelectorAll('.' + className).forEach(row => {
     row.style.display = (!term || row.textContent.toLowerCase().includes(term)) ? '' : 'none';
+  });
+}
+
+// Top-bar pretraga — filtrira stavke u trenutno aktivnom pregledu
+function globalSearch(q) {
+  q = (q || '').toLowerCase().trim();
+  const view = document.querySelector('.view.active');
+  if (!view) return;
+  const rows = view.querySelectorAll('tbody tr, .product-card, .stock-row, .client-row, .supplier-row, .po-row');
+  rows.forEach(r => {
+    if (r.querySelector('th')) return; // preskoči header retke
+    r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+
+// Nav badge — prikaži broj (ili sakrij ako 0)
+function _setBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = count;
+  el.style.display = count > 0 ? '' : 'none';
+}
+
+// Skladište — filter po kategoriji
+function applyStockFilters() {
+  const catEl = document.getElementById('stock-cat-filter');
+  const cat = catEl ? catEl.value : '';
+  document.querySelectorAll('#stock-tbody .stock-row').forEach(r => {
+    r.style.display = (!cat || r.dataset.cat === cat) ? '' : 'none';
+  });
+}
+
+// Dobavljači — filter po državi
+function filterSuppliersByCountry() {
+  const el = document.getElementById('sup-country-filter');
+  const cc = el ? el.value : '';
+  document.querySelectorAll('#suppliers-tbody .supplier-row').forEach(r => {
+    r.style.display = (!cc || (r.dataset.cc === cc)) ? '' : 'none';
   });
 }
 

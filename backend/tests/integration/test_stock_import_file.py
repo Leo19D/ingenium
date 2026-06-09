@@ -71,9 +71,16 @@ def _pdf() -> bytes:
 
 @pytest.mark.asyncio
 async def test_import_stock_xlsx(client):
-    r = await client.post("/api/v1/stock-items/import-file",
-                          files={"file": ("skladiste.xlsx", _xlsx(),
-                                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
+    r = await client.post(
+        "/api/v1/stock-items/import-file",
+        files={
+            "file": (
+                "skladiste.xlsx",
+                _xlsx(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
     assert r.status_code == 201, r.text
     assert r.json()["inserted"] == 2
     items = (await client.get("/api/v1/stock-items/?search=LED")).json()["items"]
@@ -84,14 +91,17 @@ async def test_import_stock_xlsx(client):
 
 @pytest.mark.asyncio
 async def test_import_stock_pdf(client):
-    r = await client.post("/api/v1/stock-items/import-file",
-                          files={"file": ("skladiste.pdf", _pdf(), "application/pdf")})
+    r = await client.post(
+        "/api/v1/stock-items/import-file",
+        files={"file": ("skladiste.pdf", _pdf(), "application/pdf")},
+    )
     assert r.status_code == 201, r.text
     assert r.json()["inserted"] == 1
 
 
 @pytest.mark.asyncio
 async def test_import_stock_unsupported(client):
-    r = await client.post("/api/v1/stock-items/import-file",
-                          files={"file": ("x.txt", b"hello", "text/plain")})
+    r = await client.post(
+        "/api/v1/stock-items/import-file", files={"file": ("x.txt", b"hello", "text/plain")}
+    )
     assert r.status_code == 415
