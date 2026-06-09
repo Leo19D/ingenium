@@ -31,10 +31,10 @@ COPY backend/scripts /app/scripts
 COPY frontend /app/static_frontend
 
 RUN chmod +x /app/scripts/start.sh \
-    && mkdir -p /app/uploads \
-    && useradd --create-home --shell /bin/bash appuser \
-    && chown -R appuser:appuser /app
-USER appuser
+    && mkdir -p /app/uploads
+# Napomena: container radi kao root da može pisati u Railway volume montiran na
+# /app/uploads (volume je root-owned; non-root bi dobio PermissionError).
+# Prihvatljivo za interni alat na izoliranom Railway containeru.
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=25s --retries=3 \
