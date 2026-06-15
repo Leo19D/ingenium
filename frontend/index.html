@@ -1569,13 +1569,19 @@ function _reviewRow(item, i) {
   const cand = item.match_candidates && item.match_candidates[0];
   const qoh = cand && cand.quantity_on_hand != null ? Number(cand.quantity_on_hand) : null;
   const hist = item.historical_price != null ? Number(item.historical_price) : null;
-  const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span>` : '<span style="color:var(--text3)">—</span>';
-  // Dostupnost: zeleno = ima na stanju, crveno = nema (treba naručiti), — = nema matcha
+  const offer = item.supplier_offer || null;  // fallback cjenik dobavljača (nije na stanju)
+  const cost2 = cost || (offer ? Number(offer.unit_cost) : 0);  // nabavna: stanje → cjenik
+  const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span>`
+                    : (offer ? `<span style="color:var(--text2)" title="Iz kataloga">${escapeHtml(offer.match_sku||offer.supplier_name||'katalog')}</span>`
+                    : '<span style="color:var(--text3)">—</span>');
+  // Dostupnost: zeleno = ima na stanju, plavo "naručiti od X" = iz cjenika, crveno = nema nigdje
   let avail = '<span style="color:var(--text3)">—</span>';
-  if (qoh != null) {
-    avail = qoh > 0
-      ? `<span style="color:var(--green)">${qoh.toLocaleString('hr-HR')} ●</span>`
-      : `<span style="color:var(--red)" title="Nema na stanju — treba naručiti">naručiti ●</span>`;
+  if (qoh != null && qoh > 0) {
+    avail = `<span style="color:var(--green)">${qoh.toLocaleString('hr-HR')} ●</span>`;
+  } else if (offer) {
+    avail = `<span style="color:var(--accent)" title="Nije na stanju — naručiti od dobavljača">naručiti: ${escapeHtml(offer.supplier_name||'dobavljač')} ↗</span>`;
+  } else if (qoh != null) {
+    avail = `<span style="color:var(--red)" title="Nema na stanju i nema u cjeniku">naručiti ●</span>`;
   }
   // Prošla cijena: AI polazište iz prošlih dobivenih ponuda
   const histCell = hist != null
@@ -1583,14 +1589,14 @@ function _reviewRow(item, i) {
     : '<span style="color:var(--text3)">—</span>';
   const confColor = item.confidence >= 0.9 ? 'var(--green)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
   const inp = 'background:var(--bg2);border:1px solid var(--border2);border-radius:5px;padding:4px 7px;font-size:12px;color:var(--text)';
-  return `<tr class="review-row" data-cost="${cost}" data-hist="${hist != null ? hist : ''}" data-match='${match?JSON.stringify(match):""}' style="border-bottom:1px solid var(--border)">
+  return `<tr class="review-row" data-cost="${cost2}" data-hist="${hist != null ? hist : ''}" data-match='${match?JSON.stringify(match):""}' data-offer='${offer?JSON.stringify(offer):""}' style="border-bottom:1px solid var(--border)">
     <td style="padding:6px 10px;color:var(--text3)">${i+1}</td>
     <td style="padding:6px 8px"><input class="rv-desc" value="${escapeHtml(item.description||'')}" style="${inp};width:200px"></td>
     <td style="padding:6px 8px"><input class="rv-qty" type="number" step="0.01" value="${item.quantity??''}" style="${inp};width:64px;text-align:right"></td>
     <td style="padding:6px 8px"><input class="rv-unit" value="${escapeHtml(item.unit||'pcs')}" style="${inp};width:50px"></td>
     <td style="padding:6px 10px">${bestMatch}</td>
     <td style="padding:6px 10px;text-align:center;font-family:var(--font-mono);font-size:12px">${avail}</td>
-    <td style="padding:6px 10px;text-align:right;color:var(--text2)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
+    <td style="padding:6px 10px;text-align:right;color:var(--text2)">${cost2 ? '€'+Number(cost2).toFixed(2) : '—'}</td>
     <td style="padding:6px 10px;text-align:right;font-weight:600">${histCell}</td>
     <td style="padding:6px 10px;text-align:center;color:${confColor};font-weight:600">${(item.confidence*100).toFixed(0)}%</td>
     <td style="padding:6px 8px"><button class="icon-btn" title="Ukloni" onclick="this.closest('tr').remove()">🗑</button></td>
@@ -1688,12 +1694,14 @@ async function createQuoteFromDoc(docId) {
     const qty = parseFloat(tr.querySelector('.rv-qty')?.value);
     const unit = tr.querySelector('.rv-unit')?.value?.trim() || 'pcs';
     if (!desc || isNaN(qty) || qty <= 0) return;
-    let match = null;
+    let match = null, offer = null;
     try { match = tr.dataset.match ? JSON.parse(tr.dataset.match) : null; } catch(e) {}
+    try { offer = tr.dataset.offer ? JSON.parse(tr.dataset.offer) : null; } catch(e) {}
     const hist = tr.dataset.hist ? parseFloat(tr.dataset.hist) : null;
     selected.push({ description: desc, quantity: qty, unit, accepted_match: match,
+                    supplier_offer: offer,
                     historical_price: hist || null,
-                    unit_price: match?.unit_cost || null });
+                    unit_price: (match?.unit_cost) || (offer?.unit_cost) || null });
   });
   if (!selected.length) { showToast('Nema valjanih stavki', 'error'); return; }
 

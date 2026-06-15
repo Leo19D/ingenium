@@ -33,7 +33,9 @@ from app.services.ingestion.parsers.pdf import PdfParser
 from app.services.ingestion.parsers.xlsx import XlsxParser
 from app.services.matching.catalog_matcher import (
     MatchResult,
+    best_supplier_offer,
     build_catalog_index,
+    build_supplier_offer_index,
     match_item,
 )
 
@@ -175,6 +177,19 @@ async def parse_document(
             )
         except Exception as e:
             log.warning("match_error", desc=item["description"], err=str(e))
+
+    # Fallback nabavne cijene iz cjenika dobavljača za stavke BEZ skladišnog matcha
+    try:
+        offer_index = await build_supplier_offer_index(db, org_id)
+        if offer_index:
+            for item in heuristic_items:
+                if item.get("accepted_match"):
+                    continue
+                offer = best_supplier_offer(item["description"], item.get("sku_hint"), offer_index)
+                if offer:
+                    item["supplier_offer"] = offer
+    except Exception as e:
+        log.warning("supplier_offer_error", err=str(e))
 
     # Load historical price context for enrichment
     history = await historical_price_context(db=db, org_id=org_id)

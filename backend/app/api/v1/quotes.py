@@ -92,6 +92,8 @@ class LineItemResponse(BaseModel):
     line_total: Decimal | None = None
     margin_pct: Decimal | None = None
     stock_item_id: UUID | None = None
+    product_id: UUID | None = None
+    supplier_product_id: UUID | None = None
     notes: str | None = None
 
 

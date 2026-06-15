@@ -219,3 +219,111 @@ async def match_item(
         result.needs_review = False
 
     return result
+
+
+# ── Fallback nabavne cijene iz cjenika dobavljača ───────────────────────────
+# Kad artikl NIJE na skladištu, nabavnu cijenu uzimamo iz kataloga: najjeftiniji
+# (zadnji važeći) cjenik dobavljača za matchirani proizvod → znamo i kome naručiti.
+
+
+@dataclass
+class SupplierOfferIndex:
+    product_ids: list[UUID]
+    texts: list[str]            # za exact-sku/normalizaciju
+    skus: list[str]
+    vectors: list[dict[str, float]]
+    norms: list[float]
+    idf: dict[str, float]
+    default_idf: float
+    offers: list[dict | None]   # najbolja ponuda po proizvodu (ili None ako nema cijene)
+
+
+async def build_supplier_offer_index(db: AsyncSession, org_id: UUID) -> SupplierOfferIndex | None:
+    """Index proizvoda iz kataloga + najjeftinija (zadnja važeća) cijena dobavljača."""
+    from app.db.models.product import Product, SupplierPriceHistory, SupplierProduct
+
+    products = list((await db.execute(
+        select(Product).where(Product.org_id == org_id, Product.is_active.is_(True))
+    )).scalars().all())
+    if not products:
+        return None
+
+    prod_ids = [p.id for p in products]
+    rows = (await db.execute(
+        select(
+            SupplierProduct.id, SupplierProduct.product_id, SupplierProduct.supplier_id,
+            SupplierProduct.supplier_name, SupplierPriceHistory.unit_price,
+            SupplierPriceHistory.currency, SupplierPriceHistory.valid_from,
+        )
+        .join(SupplierPriceHistory, SupplierPriceHistory.supplier_product_id == SupplierProduct.id)
+        .where(SupplierProduct.product_id.in_(prod_ids), SupplierProduct.is_active.is_(True))
+    )).all()
+
+    # Zadnja važeća cijena po supplier_productu
+    latest: dict = {}
+    for r in rows:
+        cur = latest.get(r.id)
+        if cur is None or r.valid_from > cur.valid_from:
+            latest[r.id] = r
+    # Najjeftinija po proizvodu
+    best: dict[UUID, dict] = {}
+    for r in latest.values():
+        off = best.get(r.product_id)
+        price = float(r.unit_price)
+        if off is None or price < off["unit_cost"]:
+            best[r.product_id] = {
+                "product_id": str(r.product_id),
+                "supplier_product_id": str(r.id),
+                "supplier_id": str(r.supplier_id),
+                "supplier_name": r.supplier_name,
+                "unit_cost": price,
+                "currency": r.currency,
+            }
+
+    norm_texts = [_normalize(f"{p.name} {p.sku} {p.category or ''}") for p in products]
+    counters = [_ngrams(t) for t in norm_texts]
+    n = max(1, len(products))
+    df: Counter = Counter()
+    for c in counters:
+        df.update(c.keys())
+    idf = {g: math.log((1 + n) / (1 + d)) + 1.0 for g, d in df.items()}
+    default_idf = math.log(1 + n) + 1.0
+    vectors, norms = [], []
+    for c in counters:
+        v = {g: tf * idf[g] for g, tf in c.items()}
+        vectors.append(v)
+        norms.append(math.sqrt(sum(x * x for x in v.values())) or 1.0)
+
+    return SupplierOfferIndex(
+        product_ids=[p.id for p in products],
+        texts=norm_texts,
+        skus=[p.sku.lower() for p in products],
+        vectors=vectors, norms=norms, idf=idf, default_idf=default_idf,
+        offers=[best.get(p.id) for p in products],
+    )
+
+
+def best_supplier_offer(
+    description: str, sku_hint: str | None, index: SupplierOfferIndex, min_score: float = 0.45
+) -> dict | None:
+    """Najbolja ponuda dobavljača za opis. Vraća offer dict (+match meta) ili None."""
+    hint = (sku_hint or "").strip().lower()
+    if hint:
+        for i, sku in enumerate(index.skus):
+            if sku == hint and index.offers[i]:
+                return {**index.offers[i], "match_sku": index.skus[i], "match_score": 1.0}
+
+    qc = _ngrams(_normalize(description))
+    qv = {g: tf * index.idf.get(g, index.default_idf) for g, tf in qc.items()}
+    qnorm = math.sqrt(sum(x * x for x in qv.values())) or 1.0
+
+    best_i, best_score = -1, 0.0
+    for i in range(len(index.product_ids)):
+        if not index.offers[i]:
+            continue
+        s = _cosine(qv, qnorm, index.vectors[i], index.norms[i])
+        if s > best_score:
+            best_i, best_score = i, s
+    if best_i >= 0 and best_score >= min_score:
+        return {**index.offers[best_i], "match_score": round(best_score, 3)}
+    return None

@@ -287,11 +287,14 @@ async def create_quote_from_document(
         qty  = Decimal(str(item.get("quantity") or 1))
         unit = item.get("unit", "pcs")
 
-        # Nabavna cijena iz matched stock itema ili iz dokumenta
+        # Nabavna cijena: skladište → cjenik dobavljača (ako nema na stanju) → dokument
         match = item.get("accepted_match") or (
             item.get("match_candidates", [{}])[0] if item.get("match_candidates") else {}
         )
-        unit_cost = Decimal(str(match.get("unit_cost") or item.get("unit_price") or 0))
+        offer = item.get("supplier_offer") or {}
+        unit_cost = Decimal(str(
+            match.get("unit_cost") or offer.get("unit_cost") or item.get("unit_price") or 0
+        ))
 
         # "Prema prošlim": ako postoji povijesna (dobivena) cijena za sličan artikl,
         # AI je uzima kao polazište. Inače prodajna = nabavna / (1 - marža).
@@ -320,6 +323,16 @@ async def create_quote_from_document(
             except (ValueError, TypeError):
                 stock_item_id = None
 
+        # Veza na proizvod/dobavljača iz cjenika → nabava zna kome naručiti
+        def _uuid(v):
+            try:
+                return UUID(str(v)) if v else None
+            except (ValueError, TypeError):
+                return None
+
+        product_id = _uuid(offer.get("product_id"))
+        supplier_product_id = _uuid(offer.get("supplier_product_id"))
+
         li = QuoteLineItem(
             quote_id=quote.id,
             position=pos,
@@ -327,6 +340,8 @@ async def create_quote_from_document(
             quantity=qty,
             unit=unit,
             stock_item_id=stock_item_id,
+            product_id=product_id,
+            supplier_product_id=supplier_product_id,
             unit_cost=unit_cost if unit_cost > 0 else None,
             unit_price=unit_price,
             discount_pct=Decimal("0"),

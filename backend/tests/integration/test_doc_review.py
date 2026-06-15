@@ -128,3 +128,23 @@ async def test_historical_price_overrides_flat_margin(app_client):
     assert r.status_code == 201, r.text
     # koristi povijesnih 50, ne 25 → total = 4 * 50 = 200
     assert r.json()["total"] == pytest.approx(200.0), r.json()
+
+
+@pytest.mark.asyncio
+async def test_supplier_offer_fills_cost_when_not_in_stock(app_client):
+    """Artikl nije na skladištu (nema accepted_match): nabavnu uzima iz cjenika
+    dobavljača (supplier_offer), pa primijeni maržu."""
+    payload = {
+        "project_name": "Nov artikl",
+        "currency": "EUR",
+        "margin_pct": 0.25,
+        "selected_items": [
+            {"description": "Reflektor LED 200W IP66", "quantity": 8, "unit": "kom",
+             "supplier_offer": {"unit_cost": 85.0, "currency": "EUR",
+                                "supplier_name": "Dobavljač X"}},
+        ],
+    }
+    r = await app_client.post(f"/api/v1/documents/{DOC_ID}/create-quote", json=payload)
+    assert r.status_code == 201, r.text
+    # nabavna 85 (iz cjenika) / (1-0.25) = 113.33 ; total = 8 * 113.33 = 906.64
+    assert r.json()["total"] == pytest.approx(906.64, abs=0.05), r.json()
