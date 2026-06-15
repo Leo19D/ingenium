@@ -1566,16 +1566,32 @@ var _extractionData = {};
 function _reviewRow(item, i) {
   const match = item.accepted_match || (item.match_candidates && item.match_candidates[0]);
   const cost = match ? (match.unit_cost || 0) : 0;
+  const cand = item.match_candidates && item.match_candidates[0];
+  const qoh = cand && cand.quantity_on_hand != null ? Number(cand.quantity_on_hand) : null;
+  const hist = item.historical_price != null ? Number(item.historical_price) : null;
   const bestMatch = match ? `<span style="color:var(--accent)">${escapeHtml(match.sku)}</span>` : '<span style="color:var(--text3)">—</span>';
+  // Dostupnost: zeleno = ima na stanju, crveno = nema (treba naručiti), — = nema matcha
+  let avail = '<span style="color:var(--text3)">—</span>';
+  if (qoh != null) {
+    avail = qoh > 0
+      ? `<span style="color:var(--green)">${qoh.toLocaleString('hr-HR')} ●</span>`
+      : `<span style="color:var(--red)" title="Nema na stanju — treba naručiti">naručiti ●</span>`;
+  }
+  // Prošla cijena: AI polazište iz prošlih dobivenih ponuda
+  const histCell = hist != null
+    ? `<span style="color:var(--accent)" title="Prosjek dobivenih iz prošlih ponuda — AI polazište">€${hist.toFixed(2)}</span>`
+    : '<span style="color:var(--text3)">—</span>';
   const confColor = item.confidence >= 0.9 ? 'var(--green)' : item.confidence >= 0.7 ? 'var(--amber)' : 'var(--red)';
   const inp = 'background:var(--bg2);border:1px solid var(--border2);border-radius:5px;padding:4px 7px;font-size:12px;color:var(--text)';
-  return `<tr class="review-row" data-cost="${cost}" data-match='${match?JSON.stringify(match):""}' style="border-bottom:1px solid var(--border)">
+  return `<tr class="review-row" data-cost="${cost}" data-hist="${hist != null ? hist : ''}" data-match='${match?JSON.stringify(match):""}' style="border-bottom:1px solid var(--border)">
     <td style="padding:6px 10px;color:var(--text3)">${i+1}</td>
     <td style="padding:6px 8px"><input class="rv-desc" value="${escapeHtml(item.description||'')}" style="${inp};width:200px"></td>
     <td style="padding:6px 8px"><input class="rv-qty" type="number" step="0.01" value="${item.quantity??''}" style="${inp};width:64px;text-align:right"></td>
     <td style="padding:6px 8px"><input class="rv-unit" value="${escapeHtml(item.unit||'pcs')}" style="${inp};width:50px"></td>
     <td style="padding:6px 10px">${bestMatch}</td>
-    <td style="padding:6px 10px;text-align:right;color:var(--accent)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
+    <td style="padding:6px 10px;text-align:center;font-family:var(--font-mono);font-size:12px">${avail}</td>
+    <td style="padding:6px 10px;text-align:right;color:var(--text2)">${cost ? '€'+cost.toFixed(2) : '—'}</td>
+    <td style="padding:6px 10px;text-align:right;font-weight:600">${histCell}</td>
     <td style="padding:6px 10px;text-align:center;color:${confColor};font-weight:600">${(item.confidence*100).toFixed(0)}%</td>
     <td style="padding:6px 8px"><button class="icon-btn" title="Ukloni" onclick="this.closest('tr').remove()">🗑</button></td>
   </tr>`;
@@ -1637,7 +1653,9 @@ async function showExtractionPanel(docId, filename) {
                 <th style="padding:8px 10px;text-align:right;font-weight:600">Kol.</th>
                 <th style="padding:8px 10px;text-align:left;font-weight:600">Jed.</th>
                 <th style="padding:8px 10px;text-align:left;font-weight:600">Match u katalogu</th>
-                <th style="padding:8px 10px;text-align:right;font-weight:600">Naša cijena</th>
+                <th style="padding:8px 10px;text-align:center;font-weight:600">Na stanju</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:600">Nabavna</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:600">Prošla cijena</th>
                 <th style="padding:8px 10px;text-align:center;font-weight:600">Conf.</th>
                 <th></th>
               </tr>
@@ -1672,7 +1690,9 @@ async function createQuoteFromDoc(docId) {
     if (!desc || isNaN(qty) || qty <= 0) return;
     let match = null;
     try { match = tr.dataset.match ? JSON.parse(tr.dataset.match) : null; } catch(e) {}
+    const hist = tr.dataset.hist ? parseFloat(tr.dataset.hist) : null;
     selected.push({ description: desc, quantity: qty, unit, accepted_match: match,
+                    historical_price: hist || null,
                     unit_price: match?.unit_cost || null });
   });
   if (!selected.length) { showToast('Nema valjanih stavki', 'error'); return; }

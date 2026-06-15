@@ -293,9 +293,20 @@ async def create_quote_from_document(
         )
         unit_cost = Decimal(str(match.get("unit_cost") or item.get("unit_price") or 0))
 
-        # Prodajna cijena = nabavna / (1 - marža). Guard: margin u [0, 0.95]
+        # "Prema prošlim": ako postoji povijesna (dobivena) cijena za sličan artikl,
+        # AI je uzima kao polazište. Inače prodajna = nabavna / (1 - marža).
+        # Marža guard u [0, 0.95]; korisnik je uvijek može podići u builderu.
         margin = max(Decimal("0"), min(Decimal(str(req.margin_pct)), Decimal("0.95")))
-        unit_price = (unit_cost / (1 - margin)).quantize(Decimal("0.01")) if unit_cost > 0 else Decimal("0")
+        hist_price = item.get("historical_price")
+        if hist_price and float(hist_price) > 0:
+            unit_price = Decimal(str(hist_price)).quantize(Decimal("0.01"))
+            # efektivna marža iz povijesne cijene (za audit/prikaz)
+            if unit_cost > 0 and unit_price > unit_cost:
+                margin = (Decimal("1") - unit_cost / unit_price).quantize(Decimal("0.0001"))
+        elif unit_cost > 0:
+            unit_price = (unit_cost / (1 - margin)).quantize(Decimal("0.01"))
+        else:
+            unit_price = Decimal("0")
 
         line_total = (qty * unit_price).quantize(Decimal("0.01"))
         subtotal += line_total

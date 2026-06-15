@@ -107,3 +107,24 @@ async def test_empty_selected_items_falls_back_to_extraction(app_client):
     assert r.status_code == 201, r.text
     # qty=1, unit_cost=20, price=25 → total=25
     assert r.json()["total"] == pytest.approx(25.0)
+
+
+@pytest.mark.asyncio
+async def test_historical_price_overrides_flat_margin(app_client):
+    """'Prema prošlim': ako stavka ima historical_price, ponuda uzima NJU,
+    a ne ravnu maržu na nabavnu cijenu."""
+    payload = {
+        "project_name": "Prema prošlim",
+        "currency": "EUR",
+        "margin_pct": 0.20,  # ravna marža bi dala 20/0.8 = 25
+        "selected_items": [
+            {"description": "LED panel 60x60", "quantity": 4, "unit": "pcs",
+             "unit_price": 20.0, "historical_price": 50.0,
+             "accepted_match": {"sku": "LED-6060", "name": "LED panel",
+                                "unit_cost": 20.0}},
+        ],
+    }
+    r = await app_client.post(f"/api/v1/documents/{DOC_ID}/create-quote", json=payload)
+    assert r.status_code == 201, r.text
+    # koristi povijesnih 50, ne 25 → total = 4 * 50 = 200
+    assert r.json()["total"] == pytest.approx(200.0), r.json()
