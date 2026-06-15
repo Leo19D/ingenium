@@ -1842,9 +1842,9 @@ async function uploadQuoteTemplate(file) {
   if (!file) return;
   const fd = new FormData(); fd.append('file', file);
   try {
-    const r = await fetch(API_BASE + '/organizations/quote-template', { method: 'POST', headers: _authHeaders(), body: fd });
+    const r = await fetch(API_BASE + '/organizations/quote-template', { method: 'POST', headers: _uploadHeaders(), body: fd });
     if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; return; }
-    if (!r.ok) { let d=r.status; try{d=(await r.json()).detail}catch(e){} throw new Error(String(d)); }
+    if (!r.ok) { let d={}; try{d=await r.json()}catch(e){} throw new Error(_detailMsg(d, 'Greška ' + r.status)); }
     showToast('Predložak ponude spremljen');
     await loadQuoteTemplateStatus();
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
@@ -2196,7 +2196,7 @@ async function importCatalogFile(file) {
     const token = _getToken();
     const r = await fetch(API_BASE + '/products/import-file', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
     const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Import greška');
+    if (!r.ok) throw new Error(_detailMsg(d, 'Import greška'));
     const priceMsg = d.prices_linked ? `, ${d.prices_linked} cijena vezano uz ${supName}` : '';
     showToast(`✓ Katalog: ${d.inserted} novih, ${d.updated} ažurirano${d.skipped ? ', '+d.skipped+' preskočeno' : ''}${priceMsg}`);
     await loadProducts();
@@ -2219,10 +2219,10 @@ async function importStockFile(file) {
   const fd = new FormData(); fd.append('file', file);
   showToast('Učitavam ' + file.name + (file.name.toLowerCase().endsWith('.pdf') ? ' (PDF — može potrajati)...' : '...'));
   try {
-    const r = await fetch(API_BASE + '/stock-items/import-file', { method: 'POST', headers: _authHeaders(), body: fd });
+    const r = await fetch(API_BASE + '/stock-items/import-file', { method: 'POST', headers: _uploadHeaders(), body: fd });
     if (r.status === 401) { _clearTokens(); window.location.href = '/login?reason=expired'; return; }
     const d = await r.json();
-    if (!r.ok) throw new Error(d.detail || 'Import greška');
+    if (!r.ok) throw new Error(_detailMsg(d, 'Import greška'));
     showToast(`✓ Skladište: ${d.inserted} uvezeno${d.skipped ? ', '+d.skipped+' preskočeno' : ''}`);
     await loadStock();
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
@@ -3903,6 +3903,24 @@ function _authHeaders(extra) {
   const token = _getToken();
   if (token) h['Authorization'] = 'Bearer ' + token;
   return h;
+}
+
+// Header za multipart upload — SAMO Authorization (browser sam postavlja
+// 'multipart/form-data; boundary=...'; JSON Content-Type bi razbio upload).
+function _uploadHeaders() {
+  const token = _getToken();
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+// FastAPI detail može biti string, lista validacijskih grešaka ili objekt —
+// pretvori u čitljiv tekst (izbjegava "[object Object]" u toastu).
+function _detailMsg(d, fallback) {
+  const det = d && d.detail;
+  if (det == null) return fallback || 'Greška';
+  if (typeof det === 'string') return det;
+  if (Array.isArray(det)) return det.map(e => e && (e.msg || (e.loc ? e.loc.join('.') + ': ' + (e.msg || '') : JSON.stringify(e)))).filter(Boolean).join('; ') || (fallback || 'Greška');
+  if (typeof det === 'object') return det.msg || JSON.stringify(det);
+  return String(det);
 }
 
 async function checkApi() {
