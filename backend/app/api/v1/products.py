@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import io
+from decimal import Decimal, InvalidOperation
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -154,6 +155,23 @@ class BulkResult(BaseModel):
     updated: int
     skipped: int
     errors: list[str] = []
+    prices_linked: int = 0
+
+
+def _parse_price(value: str | None) -> Decimal | None:
+    """Parsiraj cijenu iz Excela/PDF-a — handluje '1.234,56' i '1234.56'. None ako prazno/nevaljano."""
+    if not value:
+        return None
+    try:
+        s = str(value).strip().replace(" ", "").replace("€", "").replace("EUR", "")
+        if "," in s and "." in s:
+            s = s.replace(".", "").replace(",", ".") if s.rindex(",") > s.rindex(".") else s.replace(",", "")
+        elif "," in s:
+            s = s.replace(",", ".")
+        d = Decimal(s)
+        return d if d > 0 else None
+    except (InvalidOperation, ValueError):
+        return None
 
 
 @router.post("/bulk", response_model=BulkResult, status_code=status.HTTP_201_CREATED)
@@ -215,12 +233,17 @@ async def bulk_import_products(
 @router.post("/import-file", response_model=BulkResult)
 async def import_products_from_file(
     file: Annotated[UploadFile, File()],
+    supplier_id: Annotated[UUID | None, Form()] = None,
+    currency: Annotated[str, Form()] = "EUR",
     db: AsyncSession = Depends(get_db),
     org_id: UUID = Depends(get_current_org_id),
 ) -> BulkResult:
     """
     Uvoz kataloga iz Excel ILI PDF fajla.
     Koristi isti ingestion parser kao RFQ — detektira SKU/naziv/kategoriju kolone.
+
+    Ako je `supplier_id` zadan, fajl se tretira kao CJENIK DOBAVLJAČA: za svaki red
+    s cijenom kreira se Proizvod ↔ Dobavljač veza + cijena ide u price history.
     """
     from app.services.ingestion.parsers.pdf import PdfParser
     from app.services.ingestion.parsers.xlsx import XlsxParser
@@ -240,12 +263,16 @@ async def import_products_from_file(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Greška pri čitanju fajla: {e}") from e
 
-    # Izvuci stavke iz tablica
+    # Izvuci stavke iz tablica (+ cijena po SKU-u za cjenik dobavljača)
     items: list[BulkProductItem] = []
+    price_by_sku: dict[str, Decimal] = {}
     for table in parsed.tables:
         col_map = getattr(table, "col_map", None) or {}
         desc_col = col_map.get("description", 0)
         sku_col = col_map.get("sku")
+        cat_col = col_map.get("category")
+        unit_col = col_map.get("unit")
+        price_col = col_map.get("unit_price")
         for row in table.rows:
             def get(c, row=row):  # row=row: bind po iteraciji (izbjegni closure loop var)
                 return (row[c].strip() if c is not None and c < len(row) and row[c] else "")
@@ -253,13 +280,89 @@ async def import_products_from_file(
             if not name or len(name) < 2:
                 continue
             sku = get(sku_col) or _gen_sku(name)
-            items.append(BulkProductItem(sku=sku, name=name))
+            items.append(BulkProductItem(
+                sku=sku,
+                name=name,
+                category=get(cat_col) or None,
+                unit=get(unit_col) or "pcs",
+            ))
+            price = _parse_price(get(price_col))
+            if price is not None:
+                price_by_sku[sku.lower()] = price
 
     if not items:
         raise HTTPException(status_code=422, detail="Nije pronađena nijedna stavka u fajlu.")
 
     result = await bulk_import_products(BulkProductRequest(items=items), db, org_id)
+
+    # Cjenik dobavljača: poveži cijene na odabranog dobavljača
+    if supplier_id is not None:
+        result.prices_linked = await _link_supplier_prices(
+            db, org_id, supplier_id, currency, price_by_sku
+        )
+
     return result
+
+
+async def _link_supplier_prices(
+    db: AsyncSession,
+    org_id: UUID,
+    supplier_id: UUID,
+    currency: str,
+    price_by_sku: dict[str, Decimal],
+) -> int:
+    """Za svaki SKU s cijenom: upsert SupplierProduct + nova cijena u price history."""
+    from datetime import UTC, datetime
+
+    from app.db.models.product import SupplierPriceHistory, SupplierProduct
+    from app.db.models.supplier import Supplier
+
+    sup = (await db.execute(
+        select(Supplier).where(Supplier.id == supplier_id, Supplier.org_id == org_id)
+    )).scalar_one_or_none()
+    if not sup:
+        raise HTTPException(status_code=404, detail="Dobavljač nije pronađen.")
+    if not price_by_sku:
+        return 0
+
+    # Proizvodi po SKU-u (upravo uvezeni)
+    prods = (await db.execute(
+        select(Product).where(Product.org_id == org_id)
+    )).scalars().all()
+    prod_by_sku = {p.sku.lower(): p for p in prods}
+
+    # Postojeće veze dobavljač↔proizvod
+    existing_sp = (await db.execute(
+        select(SupplierProduct).where(SupplierProduct.supplier_id == supplier_id)
+    )).scalars().all()
+    sp_by_pid = {sp.product_id: sp for sp in existing_sp}
+
+    cur = (currency or "EUR").upper()[:3]
+    now = datetime.now(UTC)
+    linked = 0
+    for sku, price in price_by_sku.items():
+        prod = prod_by_sku.get(sku)
+        if not prod:
+            continue
+        sp = sp_by_pid.get(prod.id)
+        if not sp:
+            sp = SupplierProduct(
+                product_id=prod.id, supplier_id=supplier_id,
+                supplier_sku=prod.sku, supplier_name=sup.name, is_active=True,
+            )
+            db.add(sp)
+            await db.flush()
+            sp_by_pid[prod.id] = sp
+        else:
+            sp.is_active = True
+        db.add(SupplierPriceHistory(
+            supplier_product_id=sp.id, unit_price=price,
+            currency=cur, valid_from=now, source="catalog_import",
+        ))
+        linked += 1
+
+    await db.commit()
+    return linked
 
 
 def _gen_sku(name: str) -> str:

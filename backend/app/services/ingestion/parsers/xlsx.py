@@ -36,6 +36,8 @@ _PRICE_KW = {"cijena", "cena", "price", "preis", "vp", "vpcj", "jedinična",
               "katalogska", "lista", "listna"}
 _SKU_KW   = {"sku", "šifra", "sifra", "code", "art", "artikelnr", "šif", "katbr",
               "kataloška", "katalog", "art.br", "šifra art", "artikal br"}
+_CAT_KW   = {"kategorija", "kategorije", "grupa", "skupina", "kategorie",
+              "warengruppe", "gruppe", "category", "group", "klasa", "vrsta robe"}
 
 
 def _kw_score(header: str, keywords: set[str]) -> int:
@@ -146,11 +148,11 @@ def _detect_numeric_columns(
 
 def _detect_columns(headers: list[str], rows: list[list[str]]) -> dict[str, int | None]:
     scored: dict[str, list[tuple[int, int]]] = {
-        k: [] for k in ("description", "quantity", "unit", "unit_price", "sku")
+        k: [] for k in ("description", "quantity", "unit", "unit_price", "sku", "category")
     }
     mapping = {
         "description": _DESC_KW, "quantity": _QTY_KW, "unit": _UNIT_KW,
-        "unit_price": _PRICE_KW, "sku": _SKU_KW,
+        "unit_price": _PRICE_KW, "sku": _SKU_KW, "category": _CAT_KW,
     }
     for idx, h in enumerate(headers):
         for field, kws in mapping.items():
@@ -160,7 +162,8 @@ def _detect_columns(headers: list[str], rows: list[list[str]]) -> dict[str, int 
 
     result: dict[str, int | None] = {}
     used: set[int] = set()
-    for field in ("description", "quantity", "unit", "unit_price", "sku"):
+    # category na kraju: ne kolidira s ostalima, samo pokupi preostalu kolonu
+    for field in ("description", "quantity", "unit", "unit_price", "sku", "category"):
         chosen = None
         # Najveći keyword score; kod neriješenog → niža (lijevija) kolona pobjeđuje.
         # Npr. "Naziv" (col 1) ima prednost pred "Opis" (col 5) za description.

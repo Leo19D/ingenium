@@ -499,6 +499,10 @@ textarea.form-input { resize: vertical; }
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
           <input type="file" id="catalog-file-input" accept=".xlsx,.xls,.pdf" style="display:none"
                  onchange="importCatalogFile(this.files[0]);this.value=''">
+          <select id="catalog-import-supplier" class="btn btn-ghost" style="font-size:12px"
+                  title="Ako uvoziš cjenik dobavljača, odaberi dobavljača — cijene iz fajla vežu se uz njega">
+            <option value="">Uvoz kao katalog (bez cijena)</option>
+          </select>
           <button class="btn btn-ghost" style="font-size:12px" onclick="exportXlsx('products')">↓ Export</button>
           <button class="btn btn-ghost" style="font-size:12px" onclick="downloadCatalogTemplate()">↓ Template</button>
           <button class="btn btn-ghost" style="font-size:12px" onclick="document.getElementById('catalog-file-input').click()">⬆ Uvezi Excel/PDF</button>
@@ -1408,6 +1412,7 @@ async function loadSuppliers() {
     const _r = await apiGet('/suppliers/?page_size=200');
     const sups = _r.items || _r;
     window._suppliersCache = sups;  // za supplier-product dropdown
+    populateCatalogImportSuppliers();  // izbornik za uvoz cjenika
     const tbody = document.getElementById('suppliers-tbody'); tbody.innerHTML = '';
     sups.forEach(s => renderSupplierRow({ name: s.name, cc: s.country_code, currency: s.currency, incoterms: s.incoterms_default, lead: s.lead_time_days_avg }));
     if (!sups.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">Nema dobavljača. Uvezi Excel ili dodaj novog.</td></tr>';
@@ -2008,6 +2013,7 @@ async function loadProducts() {
     const _r = await apiGet('/products/?page_size=200');
     _products = _r.items || _r;
     renderCatalog(_products);
+    populateCatalogImportSuppliers();
   } catch(e) { console.error('loadProducts', e); }
 }
 
@@ -2151,17 +2157,33 @@ async function deleteProduct(id) {
 
 async function importCatalogFile(file) {
   if (!file || !apiAvailable) return;
+  const supSel = document.getElementById('catalog-import-supplier');
+  const supId = supSel ? supSel.value : '';
   const fd = new FormData();
   fd.append('file', file);
-  showToast('Učitavam ' + file.name + '...');
+  if (supId) { fd.append('supplier_id', supId); fd.append('currency', 'EUR'); }
+  const supName = supId && supSel.selectedOptions[0] ? supSel.selectedOptions[0].textContent : '';
+  showToast('Učitavam ' + file.name + (supId ? ' (cjenik: ' + supName + ')' : '') + '...');
   try {
     const token = _getToken();
     const r = await fetch(API_BASE + '/products/import-file', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'Import greška');
-    showToast(`✓ Katalog: ${d.inserted} novih, ${d.updated} ažurirano${d.skipped ? ', '+d.skipped+' preskočeno' : ''}`);
+    const priceMsg = d.prices_linked ? `, ${d.prices_linked} cijena vezano uz ${supName}` : '';
+    showToast(`✓ Katalog: ${d.inserted} novih, ${d.updated} ažurirano${d.skipped ? ', '+d.skipped+' preskočeno' : ''}${priceMsg}`);
     await loadProducts();
   } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+}
+
+// Popuni izbornik dobavljača za uvoz cjenika (iz keša dobavljača)
+function populateCatalogImportSuppliers() {
+  const sel = document.getElementById('catalog-import-supplier');
+  if (!sel) return;
+  const sups = window._suppliersCache || [];
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Uvoz kao katalog (bez cijena)</option>'
+    + sups.map(s => `<option value="${s.id}">Cjenik: ${escapeHtml(s.name)}</option>`).join('');
+  sel.value = cur;
 }
 
 async function importStockFile(file) {
@@ -2180,11 +2202,11 @@ async function importStockFile(file) {
 
 function downloadCatalogTemplate() {
   if (typeof XLSX === 'undefined') { showToast('SheetJS nije učitan', 'error'); return; }
-  const headers = ['SKU','Naziv','Kategorija','Brend','Jedinica','Opis'];
+  const headers = ['SKU','Naziv','Kategorija','Brend','Jedinica','Nabavna cijena','Opis'];
   const ex = [
-    ['LED-PNL-36W','LED Panel 60x60 36W 4000K','led_panel','Fagerhult','pcs','UGR<19, 3600lm'],
-    ['DL-10W-IP44','Downlight LED 10W IP44','downlight','Osram','pcs','3000K bijeli'],
-    ['KBL-NYY-3X25','NYY-J kabel 3x2.5mm crni','kabel','Prysmian','m','0.6/1kV'],
+    ['LED-PNL-36W','LED Panel 60x60 36W 4000K','led_panel','Fagerhult','pcs','28,50','UGR<19, 3600lm'],
+    ['DL-10W-IP44','Downlight LED 10W IP44','downlight','Osram','pcs','9,90','3000K bijeli'],
+    ['KBL-NYY-3X25','NYY-J kabel 3x2.5mm crni','kabel','Prysmian','m','1,15','0.6/1kV'],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...ex]);
   ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length+2, 16) }));
