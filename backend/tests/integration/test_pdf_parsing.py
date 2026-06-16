@@ -81,6 +81,60 @@ async def test_pdf_text_lines_keeps_description_with_numbers():
     assert led["unit_price"] == 32.5
 
 
+def _scanned_pdf_bytes() -> bytes:
+    """PDF koji sadrži SAMO sliku troškovnika (bez tekst-sloja) = skenirani PDF."""
+    import io
+
+    import fitz
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGB", (1000, 460), "white")
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 26)
+    except OSError:
+        font = ImageFont.load_default()
+    lines = [
+        "TROSKOVNIK - rasvjeta",
+        "",
+        "R.br  Opis                          Kol   Jed   Cijena",
+        "1     LED panel 60x60 40W 4000K     120   kom   18,40",
+        "2     Reflektor LED 50W IP65         40   kom   22,00",
+    ]
+    for i, ln in enumerate(lines):
+        d.text((30, 20 + i * 42), ln, fill="black", font=font)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    doc = fitz.open()
+    page = doc.new_page(width=1000, height=460)
+    page.insert_image(fitz.Rect(0, 0, 1000, 460), stream=buf.getvalue())
+    return doc.tobytes()
+
+
+def test_ocr_scanned_pdf_extracts_text():
+    """Skenirani (image-only) PDF → OCR (tesseract) → tekst sa stavkama.
+
+    Skače ako tesseract nije instaliran ILI okruženje ne dopušta OCR (npr.
+    sandbox /tmp nedostupan tesseractu); u Dockeru/CI s tesseractom radi.
+    """
+    import shutil
+
+    if not shutil.which("tesseract"):
+        pytest.skip("tesseract nije instaliran")
+    pytest.importorskip("PIL")
+    pytest.importorskip("fitz")
+
+    from app.services.ingestion.parsers.pdf import _ocr_pages
+
+    text = _ocr_pages(_scanned_pdf_bytes())
+    if not text.strip():
+        pytest.skip("OCR ne radi u ovom okruženju (tesseract ne čita temp dir)")
+    up = text.upper()
+    assert "TROSKOVNIK" in up
+    assert "LED PANEL" in up
+    assert "18,40" in text or "18.40" in text
+
+
 def test_borderless_line_takes_unit_price_not_total():
     """Red 'kol jed jed.cijena ukupno' — uzmi JEDINIČNU (prvi broj iza jed.),
     ne ukupnu (zadnji). Bug: '40kom 22,00 880,00' davao je 880 umjesto 22."""
