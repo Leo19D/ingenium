@@ -123,6 +123,55 @@ async def test_full_procurement_loop(app_client):
 
 
 @pytest.mark.asyncio
+async def test_grouped_po_one_per_supplier(app_client):
+    """Auto-narudžbenice iz ponude: jedna po dobavljaču (iz supplier_product_id);
+    skladišne stavke (bez dobavljača) se preskaču."""
+    from app.db.models.product import Product, SupplierProduct
+    from app.db.models.supplier import Supplier
+
+    sup_a, sup_b = uuid.uuid4(), uuid.uuid4()
+    prod_a, prod_b = uuid.uuid4(), uuid.uuid4()
+    sp_a, sp_b = uuid.uuid4(), uuid.uuid4()
+    proj2, quote2 = uuid.uuid4(), uuid.uuid4()
+
+    async with app_client._factory() as s:  # type: ignore[attr-defined]
+        s.add_all([
+            Supplier(id=sup_a, org_id=ORG, name="Trilux", country_code="DE", currency="EUR"),
+            Supplier(id=sup_b, org_id=ORG, name="Osram", country_code="DE", currency="EUR"),
+            Product(id=prod_a, org_id=ORG, sku="TR-1", name="Reflektor 300W"),
+            Product(id=prod_b, org_id=ORG, sku="OS-1", name="LED traka 24V"),
+            SupplierProduct(id=sp_a, product_id=prod_a, supplier_id=sup_a,
+                            supplier_sku="TR-1", supplier_name="Trilux", is_active=True),
+            SupplierProduct(id=sp_b, product_id=prod_b, supplier_id=sup_b,
+                            supplier_sku="OS-1", supplier_name="Osram", is_active=True),
+            Project(id=proj2, org_id=ORG, name="Nov", status="quoting"),
+            Quote(id=quote2, org_id=ORG, project_id=proj2, version=1, status="sent", currency="EUR"),
+            QuoteLineItem(id=uuid.uuid4(), quote_id=quote2, position=1, description="Reflektor 300W",
+                          quantity=Decimal("3"), unit="kom", unit_price=Decimal("120"),
+                          unit_cost=Decimal("95"), supplier_product_id=sp_a),
+            QuoteLineItem(id=uuid.uuid4(), quote_id=quote2, position=2, description="LED traka 24V",
+                          quantity=Decimal("200"), unit="m", unit_price=Decimal("16"),
+                          unit_cost=Decimal("12.5"), supplier_product_id=sp_b),
+            # skladišna stavka (bez dobavljača) — NE smije ući u narudžbenicu
+            QuoteLineItem(id=uuid.uuid4(), quote_id=quote2, position=3, description="LED panel sa stanja",
+                          quantity=Decimal("10"), unit="kom", unit_price=Decimal("30"),
+                          unit_cost=Decimal("20"), stock_item_id=STOCK),
+        ])
+        await s.commit()
+
+    r = await app_client.post(f"/api/v1/purchase-orders/from-quote/{quote2}/grouped")
+    assert r.status_code == 201, r.text
+    pos = r.json()
+    assert len(pos) == 2  # jedna po dobavljaču; skladišna stavka preskočena
+    by_sup = {p["supplier_id"]: p for p in pos}
+    assert str(sup_a) in by_sup and str(sup_b) in by_sup
+    a = by_sup[str(sup_a)]
+    assert len(a["lines"]) == 1
+    assert a["total"] == "285.00"  # 3 * 95
+    assert by_sup[str(sup_b)]["total"] == "2500.00"  # 200 * 12.5
+
+
+@pytest.mark.asyncio
 async def test_role_gate_blocks_viewer(app_client):
     """Viewer ne smije kreirati narudžbenicu."""
     app_client._transport.app.dependency_overrides[get_current_role] = lambda: "viewer"  # type: ignore[attr-defined]

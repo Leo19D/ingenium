@@ -211,6 +211,96 @@ async def create_po_from_quote(
     return po
 
 
+@router.post(
+    "/from-quote/{quote_id}/grouped",
+    response_model=list[POResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_pos_from_quote_grouped(
+    quote_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+    current_user: User = Depends(get_current_user),
+    _: str = Depends(require_role("procurement")),
+) -> list[PurchaseOrder]:
+    """Generiraj narudžbenice iz ponude — JEDNA po dobavljaču.
+
+    Grupira stavke po dobavljaču (iz `supplier_product_id`). Stavke koje su na
+    skladištu (samo `stock_item_id`, bez veze na dobavljača) se preskaču — njih
+    ne treba naručivati. Vraća listu nacrta narudžbenica.
+    """
+    from app.db.models.product import SupplierProduct
+
+    quote = (await db.execute(
+        select(Quote).where(Quote.id == quote_id, Quote.org_id == org_id)
+        .options(selectinload(Quote.line_items))
+    )).scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=404, detail="Ponuda nije pronađena.")
+    if not quote.line_items:
+        raise HTTPException(status_code=422, detail="Ponuda nema stavki.")
+
+    # Razriješi supplier_product_id → (supplier_id, supplier_sku)
+    sp_ids = {li.supplier_product_id for li in quote.line_items if li.supplier_product_id}
+    sp_map: dict[UUID, SupplierProduct] = {}
+    if sp_ids:
+        sps = (await db.execute(
+            select(SupplierProduct).where(SupplierProduct.id.in_(sp_ids))
+        )).scalars().all()
+        sp_map = {sp.id: sp for sp in sps}
+
+    # Grupiraj stavke po dobavljaču (samo one koje treba naručiti)
+    by_supplier: dict[UUID, list] = {}
+    for li in sorted(quote.line_items, key=lambda x: x.position):
+        sp = sp_map.get(li.supplier_product_id) if li.supplier_product_id else None
+        if not sp:
+            continue  # na skladištu / bez dobavljača → ne naručuje se
+        by_supplier.setdefault(sp.supplier_id, []).append((li, sp))
+
+    if not by_supplier:
+        raise HTTPException(
+            status_code=422,
+            detail="Nema stavki za naručiti — sve su na skladištu ili bez vezanog dobavljača.",
+        )
+
+    # Sekvencijalni brojevi (count se ne mijenja do commita → ručno inkrementiraj)
+    year = datetime.now(UTC).year
+    base = await db.scalar(
+        select(func.count()).select_from(PurchaseOrder).where(PurchaseOrder.org_id == org_id)
+    ) or 0
+
+    pos: list[PurchaseOrder] = []
+    for offset, (supplier_id, rows) in enumerate(by_supplier.items(), 1):
+        po = PurchaseOrder(
+            org_id=org_id, quote_id=quote_id, supplier_id=supplier_id,
+            po_number=f"PO-{year}-{base + offset:04d}",
+            status="draft", currency=quote.currency,
+            notes=f"Iz ponude V{quote.version} (auto, po dobavljaču)",
+            created_by=current_user.id,
+        )
+        po.lines = [
+            PurchaseOrderLine(
+                description=li.description, quantity=li.quantity, unit=li.unit,
+                unit_cost=li.unit_cost or Decimal("0"),
+                sku=sp.supplier_sku, stock_item_id=li.stock_item_id,
+            )
+            for li, sp in rows
+        ]
+        _recalc(po)
+        db.add(po)
+        pos.append(po)
+
+    await db.commit()
+    for po in pos:
+        await db.refresh(po, attribute_names=["lines"])
+    await log_action(
+        db, org_id=org_id, user_id=current_user.id, action="po.created_from_quote_grouped",
+        entity_type="purchase_order", entity_id=quote_id,
+        after_state={"quote_id": str(quote_id), "po_count": len(pos)},
+    )
+    return pos
+
+
 @router.patch("/{po_id}", response_model=POResponse)
 async def update_po(
     po_id: UUID,

@@ -602,7 +602,7 @@ textarea.form-input { resize: vertical; }
           <button class="btn btn-ghost" id="btn-do-approve" onclick="approveQuote()" style="display:none;color:var(--accent)">✓ Odobri</button>
           <button class="btn btn-ghost" id="btn-won" onclick="markOutcome('won')" style="display:none;color:var(--accent)">✓ Dobiveno</button>
           <button class="btn btn-ghost" id="btn-lost" onclick="markOutcome('lost')" style="display:none;color:var(--red)">✗ Izgubljeno</button>
-          <button class="btn btn-ghost" id="btn-po" onclick="createPOFromQuote(_currentQuote?.id)" title="Kreiraj narudžbenicu dobavljaču iz ove ponude">⊕ Narudžbenica</button>
+          <button class="btn btn-ghost" id="btn-po" onclick="createPOFromQuote(_currentQuote?.id)" title="Generiraj narudžbenice iz ove ponude — jedna po dobavljaču (stavke koje nisu na stanju)">⊕ Narudžbenice</button>
           <button class="btn btn-primary" id="btn-send-client" onclick="sendQuoteToClient()">✉ Pošalji klijentu</button>
         </div>
       </div>
@@ -2783,11 +2783,16 @@ function renderPOList(pos) {
 async function createPOFromQuote(quoteId) {
   if (!quoteId) { showToast('Prvo otvori ponudu', 'error'); return; }
   try {
-    const po = await apiPost('/purchase-orders/from-quote/' + quoteId, {});
-    showToast(`✓ Narudžbenica ${po.po_number} kreirana (${(po.lines||[]).length} stavki)`);
+    // Grupirano: jedna narudžbenica po dobavljaču (samo stavke koje nisu na stanju)
+    const r = await fetch(API_BASE + '/purchase-orders/from-quote/' + quoteId + '/grouped',
+                          { method: 'POST', headers: _authHeaders() });
+    const d = await r.json();
+    if (!r.ok) throw new Error(_detailMsg(d, 'Greška pri kreiranju narudžbenice'));
+    const nums = d.map(p => p.po_number).join(', ');
+    showToast(`✓ ${d.length} ${d.length === 1 ? 'narudžbenica' : 'narudžbenica'} po dobavljaču: ${nums}`);
     await loadPurchaseOrders();
     setView('nabava');
-  } catch(e) { showToast('Greška: ' + e.message, 'error'); }
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function receivePO(poId) {
