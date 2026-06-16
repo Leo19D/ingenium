@@ -43,8 +43,9 @@ def _split_glued(line: str) -> str:
 def _parse_line(line: str) -> list[str] | None:
     """Razbij redak troškovnika u [opis, količina, jed., cijena].
 
-    Usidri se na JEDINICU (kom/m/kpl...) — količina je broj prije nje, cijena
-    zadnji broj iza. Opis ostaje cijel (uklj. brojeve u nazivu: 60x60, 40W).
+    Usidri se na JEDINICU (kom/m/kpl...) — količina je broj prije nje, JEDINIČNA
+    cijena je PRVI broj iza (red je "kol jed jed.cijena [ukupno]"; ukupno je
+    zadnje i ignorira se). Opis ostaje cijel (uklj. brojeve u nazivu: 60x60, 40W).
     Fallback bez jedinice: zadnji broj = cijena, pretposljednji = količina.
     """
     line = _split_glued(line.strip())
@@ -62,7 +63,8 @@ def _parse_line(line: str) -> list[str] | None:
         unit = tokens[unit_idx].strip(".,:")
         desc = " ".join(tokens[:qi]).strip(" .:-\t")
         after = [t for t in tokens[unit_idx + 1:] if _is_num(t)]
-        price = after[-1] if after else ""
+        # Prvi broj iza jed. = jedinična cijena; zadnji bi bio ukupno (ignoriramo).
+        price = after[0] if after else ""
     else:
         # Bez jasne jedinice: zadnji broj = cijena, pretposljednji = količina
         num_idx = [i for i, t in enumerate(tokens) if _is_num(t)]

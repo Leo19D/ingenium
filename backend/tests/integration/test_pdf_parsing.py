@@ -79,3 +79,21 @@ async def test_pdf_text_lines_keeps_description_with_numbers():
     assert led["description"] == "LED panel 60x60 40W 4000K"  # cijel opis
     assert led["quantity"] == 25.0
     assert led["unit_price"] == 32.5
+
+
+def test_borderless_line_takes_unit_price_not_total():
+    """Red 'kol jed jed.cijena ukupno' — uzmi JEDINIČNU (prvi broj iza jed.),
+    ne ukupnu (zadnji). Bug: '40kom 22,00 880,00' davao je 880 umjesto 22."""
+    from app.services.ingestion.parsers.pdf import _parse_line
+
+    _desc, qty, unit, price = _parse_line(
+        "2. Reflektor LED 50W IP65 crni  40kom  22,00  880,00"
+    )
+    assert qty == "40"
+    assert unit == "kom"
+    assert price == "22,00"  # jedinična, NE 880,00 (ukupno)
+
+    # i kad nema ukupnog stupca — cijena ostaje ispravna
+    _d, q2, _u, p2 = _parse_line("Spot GU10 7W  250kom  4,20")
+    assert q2 == "250"
+    assert p2 == "4,20"
