@@ -254,16 +254,18 @@ async def build_supplier_offer_index(db: AsyncSession, org_id: UUID) -> Supplier
             SupplierProduct.id, SupplierProduct.product_id, SupplierProduct.supplier_id,
             SupplierProduct.supplier_name, SupplierPriceHistory.unit_price,
             SupplierPriceHistory.currency, SupplierPriceHistory.valid_from,
+            SupplierPriceHistory.id.label("ph_id"),
         )
         .join(SupplierPriceHistory, SupplierPriceHistory.supplier_product_id == SupplierProduct.id)
         .where(SupplierProduct.product_id.in_(prod_ids), SupplierProduct.is_active.is_(True))
     )).all()
 
-    # Zadnja važeća cijena po supplier_productu
+    # Zadnja važeća cijena po supplier_productu; tie-break po PK cijene (deterministički
+    # kad više cijena dijeli isti valid_from, npr. bulk uvoz cjenika u istom trenutku).
     latest: dict = {}
     for r in rows:
         cur = latest.get(r.id)
-        if cur is None or r.valid_from > cur.valid_from:
+        if cur is None or (r.valid_from, r.ph_id) > (cur.valid_from, cur.ph_id):
             latest[r.id] = r
     # Najjeftinija po proizvodu
     best: dict[UUID, dict] = {}

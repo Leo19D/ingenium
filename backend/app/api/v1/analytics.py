@@ -593,12 +593,14 @@ async def dashboard(
         key=lambda x: (x["won_value"], x["quoted"]), reverse=True,
     )[:5]
 
-    # Top artikli (po vrijednosti linija u periodu)
+    # Top artikli (po vrijednosti linija u periodu). Filtriramo po quote_id iz
+    # perioda [cur_from, now) — izbjegava naive/aware usporedbu u SQL-u i drži
+    # granice dosljedne s _kpis.
+    period_qids = [q.id for q in quotes if cur_from <= (_naive(q.created_at) or cur_from) < now]
     li_rows = (await db.execute(
         select(QuoteLineItem.description, QuoteLineItem.quantity, QuoteLineItem.line_total)
-        .join(Quote, Quote.id == QuoteLineItem.quote_id)
-        .where(Quote.org_id == org_id, Quote.created_at >= cur_from)
-    )).all()
+        .where(QuoteLineItem.quote_id.in_(period_qids))
+    )).all() if period_qids else []
     prod_agg: dict = defaultdict(lambda: {"count": 0, "value": 0.0, "qty": 0.0})
     for r in li_rows:
         key = (r.description or "—").strip()[:60]

@@ -81,12 +81,21 @@ class POResponse(BaseModel):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
-async def _next_po_number(db: AsyncSession, org_id: UUID) -> str:
+async def _po_year_count(db: AsyncSession, org_id: UUID) -> tuple[int, int]:
+    """(godina, broj PO-ova u toj godini) — numeracija se resetira po godini."""
     year = datetime.now(UTC).year
     n = await db.scalar(
-        select(func.count()).select_from(PurchaseOrder).where(PurchaseOrder.org_id == org_id)
+        select(func.count()).select_from(PurchaseOrder).where(
+            PurchaseOrder.org_id == org_id,
+            PurchaseOrder.po_number.like(f"PO-{year}-%"),
+        )
     )
-    return f"PO-{year}-{(n or 0) + 1:04d}"
+    return year, (n or 0)
+
+
+async def _next_po_number(db: AsyncSession, org_id: UUID) -> str:
+    year, n = await _po_year_count(db, org_id)
+    return f"PO-{year}-{n + 1:04d}"
 
 
 def _recalc(po: PurchaseOrder) -> None:
@@ -263,11 +272,9 @@ async def create_pos_from_quote_grouped(
             detail="Nema stavki za naručiti — sve su na skladištu ili bez vezanog dobavljača.",
         )
 
-    # Sekvencijalni brojevi (count se ne mijenja do commita → ručno inkrementiraj)
-    year = datetime.now(UTC).year
-    base = await db.scalar(
-        select(func.count()).select_from(PurchaseOrder).where(PurchaseOrder.org_id == org_id)
-    ) or 0
+    # Sekvencijalni brojevi (count se ne mijenja do commita → ručno inkrementiraj).
+    # Year-filtrirano + UniqueConstraint(org_id, po_number) štiti od kolizije.
+    year, base = await _po_year_count(db, org_id)
 
     pos: list[PurchaseOrder] = []
     for offset, (supplier_id, rows) in enumerate(by_supplier.items(), 1):

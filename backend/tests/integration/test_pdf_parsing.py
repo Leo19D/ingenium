@@ -151,3 +151,13 @@ def test_borderless_line_takes_unit_price_not_total():
     _d, q2, _u, p2 = _parse_line("Spot GU10 7W  250kom  4,20")
     assert q2 == "250"
     assert p2 == "4,20"
+
+
+def test_borderless_with_discount_column_picks_unit_price():
+    """Raspored 'kol jed rabat cijena ukupno' — kol×cijena≈ukupno bira jediničnu,
+    ne rabat (after[0] bi bio rabat)."""
+    from app.services.ingestion.parsers.pdf import _parse_line
+
+    _d, q, _u, price = _parse_line("Reflektor LED 50W  40 kom  10  22,00  880,00")
+    assert q == "40"
+    assert price == "22,00"  # 40 * 22 = 880; NE rabat 10 ni ukupno 880

@@ -57,12 +57,13 @@ def _to_decimal(val: object) -> Decimal | None:
 # Sumarni/rekapitulacijski redovi koje NE smijemo tretirati kao stavke
 # (npr. "UKUPNO BEZ PDV-a", "Sveukupno", "Osnovica", "Za platiti"). Filtriramo
 # samo ako red NEMA količinu — prava stavka uvijek ima količinu, pa nema lažnih pogodaka.
-# Prefiks-stemovi (bez trailing \b) da hvataju i deklinacije: ukupno/ukupna,
-# osnovica, rekapitulacija. Filtrira se SAMO ako red nema količinu → prave
-# stavke (uvijek imaju količinu) ostaju netaknute.
+# Usidreno na POČETAK opisa (uz opcijski redni broj/interpunkciju "1. ", "- ")
+# da se ne okine na summary-riječ usred pravog opisa ("Mjerenje ukupne
+# instalacije"). Prefiks-stemovi hvataju deklinacije (ukupno/ukupna, osnovica).
+# Filtrira se SAMO ako red nema količinu → prave stavke (imaju kol.) ostaju.
 _SUMMARY_RE = re.compile(
-    r"\b(ukupn|sveukupn|sve\s*ukupn|zbroj|rekapitulacij|osnovic|za\s*platit|"
-    r"total|bez\s*pdv|sa\s*pdv|s\s*pdv|pdv)",
+    r"^[\s\d.,)\-]*(ukupn|sveukupn|zbroj|rekapitulacij|osnovic|za\s*platit|"
+    r"total|bez\s*pdv|sa\s*pdv|pdv\b)",
     re.IGNORECASE,
 )
 

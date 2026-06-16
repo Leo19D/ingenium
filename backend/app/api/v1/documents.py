@@ -303,8 +303,10 @@ async def create_quote_from_document(
         hist_price = item.get("historical_price")
         if hist_price and float(hist_price) > 0:
             unit_price = Decimal(str(hist_price)).quantize(Decimal("0.01"))
-            # efektivna marža iz povijesne cijene (za audit/prikaz)
-            if unit_cost > 0 and unit_price > unit_cost:
+            # Stvarna efektivna marža iz povijesne cijene (može biti i negativna
+            # ako smo prodavali ispod nabavne) — da margin_pct uz liniju odražava
+            # stvarnu cijenu, a ne nepovezanu request maržu.
+            if unit_cost > 0 and unit_price > 0:
                 margin = (Decimal("1") - unit_cost / unit_price).quantize(Decimal("0.0001"))
         elif unit_cost > 0:
             unit_price = (unit_cost / (1 - margin)).quantize(Decimal("0.01"))

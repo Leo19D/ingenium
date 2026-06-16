@@ -168,6 +168,11 @@ def _parse_price(value: str | None) -> Decimal | None:
             s = s.replace(".", "").replace(",", ".") if s.rindex(",") > s.rindex(".") else s.replace(",", "")
         elif "," in s:
             s = s.replace(",", ".")
+        elif "." in s:
+            # "1.234" / "12.500" / "1.234.567" — točka kao separator tisuća (grupe od 3)
+            parts = s.split(".")
+            if len(parts) > 1 and all(p.isdigit() for p in parts) and all(len(p) == 3 for p in parts[1:]):
+                s = "".join(parts)
         d = Decimal(s)
         return d if d > 0 else None
     except (InvalidOperation, ValueError):

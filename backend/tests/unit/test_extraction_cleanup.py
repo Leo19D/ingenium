@@ -71,3 +71,15 @@ def test_product_with_quantity_never_filtered():
     items = _extract_items_from_table(table, "openpyxl")
     assert len(items) == 1
     assert items[0]["description"] == "Razdjelnik 12 modula"
+
+
+def test_summary_regex_anchored_no_midtext_false_positive():
+    """Summary filter je usidren na početak opisa — riječ 'ukupne'/'PDV' usred
+    pravog opisa NE smije izbaciti stavku (čak ni bez prepoznate količine)."""
+    from app.services.ingestion.pipeline import _SUMMARY_RE
+
+    assert not _SUMMARY_RE.search("Mjerenje i ispitivanje ukupne instalacije")
+    assert not _SUMMARY_RE.search("Razdjelnik s PDV zaštitom IP44")
+    assert _SUMMARY_RE.search("UKUPNO BEZ PDV-a")
+    assert _SUMMARY_RE.search("Osnovica")
+    assert _SUMMARY_RE.search("1. SVEUKUPNO sa PDV-om")

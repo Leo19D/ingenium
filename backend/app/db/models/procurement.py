@@ -20,6 +20,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,6 +38,8 @@ class PurchaseOrder(TimestampedBase):
             "status IN ('draft','sent','received','cancelled')",
             name="ck_purchase_orders_status",
         ),
+        # Spriječi duplikate broja narudžbenice unutar organizacije (race/kolizija).
+        UniqueConstraint("org_id", "po_number", name="uq_purchase_orders_org_number"),
     )
 
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)

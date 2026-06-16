@@ -29,6 +29,26 @@ def _is_num(tok: str) -> bool:
     return bool(re.fullmatch(r"\d+(?:[.,]\d+)?", tok))
 
 
+def _looks_num(tok: str) -> bool:
+    """Broj uklj. EU format s tisućama: 880,00 / 2.208,00 / 1234.56 / 40."""
+    return bool(re.fullmatch(r"\d[\d.,]*\d|\d", tok))
+
+
+def _num_val(tok: str) -> float | None:
+    """Parsiraj brojčani token (HR/EU) u float; None ako nije broj."""
+    s = (tok or "").strip()
+    if not s:
+        return None
+    try:
+        if "," in s and "." in s:
+            s = s.replace(".", "").replace(",", ".") if s.rindex(",") > s.rindex(".") else s.replace(",", "")
+        elif "," in s:
+            s = s.replace(",", ".")
+        return float(s)
+    except ValueError:
+        return None
+
+
 # OCR zna spojiti broj i jedinicu ("25kom", "500m") — razdvoji ih
 _GLUED = re.compile(
     r"(\d)(" + "|".join(sorted(_UNITS, key=len, reverse=True)) + r")\b",
@@ -62,9 +82,19 @@ def _parse_line(line: str) -> list[str] | None:
         qty = tokens[qi]
         unit = tokens[unit_idx].strip(".,:")
         desc = " ".join(tokens[:qi]).strip(" .:-\t")
-        after = [t for t in tokens[unit_idx + 1:] if _is_num(t)]
-        # Prvi broj iza jed. = jedinična cijena; zadnji bi bio ukupno (ignoriramo).
+        after = [t for t in tokens[unit_idx + 1:] if _looks_num(t)]
+        # Jedinična cijena: broj iza jed. gdje kol × cijena ≈ ukupno (zadnji broj).
+        # Tako hvatamo i raspored s rabatom (kol jed rabat cijena ukupno). Ako se
+        # ništa ne poklopi → prvi broj iza jed. (uobičajeno "kol jed cijena ukupno").
         price = after[0] if after else ""
+        if len(after) >= 2:
+            qv, total = _num_val(qty), _num_val(after[-1])
+            if qv and total:
+                for t in after[:-1]:
+                    v = _num_val(t)
+                    if v is not None and abs(v * qv - total) <= max(0.02 * total, 0.01):
+                        price = t
+                        break
     else:
         # Bez jasne jedinice: zadnji broj = cijena, pretposljednji = količina
         num_idx = [i for i, t in enumerate(tokens) if _is_num(t)]

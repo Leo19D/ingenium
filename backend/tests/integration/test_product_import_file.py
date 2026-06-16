@@ -109,3 +109,19 @@ async def test_import_unknown_supplier_404(client):
         files={"file": ("cjenik.xlsx", _xlsx(), _XLSX_MIME)},
     )
     assert r.status_code == 404
+
+
+def test_parse_price_eu_formats():
+    """_parse_price: EU formati uklj. tisuće bez decimala ('1.234' = 1234)."""
+    from decimal import Decimal
+
+    from app.api.v1.products import _parse_price
+
+    assert _parse_price("28,50") == Decimal("28.50")
+    assert _parse_price("1.234,56") == Decimal("1234.56")
+    assert _parse_price("1.234") == Decimal("1234")   # tisuće, NE 1.234
+    assert _parse_price("12.500") == Decimal("12500")
+    assert _parse_price("1.50") == Decimal("1.50")    # decimala, NE tisuće
+    assert _parse_price("1234.56") == Decimal("1234.56")
+    assert _parse_price("") is None
+    assert _parse_price("0") is None
