@@ -160,14 +160,29 @@ def _detect_columns(headers: list[str], rows: list[list[str]]) -> dict[str, int 
             if score:
                 scored[field].append((score, idx))
 
+    # Udio numeričkih ćelija po koloni — opis mora biti TEKST, ne broj.
+    def _numeric_ratio(idx: int) -> float:
+        vals = [str(r[idx]).strip() for r in rows if idx < len(r) and str(r[idx]).strip()]
+        if not vals:
+            return 0.0
+        nums = sum(1 for v in vals if re.fullmatch(r"[\d.,\s]+", v))
+        return nums / len(vals)
+
     result: dict[str, int | None] = {}
     used: set[int] = set()
     # category na kraju: ne kolidira s ostalima, samo pokupi preostalu kolonu
     for field in ("description", "quantity", "unit", "unit_price", "sku", "category"):
+        # Za opis: preferiraj tekstualnu kolonu (broj redni "Stavka"/"R.br." ne smije
+        # progutati "Opis"). Inače: veći score, pa lijevija kolona.
+        if field == "description":
+            key = lambda x: (x[1] >= 0.6, -x[0], x[2])  # noqa: E731
+            cands = [(s, _numeric_ratio(i), i) for s, i in scored[field]]
+        else:
+            key = lambda x: (-x[0], x[1])  # noqa: E731
+            cands = scored[field]
         chosen = None
-        # Najveći keyword score; kod neriješenog → niža (lijevija) kolona pobjeđuje.
-        # Npr. "Naziv" (col 1) ima prednost pred "Opis" (col 5) za description.
-        for _, idx in sorted(scored[field], key=lambda x: (-x[0], x[1])):
+        for tpl in sorted(cands, key=key):
+            idx = tpl[-1]
             if idx not in used:
                 chosen = idx
                 used.add(idx)

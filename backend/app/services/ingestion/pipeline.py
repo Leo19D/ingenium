@@ -54,6 +54,19 @@ def _to_decimal(val: object) -> Decimal | None:
         return None
 
 
+# Sumarni/rekapitulacijski redovi koje NE smijemo tretirati kao stavke
+# (npr. "UKUPNO BEZ PDV-a", "Sveukupno", "Osnovica", "Za platiti"). Filtriramo
+# samo ako red NEMA količinu — prava stavka uvijek ima količinu, pa nema lažnih pogodaka.
+# Prefiks-stemovi (bez trailing \b) da hvataju i deklinacije: ukupno/ukupna,
+# osnovica, rekapitulacija. Filtrira se SAMO ako red nema količinu → prave
+# stavke (uvijek imaju količinu) ostaju netaknute.
+_SUMMARY_RE = re.compile(
+    r"\b(ukupn|sveukupn|sve\s*ukupn|zbroj|rekapitulacij|osnovic|za\s*platit|"
+    r"total|bez\s*pdv|sa\s*pdv|s\s*pdv|pdv)",
+    re.IGNORECASE,
+)
+
+
 def _extract_items_from_table(table, source_method: str) -> list[dict]:
     col_map: dict = getattr(table, "col_map", None) or {}
     rows = table.rows
@@ -80,6 +93,10 @@ def _extract_items_from_table(table, source_method: str) -> list[dict]:
         price = _to_decimal(get(price_col))
         unit  = normalize_unit(get(unit_col))
         sku   = get(sku_col)
+
+        # Preskoči sumarne redove (UKUPNO / PDV / zbroj) bez količine
+        if qty is None and _SUMMARY_RE.search(desc):
+            continue
 
         confidence = score_line_item(
             has_quantity=qty is not None,
