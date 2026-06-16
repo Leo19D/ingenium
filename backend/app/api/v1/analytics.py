@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -482,6 +482,163 @@ async def trends(
     ]
 
     return {"monthly": trend, "funnel": funnel}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Konsolidirani dashboard (period + delte + top klijenti/artikli + nabava)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _period_bounds(period: str):
+    """(cur_from, prev_from) naivni datetimi; cur_to = sad, prev_to = cur_from."""
+    from datetime import datetime
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if period == "year":
+        cur = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        prev = cur.replace(year=cur.year - 1)
+    elif period == "quarter":
+        qm = ((now.month - 1) // 3) * 3 + 1
+        cur = now.replace(month=qm, day=1, hour=0, minute=0, second=0, microsecond=0)
+        py, pm = (cur.year, qm - 3) if qm > 3 else (cur.year - 1, 10)
+        prev = cur.replace(year=py, month=pm)
+    else:  # month
+        cur = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        prev = (cur.replace(day=1) - timedelta(days=1)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+    return cur, prev
+
+
+@router.get("/dashboard")
+async def dashboard(
+    period: str = "month",
+    db: AsyncSession = Depends(get_db),
+    org_id: UUID = Depends(get_current_org_id),
+) -> dict:
+    """Sve za dashboard u jednom pozivu: KPI s deltama vs prošli period,
+    top klijenti, top artikli, skladište + nabava. period = month|quarter|year."""
+    from collections import defaultdict
+
+    from app.db.models.procurement import PurchaseOrder
+    from app.db.models.product import Product  # noqa: F401  (osigurava registraciju mappera)
+    from app.db.models.project import Project
+    from app.db.models.quote import QuoteLineItem
+    from app.db.models.stock import StockItem
+
+    if period not in ("month", "quarter", "year"):
+        period = "month"
+    cur_from, prev_from = _period_bounds(period)
+
+    def _naive(dt):
+        return dt.replace(tzinfo=None) if dt and dt.tzinfo else dt
+
+    # Ponude + outcomi + projekt→klijent
+    quotes = (await db.execute(
+        select(Quote.id, Quote.status, Quote.total, Quote.margin_pct,
+               Quote.created_at, Quote.project_id)
+        .where(Quote.org_id == org_id)
+    )).all()
+    outcomes = {r.quote_id: r.outcome for r in (await db.execute(
+        select(QuoteOutcome.quote_id, QuoteOutcome.outcome)
+        .join(Quote, Quote.id == QuoteOutcome.quote_id).where(Quote.org_id == org_id)
+    )).all()}
+    proj_client = {r.id: r.client_id for r in (await db.execute(
+        select(Project.id, Project.client_id).where(Project.org_id == org_id)
+    )).all()}
+    client_name = {r.id: r.name for r in (await db.execute(
+        select(Client.id, Client.name).where(Client.org_id == org_id)
+    )).all()}
+
+    def _kpis(frm, to):
+        qs = [q for q in quotes if frm <= (_naive(q.created_at) or frm) < to]
+        won = [q for q in qs if outcomes.get(q.id) == "won"]
+        lost = [q for q in qs if outcomes.get(q.id) == "lost"]
+        decided = [q for q in qs if q.id in outcomes]
+        wr = (len(won) / len(decided) * 100) if decided else 0.0
+        won_val = sum(float(q.total or 0) for q in won)
+        margins = [float(q.margin_pct) * 100 for q in won if q.margin_pct]
+        return {
+            "quotes": len(qs), "won": len(won), "lost": len(lost),
+            "win_rate": round(wr, 1), "won_value": round(won_val, 2),
+            "avg_margin": round(sum(margins) / len(margins), 1) if margins else None,
+            "pipeline": round(sum(float(q.total or 0) for q in qs
+                                  if q.id not in outcomes and q.status in ("draft", "sent")), 2),
+        }
+
+    from datetime import datetime
+    now = datetime.now(UTC).replace(tzinfo=None)
+    cur = _kpis(cur_from, now)
+    prev = _kpis(prev_from, cur_from)
+
+    def _delta(a, b):
+        if not b:
+            return None
+        return round((a - b) / b * 100, 1)
+
+    # Top klijenti (po dobivenoj vrijednosti u periodu)
+    cli_agg: dict = defaultdict(lambda: {"won_value": 0.0, "quoted": 0.0, "quotes": 0})
+    for q in quotes:
+        if not (cur_from <= (_naive(q.created_at) or cur_from) < now):
+            continue
+        cid = proj_client.get(q.project_id)
+        if not cid:
+            continue
+        a = cli_agg[cid]
+        a["quotes"] += 1
+        a["quoted"] += float(q.total or 0)
+        if outcomes.get(q.id) == "won":
+            a["won_value"] += float(q.total or 0)
+    top_clients = sorted(
+        ({"name": client_name.get(cid, "—"), **v} for cid, v in cli_agg.items()),
+        key=lambda x: (x["won_value"], x["quoted"]), reverse=True,
+    )[:5]
+
+    # Top artikli (po vrijednosti linija u periodu)
+    li_rows = (await db.execute(
+        select(QuoteLineItem.description, QuoteLineItem.quantity, QuoteLineItem.line_total)
+        .join(Quote, Quote.id == QuoteLineItem.quote_id)
+        .where(Quote.org_id == org_id, Quote.created_at >= cur_from)
+    )).all()
+    prod_agg: dict = defaultdict(lambda: {"count": 0, "value": 0.0, "qty": 0.0})
+    for r in li_rows:
+        key = (r.description or "—").strip()[:60]
+        prod_agg[key]["count"] += 1
+        prod_agg[key]["value"] += float(r.line_total or 0)
+        prod_agg[key]["qty"] += float(r.quantity or 0)
+    top_products = sorted(
+        ({"description": k, **v} for k, v in prod_agg.items()),
+        key=lambda x: x["value"], reverse=True,
+    )[:5]
+
+    # Skladište + nabava (trenutni snapshot)
+    stock = (await db.execute(
+        select(StockItem.quantity_on_hand, StockItem.min_stock_level, StockItem.unit_cost)
+        .where(StockItem.org_id == org_id)
+    )).all()
+    low = sum(1 for s in stock if 0 < float(s.quantity_on_hand) <= float(s.min_stock_level or 0))
+    nostock = sum(1 for s in stock if float(s.quantity_on_hand) <= 0)
+    stock_value = sum(float(s.quantity_on_hand) * float(s.unit_cost or 0) for s in stock)
+    pos = (await db.execute(
+        select(PurchaseOrder.status, PurchaseOrder.total).where(PurchaseOrder.org_id == org_id)
+    )).all()
+    open_pos = [p for p in pos if p.status in ("draft", "sent")]
+
+    return {
+        "period": period,
+        "kpis": {
+            "won_value": cur["won_value"], "won_value_delta": _delta(cur["won_value"], prev["won_value"]),
+            "win_rate": cur["win_rate"], "win_rate_delta": round(cur["win_rate"] - prev["win_rate"], 1),
+            "pipeline": cur["pipeline"], "avg_margin": cur["avg_margin"],
+            "quotes": cur["quotes"], "won": cur["won"], "lost": cur["lost"],
+        },
+        "top_clients": top_clients,
+        "top_products": top_products,
+        "procurement": {
+            "low_stock": low, "no_stock": nostock, "stock_value": round(stock_value, 2),
+            "open_po_count": len(open_pos),
+            "open_po_value": round(sum(float(p.total or 0) for p in open_pos), 2),
+        },
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

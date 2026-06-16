@@ -111,6 +111,12 @@ body {
 .delta-up { color: var(--accent); }
 .delta-down { color: var(--red); }
 .kpi-icon { position: absolute; top: 18px; right: 18px; font-size: 22px; opacity: 0.2; }
+.dash-per-btn { background: transparent; border: none; color: var(--text2); font-size: 12px; font-weight: 500; padding: 5px 13px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.dash-per-btn:hover { color: var(--text); }
+.dash-per-btn.active { background: var(--bg); color: var(--text); box-shadow: var(--shadow-sm); }
+.dash-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.dash-row:last-child { border-bottom: none; }
+.dash-rank { width: 20px; height: 20px; border-radius: 5px; background: var(--accent-dim); color: var(--accent); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .section-title { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: -0.2px; color: var(--text); }
@@ -390,11 +396,27 @@ textarea.form-input { resize: vertical; }
 
     <!-- DASHBOARD -->
     <div class="view active" id="view-dashboard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-0.4px">Pregled poslovanja</div>
+        <div style="display:flex;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:3px" id="dash-period-switch">
+          <button class="dash-per-btn active" data-period="month" onclick="setDashPeriod('month')">Mjesec</button>
+          <button class="dash-per-btn" data-period="quarter" onclick="setDashPeriod('quarter')">Kvartal</button>
+          <button class="dash-per-btn" data-period="year" onclick="setDashPeriod('year')">Godina</button>
+        </div>
+      </div>
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Pipeline vrijednost</div><div class="kpi-value" id="kpi-pipeline">—</div><div class="kpi-delta delta-up" id="kpi-pipeline-sub">otvorene ponude</div><div class="kpi-icon">◈</div></div>
+        <div class="kpi-card"><div class="kpi-label">Prihod (dobiveno)</div><div class="kpi-value" id="kpi-won-value">—</div><div class="kpi-delta" id="kpi-won-delta">u razdoblju</div><div class="kpi-icon">€</div></div>
         <div class="kpi-card"><div class="kpi-label">Win rate</div><div class="kpi-value" id="kpi-win-rate">—</div><div class="kpi-delta" id="kpi-win-sub">won / (won+lost)</div><div class="kpi-icon">◎</div></div>
-        <div class="kpi-card"><div class="kpi-label">Avg. marža (won)</div><div class="kpi-value" id="kpi-avg-margin">—</div><div class="kpi-delta" id="kpi-margin-sub">na dobivenim ponudama</div><div class="kpi-icon">◳</div></div>
-        <div class="kpi-card"><div class="kpi-label">Ukupno ponuda</div><div class="kpi-value" id="kpi-total-quotes">—</div><div class="kpi-delta" id="kpi-quotes-sub">u sustavu</div><div class="kpi-icon">◫</div></div>
+        <div class="kpi-card"><div class="kpi-label">Avg. marža (won)</div><div class="kpi-value" id="kpi-avg-margin">—</div><div class="kpi-delta" id="kpi-margin-sub">na dobivenim</div><div class="kpi-icon">◳</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pipeline</div><div class="kpi-value" id="kpi-pipeline">—</div><div class="kpi-delta" id="kpi-pipeline-sub">otvorene ponude</div><div class="kpi-icon">◈</div></div>
+      </div>
+
+      <!-- Skladište & nabava strip -->
+      <div class="kpi-grid" style="margin-bottom:28px">
+        <div class="kpi-card" style="padding:14px 18px"><div class="kpi-label" style="margin-bottom:6px">Vrijednost zaliha</div><div class="kpi-value" style="font-size:22px" id="dash-stock-value">—</div><div class="kpi-delta" style="color:var(--text3)">nabavna</div></div>
+        <div class="kpi-card" style="padding:14px 18px"><div class="kpi-label" style="margin-bottom:6px">Nisko / nema zaliha</div><div class="kpi-value" style="font-size:22px;color:var(--amber)" id="dash-low-stock">—</div><div class="kpi-delta" style="color:var(--text3)">treba narudžba</div></div>
+        <div class="kpi-card" style="padding:14px 18px"><div class="kpi-label" style="margin-bottom:6px">Otvorene narudžbenice</div><div class="kpi-value" style="font-size:22px" id="dash-open-po">—</div><div class="kpi-delta" style="color:var(--text3)" id="dash-open-po-val">prema dobavljačima</div></div>
+        <div class="kpi-card" style="padding:14px 18px;cursor:pointer" onclick="setView('nabava')"><div class="kpi-label" style="margin-bottom:6px">Nabava</div><div class="kpi-value" style="font-size:22px;color:var(--accent)">→</div><div class="kpi-delta" style="color:var(--text3)">otvori narudžbenice</div></div>
       </div>
 
       <div class="two-col" style="margin-bottom:16px">
@@ -414,6 +436,17 @@ textarea.form-input { resize: vertical; }
           <div id="notifications-list">
             <div style="color:var(--text3);font-size:12px;padding:12px 0">Učitavam...</div>
           </div>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-bottom:16px">
+        <div class="card">
+          <div class="section-header"><div class="section-title">Top klijenti</div><span style="font-size:11px;color:var(--text3)">po dobivenom</span></div>
+          <div id="dash-top-clients" style="padding-top:4px"><div style="color:var(--text3);font-size:12px;padding:8px 0">Učitavam...</div></div>
+        </div>
+        <div class="card">
+          <div class="section-header"><div class="section-title">Top artikli</div><span style="font-size:11px;color:var(--text3)">po vrijednosti</span></div>
+          <div id="dash-top-products" style="padding-top:4px"><div style="color:var(--text3);font-size:12px;padding:8px 0">Učitavam...</div></div>
         </div>
       </div>
 
@@ -2643,18 +2676,48 @@ async function importHistoricalQuotes(file) {
 }
 
 // ========== DASHBOARD ANALYTICS ==========
+let _dashPeriod = 'month';
+function setDashPeriod(p) {
+  _dashPeriod = p;
+  document.querySelectorAll('#dash-period-switch .dash-per-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+  loadDashboardStats();
+}
+function _eurK(v) { v = Number(v) || 0; return v >= 1000 ? '€' + (v/1000).toFixed(1) + 'k' : '€' + Math.round(v); }
+function _deltaHtml(pct, goodUp = true) {
+  if (pct == null) return '<span style="color:var(--text3)">u razdoblju</span>';
+  const up = pct >= 0, good = goodUp ? up : !up;
+  const col = good ? 'var(--accent)' : 'var(--red)';
+  return `<span style="color:${col}">${up ? '↑' : '↓'} ${Math.abs(pct).toFixed(0)}%</span> <span style="color:var(--text3)">vs prošli</span>`;
+}
 async function loadDashboardStats() {
   if (!apiAvailable) return;
   try {
-    const stats = await apiGet('/analytics/overview');
+    const d = await apiGet('/analytics/dashboard?period=' + _dashPeriod);
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set('kpi-win-rate', stats.win_rate_pct.toFixed(1) + '%');
-    set('kpi-win-sub', `${stats.won} won · ${stats.lost} lost`);
-    set('kpi-pipeline', '€' + (stats.pipeline_value/1000).toFixed(1) + 'k');
-    set('kpi-pipeline-sub', `${stats.open} otvorenih`);
-    set('kpi-avg-margin', stats.avg_margin_won_pct != null ? stats.avg_margin_won_pct.toFixed(1) + '%' : '—');
-    set('kpi-total-quotes', stats.total_quotes);
-    set('kpi-quotes-sub', `${stats.won} won · ${stats.lost} lost`);
+    const html = (id, v) => { const el = document.getElementById(id); if (el) el.innerHTML = v; };
+    const k = d.kpis;
+    set('kpi-won-value', _eurK(k.won_value));
+    html('kpi-won-delta', _deltaHtml(k.won_value_delta));
+    set('kpi-win-rate', (k.win_rate ?? 0).toFixed(0) + '%');
+    set('kpi-win-sub', `${k.won} won · ${k.lost} lost`);
+    set('kpi-avg-margin', k.avg_margin != null ? k.avg_margin.toFixed(1) + '%' : '—');
+    set('kpi-pipeline', _eurK(k.pipeline));
+    set('kpi-pipeline-sub', `${k.quotes} ponuda`);
+    const p = d.procurement;
+    set('dash-stock-value', _eurK(p.stock_value));
+    set('dash-low-stock', (p.low_stock + p.no_stock));
+    set('dash-open-po', p.open_po_count);
+    set('dash-open-po-val', _eurK(p.open_po_value) + ' vrijednost');
+    const tc = document.getElementById('dash-top-clients');
+    if (tc) tc.innerHTML = d.top_clients.length ? d.top_clients.map((c, i) => `
+      <div class="dash-row"><div style="display:flex;align-items:center;gap:10px"><span class="dash-rank">${i+1}</span><span style="font-size:13px">${escapeHtml(c.name)}</span></div>
+      <div style="text-align:right"><div style="font-size:13px;font-weight:600;font-family:var(--font-mono)">${_eurK(c.won_value)}</div><div style="font-size:10px;color:var(--text3)">${c.quotes} ponuda</div></div></div>`).join('')
+      : '<div style="color:var(--text3);font-size:12px;padding:8px 0">Nema podataka — ponude bez vezanog klijenta.</div>';
+    const tp = document.getElementById('dash-top-products');
+    if (tp) tp.innerHTML = d.top_products.length ? d.top_products.map((x, i) => `
+      <div class="dash-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><span class="dash-rank">${i+1}</span><span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">${escapeHtml(x.description)}</span></div>
+      <div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:600;font-family:var(--font-mono)">${_eurK(x.value)}</div><div style="font-size:10px;color:var(--text3)">${x.count}× · ${Math.round(x.qty)} kom</div></div></div>`).join('')
+      : '<div style="color:var(--text3);font-size:12px;padding:8px 0">Još nema stavki u ponudama.</div>';
   } catch(e) { console.error('loadDashboardStats', e); }
 
   try {
